@@ -210,3 +210,5 @@ __marimo__/
 *.png
 *.jpg
 sentinel/*
+sentinel_data_raw/*
+*.zip
