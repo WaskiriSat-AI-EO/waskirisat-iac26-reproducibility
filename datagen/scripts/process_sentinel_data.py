@@ -1,6 +1,3 @@
-# Required libraries:
-# pip install rasterio numpy Pillow tqdm
-
 import os
 import zipfile
 import shutil
@@ -210,7 +207,7 @@ def main():
         if not band_files:
             continue
 
-        create_rgb_tiles(band_files, output_tiles_dir, tile_size=512)
+        create_rgb_tiles(band_files, output_tiles_dir, tile_size=1024)
 
     print("[*] Cleaning up temporary extracted files...")
     shutil.rmtree(temp_extract_dir)
