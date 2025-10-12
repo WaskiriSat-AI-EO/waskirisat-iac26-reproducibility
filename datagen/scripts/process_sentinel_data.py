@@ -207,7 +207,8 @@ def main():
         if not band_files:
             continue
 
-        create_rgb_tiles(band_files, output_tiles_dir, tile_size=1024)
+        # Using 1280×1280 tiles for better match with SXGA (1280×1024) aspect ratio
+        create_rgb_tiles(band_files, output_tiles_dir, tile_size=1280)
 
     print("[*] Cleaning up temporary extracted files...")
     shutil.rmtree(temp_extract_dir)

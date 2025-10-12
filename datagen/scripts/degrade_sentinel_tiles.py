@@ -6,16 +6,17 @@ import numpy as np
 from tqdm import tqdm
 
 # --- Physical Constants & Sensor Data ---
-# From OV5642 Datasheet and Mission Specs
-OV5642_BASE_PIXEL_SIZE_UM = 1.4  # Native 1.4 µm pixel size
-PIXEL_BINNING = 2  # 2x2 binning applied
-OV5642_EFFECTIVE_PIXEL_SIZE_UM = (
-    OV5642_BASE_PIXEL_SIZE_UM * PIXEL_BINNING
-)  # 2.8 µm effective
+# From OV5640 Datasheet and OpenMV H7 Plus Mission Specs
+OV5640_PIXEL_SIZE_UM = 1.4  # Native 1.4 µm pixel size (no binning in SXGA)
+PIXEL_BINNING = 1  # SXGA mode uses full resolution (no binning)
+OV5640_EFFECTIVE_PIXEL_SIZE_UM = (
+    OV5640_PIXEL_SIZE_UM * PIXEL_BINNING
+)  # 1.4 µm in SXGA mode
 
-# Camera Resolution (XGA mode with 2x2 binning)
-CAMERA_WIDTH_PX = 1024
-CAMERA_HEIGHT_PX = 768
+# Camera Resolution (SXGA mode - OpenMV H7 Plus)
+CAMERA_WIDTH_PX = 1280  # SXGA width
+CAMERA_HEIGHT_PX = 1024  # SXGA height
+CAMERA_FORMAT = "RGB565"  # 16-bit color format (5-6-5)
 
 # LEO orbital mechanics
 LEO_GROUND_SPEED_M_S = 7600  # Approx. ground speed at 500-550 km
@@ -149,8 +150,8 @@ def main():
     parser.add_argument(
         "--exposure_s",
         type=float,
-        default=0.01,
-        help="Camera exposure time in seconds.",
+        default=0.0778,
+        help="Camera exposure time in seconds (SXGA: 77.8ms).",
     )
     parser.add_argument(
         "--s2_gsd",
@@ -173,8 +174,8 @@ def main():
     parser.add_argument(
         "--jpg_quality",
         type=int,
-        default=90,
-        help="JPEG quality for output images (0-100).",
+        default=85,
+        help="JPEG quality for output images (0-100). Lower for SXGA to control file size.",
     )
     args = parser.parse_args()
 
@@ -184,7 +185,7 @@ def main():
 
     # --- Calculate Physical Parameters ---
     target_gsd = calculate_gsd(
-        OV5642_EFFECTIVE_PIXEL_SIZE_UM, args.altitude_km, args.focal_length_mm
+        OV5640_EFFECTIVE_PIXEL_SIZE_UM, args.altitude_km, args.focal_length_mm
     )
     scale_factor = target_gsd / args.s2_gsd
     motion_len = calculate_motion_blur_px(
@@ -192,18 +193,22 @@ def main():
     )
 
     # Calculate swath width
-    sensor_width_mm = (OV5642_EFFECTIVE_PIXEL_SIZE_UM / 1000.0) * CAMERA_WIDTH_PX
+    sensor_width_mm = (OV5640_EFFECTIVE_PIXEL_SIZE_UM / 1000.0) * CAMERA_WIDTH_PX
     swath_width_km = (sensor_width_mm / args.focal_length_mm) * args.altitude_km
 
     print("--- Simulation Parameters ---")
-    print(f"Camera: OV5642 (XGA {CAMERA_WIDTH_PX}×{CAMERA_HEIGHT_PX} with 2×2 binning)")
-    print(f"Effective Pixel Size: {OV5642_EFFECTIVE_PIXEL_SIZE_UM:.1f} µm")
+    print(
+        f"Camera: OpenMV H7 Plus - OV5640 (SXGA {CAMERA_WIDTH_PX}×{CAMERA_HEIGHT_PX})"
+    )
+    print(f"Pixel Size: {OV5640_EFFECTIVE_PIXEL_SIZE_UM:.1f} µm (no binning in SXGA)")
+    print(f"Color Format: {CAMERA_FORMAT}")
     print(f"Focal Length: {args.focal_length_mm:.1f} mm")
     print(f"Orbit Altitude: {args.altitude_km:.1f} km")
     print(f"Target GSD: {target_gsd:.2f} m/pixel")
     print(f"Swath Width: {swath_width_km:.2f} km")
     print(f"Scale Factor: {scale_factor:.2f}×")
     print(f"Motion Blur: {motion_len:.2f} pixels")
+    print(f"Exposure Time: {args.exposure_s*1000:.1f} ms")
     print(f"Output Size: {args.target_width}×{args.target_height} pixels")
     print("-----------------------------")
 
@@ -212,12 +217,12 @@ def main():
         "scale_factor": scale_factor,
         "target_width": args.target_width,
         "target_height": args.target_height,
-        "gauss_sigma": 0.6,  # PSF/lens blur. 8mm lens has better quality than 2.8mm.
+        "gauss_sigma": 0.6,  # PSF/lens blur. 8mm lens has good quality.
         "motion_len": motion_len,
         "motion_angle": 15.0,  # Angle can be randomized later
-        "shot_strength": 0.008,  # Photon noise. Slightly better with longer lens.
-        "read_noise": 0.015,  # Sensor electronics noise.
-        "fpn_gain": 0.008,  # Fixed-pattern noise.
+        "shot_strength": 0.004,  # Photon noise. Lower due to longer exposure (77.8ms).
+        "read_noise": 0.018,  # Sensor electronics noise. Higher due to more pixels.
+        "fpn_gain": 0.010,  # Fixed-pattern noise. Slightly higher for SXGA.
         "seed": 42,
     }
 
