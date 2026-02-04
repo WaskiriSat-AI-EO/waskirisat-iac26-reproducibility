@@ -1,0 +1,257 @@
+
+THERMAL IMAGE DATASET GENERATION PIPELINE
+========================================
+
+This document describes the processing pipeline implemented across three Jupyter notebooks.
+The focus is on the Pre-Processing and Post-Processing notebooks, which form the main sequential workflow.
+The Processing RAW Images notebook is an independent alternative pipeline intended for uncorrected data.
+
+---------------------------------------------------------------------
+1. OVERVIEW
+---------------------------------------------------------------------
+
+The objective of this pipeline is to generate realistic thermal image datasets from Landsat 9 Band 10 data,
+with outputs that resemble raw captures from a low-resolution thermal sensor such as the FLIR Lepton 3.5
+mounted on a nanosatellite platform.
+
+The pipeline converts satellite thermal data into:
+- Normalized and contrast-enhanced thermal images (AGC-based PNGs)
+- Low-resolution, noisy, sensor-degraded thermal tiles suitable for ML training or simulation
+
+Three notebooks are provided:
+
+1. Pre_Processing_Images.ipynb
+   - Main preprocessing stage
+   - Converts temperature-scaled Landsat products into normalized thermal images
+
+2. Post_Processing_Images.ipynb
+   - Main postprocessing stage
+   - Simulates sensor effects (resolution, noise, blur, fixed-pattern noise)
+
+3. Processing_RAW_Images.ipynb
+   - Independent pipeline
+   - Processes raw, non-atmospherically-corrected images
+   - Internally performs both preprocessing and postprocessing steps
+
+---------------------------------------------------------------------
+2. NOTEBOOK RELATIONSHIPS
+---------------------------------------------------------------------
+
+- Pre_Processing_Images.ipynb  -->  Post_Processing_Images.ipynb
+  (Sequential, main workflow)
+
+- Processing_RAW_Images.ipynb
+  (Standalone workflow, does NOT depend on the other two)
+
+---------------------------------------------------------------------
+3. WORKFLOW DECISION LOGIC
+---------------------------------------------------------------------
+
+Use the notebooks as follows:
+
+- If your Landsat images already include temperature scaling parameters
+  (ST_B10 products or atmospherically corrected inputs):
+    -> Run Pre_Processing_Images.ipynb
+    -> Then run Post_Processing_Images.ipynb
+
+- If your Landsat images are closer to raw digital numbers with minimal corrections:
+    -> Run Processing_RAW_Images.ipynb ONLY
+
+The RAW notebook replicates both preprocessing and postprocessing internally and should not be chained
+with the other notebooks.
+
+---------------------------------------------------------------------
+4. Pre_Processing_Images.ipynb
+---------------------------------------------------------------------
+
+Purpose:
+--------
+This notebook prepares thermal satellite images for further degradation and sensor simulation.
+It operates on temperature-scaled thermal data and focuses on geometric normalization and contrast control.
+
+Inputs:
+-------
+- Landsat 9 Band 10 GeoTIFF images
+- GeoJSON metadata file containing per-scene parameters
+
+Key metadata fields used:
+- Scene identifier (LANDSAT_PRODUCT_ID)
+- Temperature scaling parameters:
+  * TEMPERATURE_MULT_BAND_ST_B10
+  * TEMPERATURE_ADD_BAND_ST_B10
+- Acquisition date and auxiliary scene attributes
+
+Processing Stages:
+------------------
+
+Stage 1: Scene Indexing and Validation
+- Extracts the Landsat product ID from each filename using a regex pattern
+- Matches each image with its corresponding metadata entry
+- Scenes lacking required metadata are skipped
+
+Stage 2: Geometric Normalization
+- Reads the thermal band and converts nodata values to NaN
+- Downsamples the image to reduce computational cost
+- Generates a validity mask (non-zero, non-NaN pixels)
+- Finds the largest valid contour
+- Computes a minimum-area bounding rectangle
+- Applies a perspective transform to obtain a square, axis-aligned image
+- Pads missing areas with NaN values
+
+This step ensures all outputs have consistent orientation and shape.
+
+Stage 3: Temperature Normalization (AGC)
+- Converts raw temperature values into normalized intensities using three strategies:
+
+  1. GLOBAL AGC
+     - Uses dataset-wide percentile bounds (e.g., 2nd–98th percentiles)
+
+  2. AUTO AGC
+     - Uses per-image percentile bounds
+
+  3. FIXED AGC
+     - Uses a fixed temperature range defined a priori
+
+Normalization formula:
+  T_norm = clip((T - T_min) / (T_max - T_min), 0, 1)
+
+Stage 4: Visualization and Export
+- Applies a thermal colormap to the normalized data
+- Generates comparison plots (GLOBAL vs AUTO vs FIXED)
+- Exports:
+  - PNG images for each AGC mode
+  - A JSON file storing normalization parameters and scene metadata
+
+Outputs:
+--------
+- Contrast-normalized thermal PNGs
+- Per-image metadata describing the applied transformations
+
+---------------------------------------------------------------------
+5. Post_Processing_Images.ipynb
+---------------------------------------------------------------------
+
+Purpose:
+--------
+This notebook simulates the behavior of a low-resolution thermal camera.
+It degrades the preprocessed images to approximate realistic sensor outputs.
+
+Inputs:
+-------
+- PNG images generated by Pre_Processing_Images.ipynb
+- Images are expected to contain black or NaN padding around the valid region
+
+Processing Stages:
+------------------
+
+Stage 1: Valid Region Cropping
+- Converts images to grayscale
+- Thresholds near-black pixels
+- Extracts the bounding box of valid thermal content
+- Crops the image to remove padding
+
+Stage 2: Spatial Subdivision
+- Splits each cropped image into four quadrants
+- Each quadrant is treated as an independent thermal sample
+- This increases dataset size and spatial variability
+
+Stage 3: Resolution Reduction
+- Each quadrant is resized to the target thermal sensor resolution
+  (e.g., FLIR Lepton 3.5 dimensions)
+- Area-based interpolation is used to preserve average radiance
+
+Stage 4: Sensor Degradation Models
+Several physical and electronic effects are simulated:
+
+- Additive thermal noise
+  * Gaussian noise applied in normalized temperature space
+
+- Optical blur
+  * Gaussian blur simulating lens and diffraction effects
+
+- Fixed Pattern Noise (FPN)
+  * A static per-pixel bias map
+  * Represents sensor manufacturing non-uniformities
+
+Stage 5: Degradation Profiles
+Three predefined profiles combine the above effects:
+
+- Profile A:
+  * Mild noise
+  * Mild blur
+  * No fixed-pattern noise
+
+- Profile B:
+  * Profile A + moderate fixed-pattern noise
+
+- Profile C:
+  * Stronger noise
+  * Stronger blur
+  * Strong fixed-pattern noise
+
+Each profile represents a different sensor quality or degradation level.
+
+Outputs:
+--------
+- Low-resolution thermal PNG tiles
+- Multiple degradation profiles per input image
+- Images suitable for ML training or simulation studies
+
+---------------------------------------------------------------------
+6. Processing_RAW_Images.ipynb (Independent Pipeline)
+---------------------------------------------------------------------
+
+Purpose:
+--------
+This notebook is designed for images that lack atmospheric or temperature corrections.
+It merges the functionality of Pre-Processing and Post-Processing into a single workflow.
+
+Key Characteristics:
+--------------------
+- Does NOT depend on the other notebooks
+- Performs:
+  - Radiometric conversion (DN -> Radiance -> Brightness Temperature)
+  - Geometric normalization
+  - AGC normalization
+  - Sensor degradation and tiling
+
+Radiometric Model:
+-----------------
+1. Digital Number to Radiance:
+   L = M_L * DN + A_L
+
+2. Radiance to Brightness Temperature:
+   T = K2 / ln((K1 / L) + 1)
+
+Where:
+- M_L, A_L are radiance scaling factors
+- K1, K2 are Planck calibration constants
+
+Important:
+----------
+The output temperature is brightness temperature (at-sensor),
+not surface temperature.
+
+---------------------------------------------------------------------
+7. QUICKSTART
+---------------------------------------------------------------------
+
+Main workflow (corrected data):
+1. Run Pre_Processing_Images.ipynb
+2. Run Post_Processing_Images.ipynb
+
+Alternative workflow (raw data):
+1. Run Processing_RAW_Images.ipynb only
+
+---------------------------------------------------------------------
+8. INTERPRETATION NOTES
+---------------------------------------------------------------------
+
+- Pre-Processing focuses on contrast, geometry, and normalization
+- Post-Processing focuses on realism and sensor behavior
+- RAW Processing prioritizes physical correctness over atmospheric accuracy
+
+This separation allows controlled experimentation with different levels
+of realism and correction assumptions.
+
+END OF DOCUMENT
