@@ -7,8 +7,10 @@ click==8.3.0
 click-plugins==1.1.1.2
 cligj==0.7.2
 geojson==3.2.0
+geopandas==1.1.0
 geomet==1.1.0
 html2text==2025.4.15
+matplotlib==3.10.1
 idna==3.10
 mypy_extensions==1.1.0
 numpy==2.2.6
