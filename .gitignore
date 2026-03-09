@@ -209,6 +209,13 @@ __marimo__/
 # Generated images
 *.png
 *.jpg
+*.jpeg
+*.tif
+*.tiff
 sentinel/*
 sentinel_data_raw/*
 *.zip
+
+# Raw image data
+image_processing_notebooks/raw_images/
+image_processing_notebooks/.tmp_code/
