@@ -97,6 +97,24 @@ def main(argv=None) -> int:
     # ── Perform granule-level split ───────────────────────────────────────────
     splits = granule_level_split(granule_labels, seed=args.seed)
 
+    # Log per-split summary (granule count, patch count, fire fraction)
+    for split_name, gids in splits.items():
+        patch_labels = [
+            lbl
+            for gid in gids
+            for lbl in granule_labels[gid]
+        ]
+        n_patches = len(patch_labels)
+        fire_frac = (sum(patch_labels) / n_patches) if n_patches else 0.0
+        logger.info(
+            "  %s: %d granules / %d patches / fire_frac=%.3f",
+            split_name,
+            len(gids),
+            n_patches,
+            fire_frac,
+        )
+    logger.info("  total: %d granules", len(granule_labels))
+
     # Build reverse map: granule_id → split_name
     granule_to_split: Dict[str, str] = {}
     for split_name, gids in splits.items():

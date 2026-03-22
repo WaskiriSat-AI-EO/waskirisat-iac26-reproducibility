@@ -100,21 +100,4 @@ def granule_level_split(
         splits["val"].extend(tier[n_train : n_train + n_val])
         splits["test"].extend(tier[n_train + n_val : n_train + n_val + n_test])
 
-    # ── Print summary ─────────────────────────────────────────────────────────
-    total_granules = len(granule_ids)
-    for split_name, gids in splits.items():
-        patch_labels = [
-            lbl
-            for gid in gids
-            for lbl in granule_ids_with_labels[gid]
-        ]
-        n_patches = len(patch_labels)
-        fire_frac = (sum(patch_labels) / n_patches) if n_patches else 0.0
-        print(
-            f"  {split_name:5s}: {len(gids):4d} granules / "
-            f"{n_patches:6d} patches / fire_frac={fire_frac:.3f}"
-        )
-
-    print(f"  total : {total_granules} granules")
-
     return splits

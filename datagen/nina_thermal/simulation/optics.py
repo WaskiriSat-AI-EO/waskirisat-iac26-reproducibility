@@ -6,6 +6,7 @@ optical blur acts on the spatial distribution of pixel values as they
 would be recorded by the focal plane array.
 """
 
+import cv2
 import numpy as np
 
 
@@ -26,8 +27,6 @@ def apply_psf_blur(img: np.ndarray, sigma_px: float) -> np.ndarray:
     """
     if sigma_px <= 0:
         return img
-
-    import cv2  # imported here to keep the module importable without OpenCV
 
     ksize = int(2 * round(2 * sigma_px) + 1)
     blurred = cv2.GaussianBlur(img, (ksize, ksize), sigmaX=sigma_px, sigmaY=sigma_px)
