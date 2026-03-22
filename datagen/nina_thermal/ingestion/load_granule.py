@@ -17,6 +17,8 @@ from typing import Dict, Optional
 
 import numpy as np
 
+from nina_thermal.ingestion.extract_channels import SLSTR_NADIR_FILES
+
 logger = logging.getLogger(__name__)
 
 _REQUIRED_KEYS = ("F2_BT", "S8_BT", "delta_T", "lat", "lon")
@@ -150,24 +152,24 @@ def _load_from_netcdf(sen3_dir: Path) -> Optional[Dict[str, np.ndarray]]:
 
     try:
         # F2_BT
-        with netCDF4.Dataset(sen3_dir / "F2_BT.nc") as ds:
-            var = ds.variables["F2_BT"]
+        with netCDF4.Dataset(sen3_dir / SLSTR_NADIR_FILES["F2_BT"]) as ds:
+            var = ds.variables["F2_BT_in"]
             f2_bt = np.array(var[:], dtype=np.float32)
             _replace_fill(f2_bt, getattr(var, "_FillValue", None))
 
         # S8_BT
-        with netCDF4.Dataset(sen3_dir / "S8_BT.nc") as ds:
-            var = ds.variables["S8_BT"]
+        with netCDF4.Dataset(sen3_dir / SLSTR_NADIR_FILES["S8_BT"]) as ds:
+            var = ds.variables["S8_BT_in"]
             s8_bt = np.array(var[:], dtype=np.float32)
             _replace_fill(s8_bt, getattr(var, "_FillValue", None))
 
         # Geodetic
-        with netCDF4.Dataset(sen3_dir / "geodetic_in.nc") as ds:
+        with netCDF4.Dataset(sen3_dir / SLSTR_NADIR_FILES["geodetic"]) as ds:
             lat = np.array(ds.variables["latitude_in"][:], dtype=np.float32)
             lon = np.array(ds.variables["longitude_in"][:], dtype=np.float32)
 
         # Bitmasks
-        with netCDF4.Dataset(sen3_dir / "flags_in.nc") as ds:
+        with netCDF4.Dataset(sen3_dir / SLSTR_NADIR_FILES["flags"]) as ds:
             cloud_in      = np.array(ds.variables["cloud_in"][:])
             confidence_in = np.array(ds.variables["confidence_in"][:])
 

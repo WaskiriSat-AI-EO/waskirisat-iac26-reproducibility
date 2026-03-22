@@ -12,6 +12,15 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+# Nadir (in-scan) NetCDF filenames for SLSTR L1B .SEN3 packages.
+# Keys are logical channel names; values are the actual filenames on disk.
+SLSTR_NADIR_FILES = {
+    "F2_BT":   "F2_BT_in.nc",
+    "S8_BT":   "S8_BT_in.nc",
+    "geodetic": "geodetic_in.nc",
+    "flags":    "flags_in.nc",
+}
+
 
 def extract_thermal_channels(
     sen3_dir: Path,
@@ -77,31 +86,47 @@ def extract_thermal_channels(
             prefix = stem[:-5] if stem.endswith(".SEN3") else stem
 
         # ── F2_BT ────────────────────────────────────────────────────────────
-        f2_path = sen3_dir / "F2_BT.nc"
+        f2_path = sen3_dir / SLSTR_NADIR_FILES["F2_BT"]
+        logger.debug("Opening F2_BT file: %s", f2_path)
         with netCDF4.Dataset(f2_path) as ds:
-            var = ds.variables["F2_BT"]
+            var = ds.variables["F2_BT_in"]
             f2_bt = np.array(var[:], dtype=np.float32)
             fill = getattr(var, "_FillValue", None)
+            print(f"F2_BT fill value from NetCDF: {fill}")
+            print(f"F2_BT values == fill_val: {(f2_bt == float(fill)).sum() if fill is not None else 'N/A'}")
+            print(f"F2_BT values <= 0: {(f2_bt <= 0).sum()}")
+            print(f"F2_BT values < 200: {(f2_bt < 200.0).sum()}")
+            print(f"F2_BT values > 400: {(f2_bt > 400.0).sum()}")
             if fill is not None:
                 f2_bt[f2_bt == float(fill)] = np.nan
+            f2_bt[(f2_bt < 200.0) | (f2_bt > 400.0)] = np.nan
 
         # ── S8_BT ────────────────────────────────────────────────────────────
-        s8_path = sen3_dir / "S8_BT.nc"
+        s8_path = sen3_dir / SLSTR_NADIR_FILES["S8_BT"]
+        logger.debug("Opening S8_BT file: %s", s8_path)
         with netCDF4.Dataset(s8_path) as ds:
-            var = ds.variables["S8_BT"]
+            var = ds.variables["S8_BT_in"]
             s8_bt = np.array(var[:], dtype=np.float32)
             fill = getattr(var, "_FillValue", None)
+            print(f"S8_BT fill value from NetCDF: {fill}")
+            print(f"S8_BT values == fill_val: {(s8_bt == float(fill)).sum() if fill is not None else 'N/A'}")
+            print(f"S8_BT values <= 0: {(s8_bt <= 0).sum()}")
+            print(f"S8_BT values < 200: {(s8_bt < 200.0).sum()}")
+            print(f"S8_BT values > 400: {(s8_bt > 400.0).sum()}")
             if fill is not None:
                 s8_bt[s8_bt == float(fill)] = np.nan
+            s8_bt[(s8_bt < 200.0) | (s8_bt > 400.0)] = np.nan
 
         # ── Geodetic ─────────────────────────────────────────────────────────
-        geo_path = sen3_dir / "geodetic_in.nc"
+        geo_path = sen3_dir / SLSTR_NADIR_FILES["geodetic"]
+        logger.debug("Opening geodetic file: %s", geo_path)
         with netCDF4.Dataset(geo_path) as ds:
             lat = np.array(ds.variables["latitude_in"][:], dtype=np.float32)
             lon = np.array(ds.variables["longitude_in"][:], dtype=np.float32)
 
         # ── Bitmasks ─────────────────────────────────────────────────────────
-        flags_path = sen3_dir / "flags_in.nc"
+        flags_path = sen3_dir / SLSTR_NADIR_FILES["flags"]
+        logger.debug("Opening flags file: %s", flags_path)
         with netCDF4.Dataset(flags_path) as ds:
             cloud_in = np.array(ds.variables["cloud_in"][:])
             confidence_in = np.array(ds.variables["confidence_in"][:])

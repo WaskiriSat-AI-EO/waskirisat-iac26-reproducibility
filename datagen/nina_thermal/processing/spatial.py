@@ -58,6 +58,7 @@ def tile_granule_to_lepton_patches(
     lepton_w=None,
     lepton_h=None,
     max_nan_fraction=None,
+    stride_fraction=0.5,
 ):
     """Aggregate and tile a BT granule into Lepton-sized patches.
 
@@ -68,6 +69,8 @@ def tile_granule_to_lepton_patches(
         lepton_h: patch height in pixels (default LEPTON_RESOLUTION[1]=120)
         max_nan_fraction: maximum NaN fraction to accept a patch
                           (default MAX_NAN_FRACTION)
+        stride_fraction: stride as a fraction of patch size (default 0.5 = 50%
+                         overlap). Use 1.0 for no overlap (original behaviour).
 
     Returns:
         List of float32 arrays, each of shape (lepton_h, lepton_w)
@@ -85,9 +88,12 @@ def tile_granule_to_lepton_patches(
     H, W = agg.shape
     patches = []
 
-    # Step 2: Tile with stride = full patch size (no overlap)
-    for row_start in range(0, H - lepton_h + 1, lepton_h):
-        for col_start in range(0, W - lepton_w + 1, lepton_w):
+    stride_y = max(1, int(lepton_h * stride_fraction))
+    stride_x = max(1, int(lepton_w * stride_fraction))
+
+    # Step 2: Tile with configurable stride (50% overlap by default)
+    for row_start in range(0, H - lepton_h + 1, stride_y):
+        for col_start in range(0, W - lepton_w + 1, stride_x):
             patch = agg[row_start:row_start + lepton_h,
                         col_start:col_start + lepton_w].copy()
 

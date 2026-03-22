@@ -31,7 +31,6 @@ from typing import List
 
 import numpy as np
 
-from nina_thermal.ingestion.load_granule import load_slstr_granule
 from nina_thermal.ingestion.validate_granule import validate_granule
 from nina_thermal.processing.spectral import apply_broadband_correction
 from nina_thermal.processing.spatial import tile_granule_to_lepton_patches
@@ -80,118 +79,124 @@ def main(argv=None) -> int:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Discover unique granule prefixes from F2_BT .npy files
+    # Discover granules — one per *_F2_BT.npy file
     f2_files = sorted(input_dir.glob("*_F2_BT.npy"))
     if not f2_files:
         logger.warning("No *_F2_BT.npy files found in %s.", input_dir)
         _write_manifest(output_dir, [], args)
         return 1
 
-    # One granule dir entry per unique F2_BT file (they live in input_dir)
-    granule_dirs = sorted({f.parent for f in f2_files})
-    logger.info(
-        "Found %d granule(s) (%d F2_BT files).",
-        len(granule_dirs), len(f2_files),
-    )
+    logger.info("Found %d granule(s).", len(f2_files))
 
     all_patch_records: List[dict] = []
     total_rejected = 0
 
-    for granule_dir in granule_dirs:
-        # There may be multiple granules in the same directory; iterate per F2 file
-        for f2_file in sorted(granule_dir.glob("*_F2_BT.npy")):
-            prefix     = f2_file.stem[: -len("_F2_BT")]
-            granule_id = prefix
+    for f2_file in f2_files:
+        prefix      = f2_file.stem[: -len("_F2_BT")]
+        granule_id  = prefix
+        granule_dir = f2_file.parent
 
-            logger.info("Processing granule %s …", granule_id)
+        logger.info("Processing granule %s …", granule_id)
 
-            # ── Load ──────────────────────────────────────────────────────────
-            granule = load_slstr_granule(granule_dir)
-            if granule is None:
-                logger.warning("Could not load %s — skipped.", granule_id)
-                continue
-            if not validate_granule(granule):
-                logger.warning("Granule %s failed validation — skipped.", granule_id)
-                continue
+        # ── Load ──────────────────────────────────────────────────────────
+        try:
+            f2_bt_raw = np.load(granule_dir / f"{prefix}_F2_BT.npy").astype(np.float32)
+            s8_bt_raw = np.load(granule_dir / f"{prefix}_S8_BT.npy").astype(np.float32)
+            lat       = np.load(granule_dir / f"{prefix}_lat.npy").astype(np.float32)
+            lon       = np.load(granule_dir / f"{prefix}_lon.npy").astype(np.float32)
+        except Exception as exc:
+            logger.warning("Could not load %s — skipped: %s", granule_id, exc)
+            continue
 
-            f2_bt = granule["F2_BT"]
-            lat   = granule["lat"]
-            lon   = granule["lon"]
+        granule = {
+            "F2_BT":   f2_bt_raw,
+            "S8_BT":   s8_bt_raw,
+            "delta_T": (f2_bt_raw - s8_bt_raw).astype(np.float32),
+            "lat":     lat,
+            "lon":     lon,
+        }
+        if not validate_granule(granule):
+            logger.warning("Granule %s failed validation — skipped.", granule_id)
+            continue
 
-            # ── Spectral correction ───────────────────────────────────────────
-            f2_bt_corrected = apply_broadband_correction(f2_bt).astype(np.float32)
+        f2_bt = granule["F2_BT"]
+        lat   = granule["lat"]
+        lon   = granule["lon"]
 
-            # ── Tile into patches (aggregation is done inside) ───────────────
-            # tile_granule_to_lepton_patches calls aggregate_bt_to_lepton_gsd
-            # internally; pass the corrected (non-aggregated) array directly.
-            patches = tile_granule_to_lepton_patches(f2_bt_corrected)
+        # ── Spectral correction ───────────────────────────────────────────
+        f2_bt_corrected = apply_broadband_correction(f2_bt).astype(np.float32)
 
-            # Aggregate lat/lon once for centroid computation
-            agg = config.SLSTR_AGG_FACTOR
-            h_crop = (f2_bt_corrected.shape[0] // agg) * agg
-            w_crop = (f2_bt_corrected.shape[1] // agg) * agg
-            lat_agg = (
-                lat[:h_crop, :w_crop]
-                .reshape(h_crop // agg, agg, w_crop // agg, agg)
-                .mean(axis=(1, 3))
-                .astype(np.float32)
-            )
-            lon_agg = (
-                lon[:h_crop, :w_crop]
-                .reshape(h_crop // agg, agg, w_crop // agg, agg)
-                .mean(axis=(1, 3))
-                .astype(np.float32)
-            )
+        # ── Tile into patches (aggregation is done inside) ───────────────
+        # tile_granule_to_lepton_patches calls aggregate_bt_to_lepton_gsd
+        # internally; pass the corrected (non-aggregated) array directly.
+        patches = tile_granule_to_lepton_patches(f2_bt_corrected, stride_fraction=0.5)
 
-            w_px, h_px = config.LEPTON_RESOLUTION  # (160, 120)
-            n_cols = lat_agg.shape[1] // w_px
-            n_rows_rejected_before = total_rejected
+        # Aggregate lat/lon once for centroid computation
+        agg = config.SLSTR_AGG_FACTOR
+        h_crop = (f2_bt_corrected.shape[0] // agg) * agg
+        w_crop = (f2_bt_corrected.shape[1] // agg) * agg
+        lat_agg = (
+            lat[:h_crop, :w_crop]
+            .reshape(h_crop // agg, agg, w_crop // agg, agg)
+            .mean(axis=(1, 3))
+            .astype(np.float32)
+        )
+        lon_agg = (
+            lon[:h_crop, :w_crop]
+            .reshape(h_crop // agg, agg, w_crop // agg, agg)
+            .mean(axis=(1, 3))
+            .astype(np.float32)
+        )
 
-            for patch_idx, patch in enumerate(patches):
-                row = patch_idx // n_cols
-                col = patch_idx  % n_cols
+        w_px, h_px = config.LEPTON_RESOLUTION  # (160, 120)
+        n_cols = lat_agg.shape[1] // w_px
+        n_rows_rejected_before = total_rejected
 
-                # Centroid from aggregated coordinate arrays (best-effort)
-                r0, c0 = row * h_px, col * w_px
-                r1, c1 = r0 + h_px, c0 + w_px
+        for patch_idx, patch in enumerate(patches):
+            row = patch_idx // n_cols
+            col = patch_idx  % n_cols
 
-                lat_patch = lat_agg[r0:r1, c0:c1] if lat_agg.shape[0] >= r1 and lat_agg.shape[1] >= c1 else None
-                lon_patch = lon_agg[r0:r1, c0:c1] if lon_agg.shape[0] >= r1 and lon_agg.shape[1] >= c1 else None
+            # Centroid from aggregated coordinate arrays (best-effort)
+            r0, c0 = row * h_px, col * w_px
+            r1, c1 = r0 + h_px, c0 + w_px
 
-                centroid_lat = float(np.nanmean(lat_patch)) if lat_patch is not None else float("nan")
-                centroid_lon = float(np.nanmean(lon_patch)) if lon_patch is not None else float("nan")
+            lat_patch = lat_agg[r0:r1, c0:c1] if lat_agg.shape[0] >= r1 and lat_agg.shape[1] >= c1 else None
+            lon_patch = lon_agg[r0:r1, c0:c1] if lon_agg.shape[0] >= r1 and lon_agg.shape[1] >= c1 else None
 
-                nan_fraction = float(np.isnan(patch).mean())
-                finite = patch[np.isfinite(patch)]
-                bt_min = float(finite.min()) if finite.size else float("nan")
-                bt_max = float(finite.max()) if finite.size else float("nan")
+            centroid_lat = float(np.nanmean(lat_patch)) if lat_patch is not None else float("nan")
+            centroid_lon = float(np.nanmean(lon_patch)) if lon_patch is not None else float("nan")
 
-                # Save patch
-                patch_filename = f"{granule_id}_p{patch_idx:04d}_bt.npy"
-                np.save(output_dir / patch_filename, patch)
+            nan_fraction = float(np.isnan(patch).mean())
+            finite = patch[np.isfinite(patch)]
+            bt_min = float(finite.min()) if finite.size else float("nan")
+            bt_max = float(finite.max()) if finite.size else float("nan")
 
-                all_patch_records.append({
-                    "granule_id":    granule_id,
-                    "patch_index":   patch_idx,
-                    "patch_file":    patch_filename,
-                    "nan_fraction":  nan_fraction,
-                    "centroid_lat":  centroid_lat,
-                    "centroid_lon":  centroid_lon,
-                    "bt_min":        bt_min,
-                    "bt_max":        bt_max,
-                })
+            # Save patch
+            patch_filename = f"{granule_id}_p{patch_idx:04d}_bt.npy"
+            np.save(output_dir / patch_filename, patch)
 
-            n_patches = len(patches)
-            logger.info(
-                "  %s: %d patch(es) saved.", granule_id, n_patches,
-            )
+            all_patch_records.append({
+                "granule_id":    granule_id,
+                "patch_index":   patch_idx,
+                "patch_file":    patch_filename,
+                "nan_fraction":  nan_fraction,
+                "centroid_lat":  centroid_lat,
+                "centroid_lon":  centroid_lon,
+                "bt_min":        bt_min,
+                "bt_max":        bt_max,
+            })
+
+        n_patches = len(patches)
+        logger.info(
+            "  %s: %d patch(es) saved.", granule_id, n_patches,
+        )
 
     _write_manifest(output_dir, all_patch_records, args)
     logger.info(
         "Processing complete: %d patch(es) across %d granule(s).  "
         "Manifest → %s/patches_manifest.json",
         len(all_patch_records),
-        len(granule_dirs),
+        len(f2_files),
         output_dir,
     )
     return 0
