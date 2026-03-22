@@ -32,3 +32,27 @@ def test_nan_safe():
     assert np.isfinite(corrected[1]), "Finite ambient should give finite output"
     assert np.isfinite(corrected[2]), "Finite fire temp should give finite output"
     assert np.isnan(corrected[3]), "NaN input should give NaN output"
+
+
+def test_correction_correct_on_large_array():
+    """
+    Regression test for Python 3.14 LOAD_FAST_BORROW memory reuse bug.
+    Must use an array >= 200x200 to trigger the original failure mode.
+    """
+    # 300x400 array — above the ~200x200 threshold that triggered the bug
+    bt = np.full((300, 400), 350.0, dtype=np.float32)  # fire temperature
+    result = apply_broadband_correction(bt)
+
+    # At 350 K with alpha=0.015, ambient=295 K:
+    # delta = 350 - 295 = 55 K
+    # correction = 0.015 * 55 = 0.825 K
+    # expected = 350 + 0.825 = 350.825 K
+    expected = 350.0 + config.BROADBAND_ALPHA * (350.0 - config.AMBIENT_REFERENCE_K)
+    assert np.allclose(result, expected, atol=0.01), \
+        f"Expected {expected:.3f} K, got {result.mean():.3f} K — possible buffer aliasing"
+
+    # Also verify ambient pixels are unchanged (correction = 0)
+    bt_ambient = np.full((300, 400), 295.0, dtype=np.float32)
+    result_ambient = apply_broadband_correction(bt_ambient)
+    assert np.allclose(result_ambient, 295.0, atol=0.01), \
+        "Ambient pixels should not be modified"
