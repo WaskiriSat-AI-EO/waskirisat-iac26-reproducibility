@@ -36,8 +36,8 @@ def search_slstr_products(
     * Sensing start date range
     * Geographic intersection with *footprint_wkt*
 
-    Results are ordered by sensing start date descending (most recent
-    first) and limited to *max_results* entries.
+    Results are ordered by sensing start date ascending (oldest first)
+    and limited to *max_results* entries.
 
     Args:
         access_token: Bearer token from :func:`get_access_token`.
@@ -75,7 +75,7 @@ def search_slstr_products(
     params: Dict = {
         "$filter":  filter_query,
         "$top":     min(max_results, _CHUNK_PAGES),
-        "$orderby": "ContentDate/Start desc",
+        "$orderby": "ContentDate/Start asc",
     }
     headers = {"Authorization": f"Bearer {access_token}"}
 
