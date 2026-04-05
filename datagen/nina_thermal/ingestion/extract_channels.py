@@ -89,14 +89,16 @@ def extract_thermal_channels(
         f2_path = sen3_dir / SLSTR_NADIR_FILES["F2_BT"]
         logger.debug("Opening F2_BT file: %s", f2_path)
         with netCDF4.Dataset(f2_path) as ds:
-            var = ds.variables["F2_BT_in"]
+            var   = ds.variables["F2_BT_in"]
             f2_bt = np.array(var[:], dtype=np.float32)
-            fill = getattr(var, "_FillValue", None)
-            print(f"F2_BT fill value from NetCDF: {fill}")
-            print(f"F2_BT values == fill_val: {(f2_bt == float(fill)).sum() if fill is not None else 'N/A'}")
-            print(f"F2_BT values <= 0: {(f2_bt <= 0).sum()}")
-            print(f"F2_BT values < 200: {(f2_bt < 200.0).sum()}")
-            print(f"F2_BT values > 400: {(f2_bt > 400.0).sum()}")
+            fill  = getattr(var, "_FillValue", None)
+            total_px         = f2_bt.size
+            fill_replaced_f2 = int((f2_bt == float(fill)).sum()) if fill is not None else 0
+            out_of_range_f2  = int(((f2_bt < 200.0) | (f2_bt > 400.0)).sum())
+            logger.info(
+                "  F2_BT: total_px=%d  fill_value=%s  fill_replaced=%d  out_of_range(<200|>400K)=%d",
+                total_px, fill, fill_replaced_f2, out_of_range_f2,
+            )
             if fill is not None:
                 f2_bt[f2_bt == float(fill)] = np.nan
             f2_bt[(f2_bt < 200.0) | (f2_bt > 400.0)] = np.nan
@@ -105,14 +107,15 @@ def extract_thermal_channels(
         s8_path = sen3_dir / SLSTR_NADIR_FILES["S8_BT"]
         logger.debug("Opening S8_BT file: %s", s8_path)
         with netCDF4.Dataset(s8_path) as ds:
-            var = ds.variables["S8_BT_in"]
+            var   = ds.variables["S8_BT_in"]
             s8_bt = np.array(var[:], dtype=np.float32)
-            fill = getattr(var, "_FillValue", None)
-            print(f"S8_BT fill value from NetCDF: {fill}")
-            print(f"S8_BT values == fill_val: {(s8_bt == float(fill)).sum() if fill is not None else 'N/A'}")
-            print(f"S8_BT values <= 0: {(s8_bt <= 0).sum()}")
-            print(f"S8_BT values < 200: {(s8_bt < 200.0).sum()}")
-            print(f"S8_BT values > 400: {(s8_bt > 400.0).sum()}")
+            fill  = getattr(var, "_FillValue", None)
+            fill_replaced_s8 = int((s8_bt == float(fill)).sum()) if fill is not None else 0
+            out_of_range_s8  = int(((s8_bt < 200.0) | (s8_bt > 400.0)).sum())
+            logger.info(
+                "  S8_BT: total_px=%d  fill_value=%s  fill_replaced=%d  out_of_range(<200|>400K)=%d",
+                total_px, fill, fill_replaced_s8, out_of_range_s8,
+            )
             if fill is not None:
                 s8_bt[s8_bt == float(fill)] = np.nan
             s8_bt[(s8_bt < 200.0) | (s8_bt > 400.0)] = np.nan
@@ -128,12 +131,25 @@ def extract_thermal_channels(
         flags_path = sen3_dir / SLSTR_NADIR_FILES["flags"]
         logger.debug("Opening flags file: %s", flags_path)
         with netCDF4.Dataset(flags_path) as ds:
-            cloud_in = np.array(ds.variables["cloud_in"][:])
+            cloud_in      = np.array(ds.variables["cloud_in"][:])
             confidence_in = np.array(ds.variables["confidence_in"][:])
 
-        cloud_mask = (cloud_in & 1).astype(bool)
+        cloud_mask     = (cloud_in & 1).astype(bool)
         exception_mask = (confidence_in & 2).astype(bool)
-        combined = cloud_mask | exception_mask
+        combined       = cloud_mask | exception_mask
+
+        n_cloud     = int(cloud_mask.sum())
+        n_exception = int(exception_mask.sum())
+        n_combined  = int(combined.sum())
+        n_finite    = int(np.isfinite(f2_bt).sum()) - n_combined
+        logger.info(
+            "  bitmask: cloud=%d (%.1f%%)  exception=%d (%.1f%%)  "
+            "combined=%d (%.1f%%)  finite_after=%d (%.1f%%)",
+            n_cloud,     100.0 * n_cloud     / total_px,
+            n_exception, 100.0 * n_exception / total_px,
+            n_combined,  100.0 * n_combined  / total_px,
+            max(n_finite, 0), 100.0 * max(n_finite, 0) / total_px,
+        )
 
         f2_bt[combined] = np.nan
         s8_bt[combined] = np.nan

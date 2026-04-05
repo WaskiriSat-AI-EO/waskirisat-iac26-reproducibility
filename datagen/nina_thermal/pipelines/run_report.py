@@ -18,12 +18,8 @@ from pathlib import Path
 
 from nina_thermal import config
 from nina_thermal.dataset.report import build_dataset_report
+from nina_thermal.pipelines._logging import configure_logging, log_run_footer
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)-8s  %(message)s",
-    datefmt="%H:%M:%S",
-)
 logger = logging.getLogger(__name__)
 
 
@@ -50,6 +46,15 @@ def build_parser() -> argparse.ArgumentParser:
             "<dataset_dir>/dataset_summary.json."
         ),
     )
+    p.add_argument(
+        "--log_dir",
+        default=None,
+        metavar="DIR",
+        help=(
+            "Directory for log files.  Defaults to "
+            f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}."
+        ),
+    )
     return p
 
 
@@ -60,11 +65,13 @@ def main(argv=None) -> int:
         Exit code: 0 on success, 1 on failure.
     """
     args        = build_parser().parse_args(argv)
+    log_dir = args.log_dir or f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}"
+    _, start_time = configure_logging("run_report", log_dir, argv=sys.argv[1:])
     dataset_dir = Path(args.dataset_dir)
 
     if not dataset_dir.exists():
         logger.error("dataset_dir does not exist: %s", dataset_dir)
-        return 1
+        return log_run_footer(start_time, exit_code=1)
 
     # ── Build report ──────────────────────────────────────────────────────────
     logger.info("Building dataset report from %s …", dataset_dir)
@@ -80,7 +87,7 @@ def main(argv=None) -> int:
 
     # ── Print human-readable summary table ────────────────────────────────────
     _print_summary(report)
-    return 0
+    return log_run_footer(start_time, exit_code=0)
 
 
 def _print_summary(report: dict) -> None:

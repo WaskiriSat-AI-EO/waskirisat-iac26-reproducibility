@@ -1,10 +1,13 @@
 """Automatic Gain Control (AGC) functions for thermal patch normalization."""
 
+import logging
 from typing import Tuple, Optional, List
 
 import numpy as np
 
 from nina_thermal import config
+
+logger = logging.getLogger(__name__)
 
 
 def apply_agc(bt_patch: np.ndarray, t_min: float, t_max: float) -> np.ndarray:
@@ -58,12 +61,20 @@ def compute_global_percentiles(
             finite_vals = finite_vals[idx]
         samples.append(finite_vals)
 
+    n_skipped = len(all_patches) - len(samples)
     if not samples:
         raise ValueError("No finite values found across all patches.")
 
     all_values = np.concatenate(samples)
-    t_low = float(np.percentile(all_values, percentiles[0]))
+    t_low  = float(np.percentile(all_values, percentiles[0]))
     t_high = float(np.percentile(all_values, percentiles[1]))
+
+    logger.info(
+        "global percentiles: patches_used=%d/%d (%d skipped all-NaN)  "
+        "total_samples=%d  T_low=%.2fK  T_high=%.2fK",
+        len(samples), len(all_patches), n_skipped,
+        len(all_values), t_low, t_high,
+    )
     return t_low, t_high
 
 

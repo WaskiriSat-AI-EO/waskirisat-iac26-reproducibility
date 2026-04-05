@@ -92,4 +92,8 @@ def validate_granule(granule: Dict[str, np.ndarray]) -> bool:
         )
         return False
 
+    logger.info(
+        "validate OK: shape=%s  dtype=%s  finite_fraction=%.3f",
+        ref_shape, arrays[0].dtype, finite_fraction,
+    )
     return True

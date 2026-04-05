@@ -6,12 +6,15 @@ Patch-level splitting would produce optimistic validation metrics due to
 spatial autocorrelation.
 """
 
+import logging
 import math
 from typing import Dict, List
 
 import numpy as np
 
 from nina_thermal import config
+
+logger = logging.getLogger(__name__)
 
 
 def granule_level_split(
@@ -83,13 +86,19 @@ def granule_level_split(
     high_fire = [g for g in granule_ids if fire_fracs[g] > config.HIGH_FIRE_GRANULE_THRESH]
     low_fire  = [g for g in granule_ids if fire_fracs[g] <= config.HIGH_FIRE_GRANULE_THRESH]
 
+    logger.info(
+        "stratification: high_fire=%d (fire_frac>%.2f)  low_fire=%d  total=%d",
+        len(high_fire), config.HIGH_FIRE_GRANULE_THRESH, len(low_fire), len(granule_ids),
+    )
+
     rng.shuffle(high_fire)
     rng.shuffle(low_fire)
 
     # ── Distribute each tier into splits ──────────────────────────────────────
     splits: Dict[str, List[str]] = {"train": [], "val": [], "test": []}
 
-    for tier in (high_fire, low_fire):
+    tier_labels = ("high_fire", "low_fire")
+    for tier, tier_name in zip((high_fire, low_fire), tier_labels):
         n = len(tier)
         n_train = round(n * train_frac)
         n_val   = round(n * val_frac)
@@ -99,5 +108,19 @@ def granule_level_split(
         splits["train"].extend(tier[:n_train])
         splits["val"].extend(tier[n_train : n_train + n_val])
         splits["test"].extend(tier[n_train + n_val : n_train + n_val + n_test])
+
+        logger.info(
+            "  %s → train=%d  val=%d  test=%d",
+            tier_name, n_train, n_val, n_test,
+        )
+
+    for split_name, gids in splits.items():
+        n_patches  = sum(len(granule_ids_with_labels[g]) for g in gids)
+        fire_count = sum(sum(granule_ids_with_labels[g]) for g in gids)
+        fire_frac  = fire_count / n_patches if n_patches else 0.0
+        logger.info(
+            "  [%s] granules=%d  patches=%d  fire_frac=%.3f",
+            split_name, len(gids), n_patches, fire_frac,
+        )
 
     return splits

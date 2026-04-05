@@ -26,12 +26,8 @@ from pathlib import Path
 
 from nina_thermal.ingestion.extract_channels import extract_thermal_channels
 from nina_thermal import config
+from nina_thermal.pipelines._logging import configure_logging, log_run_footer
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)-8s  %(message)s",
-    datefmt="%H:%M:%S",
-)
 logger = logging.getLogger(__name__)
 
 
@@ -53,6 +49,15 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="DIR",
         help="Directory for extracted .npy files and extraction_manifest.json.",
     )
+    p.add_argument(
+        "--log_dir",
+        default=None,
+        metavar="DIR",
+        help=(
+            "Directory for log files.  Defaults to "
+            f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}."
+        ),
+    )
     return p
 
 
@@ -63,6 +68,8 @@ def main(argv=None) -> int:
         Exit code: 0 on success, 1 if no .SEN3 directories were found.
     """
     args = build_parser().parse_args(argv)
+    log_dir = args.log_dir or f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}"
+    _, start_time = configure_logging("run_extraction", log_dir, argv=sys.argv[1:])
     input_dir  = Path(args.input_dir)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -71,7 +78,7 @@ def main(argv=None) -> int:
     if not sen3_dirs:
         logger.warning("No .SEN3 directories found in %s.", input_dir)
         _write_manifest(output_dir, [], args)
-        return 1
+        return log_run_footer(start_time, exit_code=1)
 
     logger.info("Found %d .SEN3 directories.", len(sen3_dirs))
 
@@ -105,7 +112,7 @@ def main(argv=None) -> int:
         "Manifest → %s/extraction_manifest.json",
         len(records), len(sen3_dirs), output_dir,
     )
-    return 0
+    return log_run_footer(start_time, exit_code=0)
 
 
 def _write_manifest(output_dir: Path, records: list, args) -> None:

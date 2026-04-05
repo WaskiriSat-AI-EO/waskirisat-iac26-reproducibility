@@ -4,12 +4,15 @@ Applied independently within each split (train / val / test) AFTER
 granule-level splitting.  Fire patches are never removed.
 """
 
+import logging
 import math
 from typing import List, Dict
 
 import numpy as np
 
 from nina_thermal import config
+
+logger = logging.getLogger(__name__)
 
 
 def build_balanced_dataset(
@@ -71,10 +74,11 @@ def build_balanced_dataset(
     total = n_fire + len(nofire_selected)
     achieved = n_fire / total if total > 0 else 0.0
 
-    print(
-        f"  balance: fire={n_fire}  nofire_orig={n_nofire}"
-        f"  nofire_target={n_nofire_target}"
-        f"  actual_fire_frac={achieved:.3f}"
+    logger.info(
+        "  balance: fire=%d  nofire_orig=%d  nofire_target=%d  "
+        "nofire_removed=%d  achieved_fire_frac=%.3f",
+        n_fire, n_nofire, n_nofire_target,
+        n_nofire - len(nofire_selected), achieved,
     )
 
     combined = fire + nofire_selected

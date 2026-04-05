@@ -47,12 +47,8 @@ from nina_thermal.labeling.fire_label import (
 from nina_thermal.processing.agc import apply_agc, compute_global_percentiles
 from nina_thermal.simulation.noise import generate_lepton_fpn
 from nina_thermal.simulation.sensor import simulate_lepton
+from nina_thermal.pipelines._logging import configure_logging, log_run_footer
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)-8s  %(message)s",
-    datefmt="%H:%M:%S",
-)
 logger = logging.getLogger(__name__)
 
 # Manifests and subdirectories written by this stage
@@ -108,6 +104,15 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Also save false-colour PNG visualisations in viz/ subdirectory.",
     )
+    p.add_argument(
+        "--log_dir",
+        default=None,
+        metavar="DIR",
+        help=(
+            "Directory for log files.  Defaults to "
+            f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}."
+        ),
+    )
     return p
 
 
@@ -118,6 +123,8 @@ def main(argv=None) -> int:
         Exit code: 0 on success, 1 on failure.
     """
     args = build_parser().parse_args(argv)
+    log_dir = args.log_dir or f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}"
+    _, start_time = configure_logging("run_simulation", log_dir, argv=sys.argv[1:])
     input_dir  = Path(args.input_dir)
     output_dir = Path(args.output_dir)
 
@@ -130,7 +137,7 @@ def main(argv=None) -> int:
         if prof not in config.DEGRADATION_PROFILES:
             logger.error("Unknown profile '%s'. Valid: %s", prof,
                          list(config.DEGRADATION_PROFILES))
-            return 1
+            return log_run_footer(start_time, exit_code=1)
 
     # ── Output directories ────────────────────────────────────────────────────
     img_dir  = output_dir / "images"
@@ -144,7 +151,7 @@ def main(argv=None) -> int:
     manifest_path = input_dir / "patches_manifest.json"
     if not manifest_path.exists():
         logger.error("patches_manifest.json not found in %s", input_dir)
-        return 1
+        return log_run_footer(start_time, exit_code=1)
 
     with open(manifest_path, encoding="utf-8") as fh:
         manifest_data = json.load(fh)
@@ -152,7 +159,7 @@ def main(argv=None) -> int:
 
     if not patch_records:
         logger.warning("No patches found in manifest — exiting.")
-        return 1
+        return log_run_footer(start_time, exit_code=1)
     logger.info("Loaded %d patch records from manifest.", len(patch_records))
 
     # ── Load all BT patches for global percentile computation ─────────────────
@@ -192,13 +199,17 @@ def main(argv=None) -> int:
     n_fire   = 0
     n_nofire = 0
 
-    for rec in patch_records:
+    n_total_patches = len(patch_records)
+    for patch_num, rec in enumerate(patch_records, 1):
         granule_id   = rec["granule_id"]
         patch_index  = rec["patch_index"]
         patch_file   = input_dir / rec["patch_file"]
         nan_frac     = rec.get("nan_fraction", 0.0)
         centroid_lat = rec.get("centroid_lat", float("nan"))
         centroid_lon = rec.get("centroid_lon", float("nan"))
+
+        if patch_num % 50 == 0 or patch_num == n_total_patches:
+            logger.info("[%d/%d] simulating patches …", patch_num, n_total_patches)
 
         if not patch_file.exists():
             logger.warning("Patch file missing: %s — skipped.", patch_file)
@@ -215,10 +226,18 @@ def main(argv=None) -> int:
         else:
             # Conservative fallback: no fire pixels detectable without delta_T
             delta_t = np.zeros_like(bt_patch)
+            logger.warning(
+                "delta_T missing for %s_p%04d — zeros used (fire labels suppressed).",
+                granule_id, patch_index,
+            )
 
         # ── Label ─────────────────────────────────────────────────────────────
         label        = compute_patch_label(bt_patch, delta_t)
         surface_type = classify_patch_surface_type(bt_patch, delta_t, label)
+        logger.debug(
+            "  patch %s_p%04d: label=%d  surface=%s  nan_frac=%.3f",
+            granule_id, patch_index, label, surface_type, nan_frac,
+        )
 
         if label == 1:
             n_fire += 1
@@ -349,7 +368,7 @@ def main(argv=None) -> int:
         n_nofire,
         sim_path,
     )
-    return 0
+    return log_run_footer(start_time, exit_code=0)
 
 
 # ── Private helpers ───────────────────────────────────────────────────────────

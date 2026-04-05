@@ -31,12 +31,8 @@ from typing import Dict, List
 
 from nina_thermal import config
 from nina_thermal.labeling.split import granule_level_split
+from nina_thermal.pipelines._logging import configure_logging, log_run_footer
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)-8s  %(message)s",
-    datefmt="%H:%M:%S",
-)
 logger = logging.getLogger(__name__)
 
 
@@ -60,6 +56,15 @@ def build_parser() -> argparse.ArgumentParser:
         default=config.DEFAULT_SEED,
         help="Random seed for reproducibility.",
     )
+    p.add_argument(
+        "--log_dir",
+        default=None,
+        metavar="DIR",
+        help=(
+            "Directory for log files.  Defaults to "
+            f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}."
+        ),
+    )
     return p
 
 
@@ -70,6 +75,8 @@ def main(argv=None) -> int:
         Exit code: 0 on success, 1 on failure.
     """
     args      = build_parser().parse_args(argv)
+    log_dir = args.log_dir or f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}"
+    _, start_time = configure_logging("run_split", log_dir, argv=sys.argv[1:])
     dataset_dir = Path(args.dataset_dir)
     meta_dir    = dataset_dir / "metadata"
 
@@ -77,14 +84,14 @@ def main(argv=None) -> int:
     manifest_path = dataset_dir / "label_manifest.json"
     if not manifest_path.exists():
         logger.error("label_manifest.json not found in %s", dataset_dir)
-        return 1
+        return log_run_footer(start_time, exit_code=1)
 
     with open(manifest_path, encoding="utf-8") as fh:
         label_records: List[Dict] = json.load(fh)
 
     if not label_records:
         logger.warning("label_manifest.json is empty — nothing to split.")
-        return 1
+        return log_run_footer(start_time, exit_code=1)
 
     # ── Build granule → labels mapping ───────────────────────────────────────
     granule_labels: Dict[str, List[int]] = {}
@@ -169,7 +176,7 @@ def main(argv=None) -> int:
         len(splits["test"]),
         n_total,
     )
-    return 0
+    return log_run_footer(start_time, exit_code=0)
 
 
 if __name__ == "__main__":

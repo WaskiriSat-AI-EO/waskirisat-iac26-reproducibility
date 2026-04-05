@@ -1,8 +1,12 @@
 """Fire labeling functions for thermal patch classification."""
 
+import logging
+
 import numpy as np
 
 from nina_thermal import config
+
+logger = logging.getLogger(__name__)
 
 
 def compute_patch_label(
@@ -55,7 +59,12 @@ def compute_patch_label(
         return 0
 
     fire_fraction = fire_mask.sum() / total
-    return 1 if fire_fraction >= min_fire_fraction else 0
+    label = 1 if fire_fraction >= min_fire_fraction else 0
+    logger.debug(
+        "  label: fire_px=%d/%d (frac=%.5f) threshold=%.5f → label=%d",
+        int(fire_mask.sum()), total, fire_fraction, min_fire_fraction, label,
+    )
+    return label
 
 
 def classify_patch_surface_type(

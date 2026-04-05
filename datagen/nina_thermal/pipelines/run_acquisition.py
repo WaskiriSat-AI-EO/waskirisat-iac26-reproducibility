@@ -27,12 +27,8 @@ from nina_thermal.acquisition.cdse_auth import get_access_token
 from nina_thermal.acquisition.cdse_search import search_slstr_products
 from nina_thermal.acquisition.cdse_download import download_and_extract
 from nina_thermal import config
+from nina_thermal.pipelines._logging import configure_logging, log_run_footer
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)-8s  %(message)s",
-    datefmt="%H:%M:%S",
-)
 logger = logging.getLogger(__name__)
 
 
@@ -79,6 +75,15 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="TYPE",
         help="SLSTR L1B product type identifier.",
     )
+    p.add_argument(
+        "--log_dir",
+        default=None,
+        metavar="DIR",
+        help=(
+            "Directory for log files.  Defaults to "
+            "data/logs/run_{start}-{end} so all stages of a run share one dir."
+        ),
+    )
     return p
 
 
@@ -89,6 +94,13 @@ def main(argv=None) -> int:
         Exit code: 0 on success, 1 on fatal error.
     """
     args = build_parser().parse_args(argv)
+    log_dir = args.log_dir or f"data/logs/run_{args.start}-{args.end}"
+    _, start_time = configure_logging(
+        "run_acquisition",
+        log_dir,
+        extra_id=f"{args.start}-{args.end}",
+        argv=sys.argv[1:],
+    )
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -97,14 +109,14 @@ def main(argv=None) -> int:
     token = get_access_token()
     if not token:
         logger.error("Authentication failed — check CDSE_USER / CDSE_PASSWORD.")
-        return 1
+        return log_run_footer(start_time, exit_code=1)
 
     # ── AOI → WKT ─────────────────────────────────────────────────────────────
     try:
         footprint_wkt = geojson_to_wkt(read_geojson(args.roi))
     except Exception as exc:
         logger.error("Failed to read AOI GeoJSON %s: %s", args.roi, exc)
-        return 1
+        return log_run_footer(start_time, exit_code=1)
 
     # ── Search ────────────────────────────────────────────────────────────────
     logger.info(
@@ -123,7 +135,7 @@ def main(argv=None) -> int:
     if not products:
         logger.warning("No products found for the given criteria.")
         _write_manifest(output_dir, [], args)
-        return 0
+        return log_run_footer(start_time, exit_code=0)
 
     logger.info("Found %d product(s).", len(products))
 
@@ -160,7 +172,7 @@ def main(argv=None) -> int:
         "Manifest → %s/acquisition_manifest.json",
         len(downloaded), len(products), output_dir,
     )
-    return 0
+    return log_run_footer(start_time, exit_code=0)
 
 
 def _write_manifest(output_dir: Path, records: list, args) -> None:

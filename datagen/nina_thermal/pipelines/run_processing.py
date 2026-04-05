@@ -35,12 +35,8 @@ from nina_thermal.ingestion.validate_granule import validate_granule
 from nina_thermal.processing.spectral import apply_broadband_correction
 from nina_thermal.processing.spatial import tile_granule_to_lepton_patches
 from nina_thermal import config
+from nina_thermal.pipelines._logging import configure_logging, log_run_footer
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)-8s  %(message)s",
-    datefmt="%H:%M:%S",
-)
 logger = logging.getLogger(__name__)
 
 
@@ -65,6 +61,15 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="DIR",
         help="Directory for BT patch .npy files and patches_manifest.json.",
     )
+    p.add_argument(
+        "--log_dir",
+        default=None,
+        metavar="DIR",
+        help=(
+            "Directory for log files.  Defaults to "
+            f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}."
+        ),
+    )
     return p
 
 
@@ -75,6 +80,8 @@ def main(argv=None) -> int:
         Exit code: 0 on success, 1 if no granules were found.
     """
     args = build_parser().parse_args(argv)
+    log_dir = args.log_dir or f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}"
+    _, start_time = configure_logging("run_processing", log_dir, argv=sys.argv[1:])
     input_dir  = Path(args.input_dir)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -84,7 +91,7 @@ def main(argv=None) -> int:
     if not f2_files:
         logger.warning("No *_F2_BT.npy files found in %s.", input_dir)
         _write_manifest(output_dir, [], args)
-        return 1
+        return log_run_footer(start_time, exit_code=1)
 
     logger.info("Found %d granule(s).", len(f2_files))
 
@@ -127,9 +134,16 @@ def main(argv=None) -> int:
         f2_bt_corrected = apply_broadband_correction(f2_bt).astype(np.float32)
 
         # ── Tile into patches (aggregation is done inside) ───────────────
-        # tile_granule_to_lepton_patches calls aggregate_bt_to_lepton_gsd
-        # internally; pass the corrected (non-aggregated) array directly.
-        patches = tile_granule_to_lepton_patches(f2_bt_corrected, stride_fraction=0.5)
+        # Co-tile delta_T alongside BT so run_simulation can find _delta_t.npy.
+        # delta_T uses simple nanmean aggregation (not Planck-domain) because
+        # it is a temperature difference, not an absolute radiance.
+        delta_T = granule["delta_T"]
+        patches, extra = tile_granule_to_lepton_patches(
+            f2_bt_corrected,
+            stride_fraction=0.5,
+            extra_arrays={"delta_T": delta_T},
+        )
+        delta_t_patches = extra["delta_T"]
 
         # Aggregate lat/lon once for centroid computation
         agg = config.SLSTR_AGG_FACTOR
@@ -171,9 +185,13 @@ def main(argv=None) -> int:
             bt_min = float(finite.min()) if finite.size else float("nan")
             bt_max = float(finite.max()) if finite.size else float("nan")
 
-            # Save patch
+            # Save BT patch and co-tiled delta_T patch
             patch_filename = f"{granule_id}_p{patch_idx:04d}_bt.npy"
             np.save(output_dir / patch_filename, patch)
+            np.save(
+                output_dir / f"{granule_id}_p{patch_idx:04d}_delta_t.npy",
+                delta_t_patches[patch_idx],
+            )
 
             all_patch_records.append({
                 "granule_id":    granule_id,
@@ -199,7 +217,7 @@ def main(argv=None) -> int:
         len(f2_files),
         output_dir,
     )
-    return 0
+    return log_run_footer(start_time, exit_code=0)
 
 
 def _write_manifest(output_dir: Path, records: list, args) -> None:
