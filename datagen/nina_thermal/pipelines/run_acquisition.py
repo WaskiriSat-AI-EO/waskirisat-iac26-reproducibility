@@ -4,7 +4,7 @@ Usage::
 
     python -m nina_thermal.pipelines.run_acquisition \\
         --roi        resources/bolivia_roi.geojson \\
-        --start      20230601 \\
+        --start      20230101 \\
         --end        20230630 \\
         --output_dir data/01_raw \\
         --max_products 10
@@ -50,13 +50,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--start",
-        required=True,
+        default=config.DEFAULT_START_DATE,
         metavar="YYYYMMDD",
         help="Start of sensing window.",
     )
     p.add_argument(
         "--end",
-        required=True,
+        default=config.DEFAULT_END_DATE,
         metavar="YYYYMMDD",
         help="End of sensing window.",
     )

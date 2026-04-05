@@ -128,6 +128,10 @@ DIR_EXTRACTED            = "02_extracted"
 DIR_PATCHES              = "03_patches"
 DIR_DATASET              = "04_dataset"
 
+# ── Acquisition date window (defaults, overridable via CLI) ───────────────
+DEFAULT_START_DATE       = "20230101"   # YYYYMMDD
+DEFAULT_END_DATE         = "20230630"   # YYYYMMDD
+
 # ── Reproducibility ───────────────────────────────────────────────────────
 DEFAULT_SEED             = 42
 SCRIPT_VERSION           = "1.0.0"
