@@ -68,21 +68,39 @@ def _rdp(coords, tolerance):
     return [start, end]
 
 
-def _simplify_ring(ring, tolerance):
-    """Simplify a coordinate ring, preserving closure."""
-    if len(ring) < 4:
-        return ring
+def _ring_area(coords):
+    """Signed area of a ring via the shoelace formula."""
+    area = 0.0
+    n = len(coords)
+    for i in range(n - 1):
+        x0, y0 = coords[i]
+        x1, y1 = coords[i + 1]
+        area += x0 * y1 - x1 * y0
+    return abs(area) / 2.0
 
-    # Close the ring before simplification, reattach after
+
+def _simplify_ring(ring, tolerance):
+    """Simplify a coordinate ring, preserving closure.
+
+    Returns None if the ring is degenerate after simplification (fewer than
+    3 unique vertices or near-zero area) so the caller can drop it.
+    """
+    if len(ring) < 4:
+        return None
+
     open_ring = ring[:-1]
     simplified = _rdp(open_ring, tolerance)
 
-    # RDP may reduce to just 2 points; GeoJSON rings need at least 4
+    # Need at least 3 unique vertices to form a valid polygon ring
     if len(simplified) < 3:
-        return ring  # keep original if too much was removed
+        return None
 
-    # Re-close
     simplified.append(simplified[0])
+
+    # Drop rings with negligible area (degenerate holes / artefacts)
+    if _ring_area(simplified) < 1e-8:
+        return None
+
     return simplified
 
 
@@ -94,13 +112,12 @@ def _simplify_geometry(geom, tolerance):
     gtype = geom["type"]
 
     if gtype == "Polygon":
-        geom["coordinates"] = [
-            _simplify_ring(ring, tolerance) for ring in geom["coordinates"]
-        ]
+        rings = [_simplify_ring(r, tolerance) for r in geom["coordinates"]]
+        geom["coordinates"] = [r for r in rings if r is not None]
 
     elif gtype == "MultiPolygon":
         geom["coordinates"] = [
-            [_simplify_ring(ring, tolerance) for ring in polygon]
+            [r for r in (_simplify_ring(r, tolerance) for r in polygon) if r is not None]
             for polygon in geom["coordinates"]
         ]
 
