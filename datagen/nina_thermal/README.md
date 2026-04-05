@@ -125,8 +125,7 @@ CDSE_PASSWORD=yourpassword
 
 ```bash
 python -m nina_thermal.pipelines.run_acquisition \
-  --roi resources/bolivia_roi.geojson \
-  --start 20230601 --end 20230630 \
+  --roi resources/bo_nina_roi_simplified.geojson \
   --output_dir data/01_raw \
   --max_products 50
 ```
