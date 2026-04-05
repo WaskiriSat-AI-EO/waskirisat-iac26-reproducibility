@@ -112,7 +112,7 @@ HIGH_FIRE_GRANULE_THRESH = 0.05        # fire fraction tier for stratified split
 # Allows subpixel fires at 3563 m GSD to produce positive labels
 FIRE_DELTA_T_THRESHOLD_K = 8.0         # delta_T = F2_BT - S8_BT [K]
 FIRE_F2_ABS_THRESHOLD_K  = 320.0       # absolute F2_BT floor [K]
-MIN_FIRE_FRACTION        = 0.005       # 0.5% of patch pixels
+MIN_FIRE_FRACTION        = 0.0005       # 0.5% of patch pixels
 WARM_SURFACE_THRESH_K    = 310.0       # threshold for warm_surface label
 
 # ── Visualization ─────────────────────────────────────────────────────────
