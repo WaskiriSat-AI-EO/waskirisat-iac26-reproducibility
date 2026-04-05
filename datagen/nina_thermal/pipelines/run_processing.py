@@ -133,17 +133,37 @@ def main(argv=None) -> int:
         # ── Spectral correction ───────────────────────────────────────────
         f2_bt_corrected = apply_broadband_correction(f2_bt).astype(np.float32)
 
-        # ── Tile into patches (aggregation is done inside) ───────────────
-        # Co-tile delta_T alongside BT so run_simulation can find _delta_t.npy.
-        # delta_T uses simple nanmean aggregation (not Planck-domain) because
-        # it is a temperature difference, not an absolute radiance.
+        # ── Fire labels at 1 km (before aggregation) ─────────────────────
+        # Thresholds in config are calibrated for 1 km SLSTR pixels.
+        # After 4×4 aggregation, fire signals dilute to ~1/16 of their 1 km
+        # magnitude, making post-aggregation detection unreliable.
+        # Strategy: build a binary fire-pixel mask at 1 km, aggregate it
+        # alongside BT (nanmean → fire fraction per 4 km pixel), then label
+        # each patch from the aggregated fire fraction.
         delta_T = granule["delta_T"]
+        fire_px_1km = (
+            (f2_bt > config.FIRE_F2_ABS_THRESHOLD_K)
+            & (delta_T  > config.FIRE_DELTA_T_THRESHOLD_K)
+            & np.isfinite(f2_bt)
+            & np.isfinite(delta_T)
+        ).astype(np.float32)
+        n_fire_1km = int(fire_px_1km.sum())
+        logger.info(
+            "  %s: fire pixels at 1 km = %d / %d (%.4f%%)",
+            granule_id, n_fire_1km, fire_px_1km.size,
+            100.0 * n_fire_1km / fire_px_1km.size,
+        )
+
+        # ── Tile into patches (aggregation is done inside) ───────────────
+        # delta_T and fire_frac use simple nanmean (not Planck-domain)
+        # because they are not absolute radiances.
         patches, extra = tile_granule_to_lepton_patches(
             f2_bt_corrected,
             stride_fraction=0.5,
-            extra_arrays={"delta_T": delta_T},
+            extra_arrays={"delta_T": delta_T, "fire_frac": fire_px_1km},
         )
-        delta_t_patches = extra["delta_T"]
+        delta_t_patches    = extra["delta_T"]
+        fire_frac_patches  = extra["fire_frac"]
 
         # Aggregate lat/lon once for centroid computation
         agg = config.SLSTR_AGG_FACTOR
@@ -185,6 +205,12 @@ def main(argv=None) -> int:
             bt_min = float(finite.min()) if finite.size else float("nan")
             bt_max = float(finite.max()) if finite.size else float("nan")
 
+            # ── Fire label from 1km mask (aggregated to patch) ────────────
+            fire_frac_patch = fire_frac_patches[patch_idx]
+            finite_frac     = fire_frac_patch[np.isfinite(fire_frac_patch)]
+            fire_fraction   = float(finite_frac.mean()) if finite_frac.size else 0.0
+            label           = 1 if fire_fraction >= config.MIN_FIRE_FRACTION else 0
+
             # Save BT patch and co-tiled delta_T patch
             patch_filename = f"{granule_id}_p{patch_idx:04d}_bt.npy"
             np.save(output_dir / patch_filename, patch)
@@ -202,6 +228,8 @@ def main(argv=None) -> int:
                 "centroid_lon":  centroid_lon,
                 "bt_min":        bt_min,
                 "bt_max":        bt_max,
+                "label":         label,
+                "fire_fraction": fire_fraction,
             })
 
         n_patches = len(patches)

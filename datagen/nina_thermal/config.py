@@ -110,7 +110,13 @@ HIGH_FIRE_GRANULE_THRESH = 0.05        # fire fraction tier for stratified split
 # Dual criterion: pixel must satisfy BOTH to count as fire
 # min_fire_fraction: minimum fraction of fire pixels for patch label = 1
 # Allows subpixel fires at 3563 m GSD to produce positive labels
-FIRE_DELTA_T_THRESHOLD_K = 8.0         # delta_T = F2_BT - S8_BT [K]
+FIRE_DELTA_T_THRESHOLD_K = float("-inf")  # effectively disabled
+# NOTE: F2 (10.85 µm) and S8 (11.45 µm) are both LWIR channels.
+# Their BT difference is physically bounded to ~0–3 K for any surface,
+# including fire pixels. A delta_T discriminant is only meaningful for
+# MWIR vs LWIR channel pairs (e.g. 3.7 µm vs 11 µm). Since WaskiriSat
+# Lepton is a broadband LWIR sensor (8–14 µm) with no MWIR channel,
+# fire detection relies solely on the absolute F2_BT threshold below.
 FIRE_F2_ABS_THRESHOLD_K  = 320.0       # absolute F2_BT floor [K]
 MIN_FIRE_FRACTION        = 0.0005       # 0.5% of patch pixels
 WARM_SURFACE_THRESH_K    = 310.0       # threshold for warm_surface label
@@ -129,8 +135,8 @@ DIR_PATCHES              = "03_patches"
 DIR_DATASET              = "04_dataset"
 
 # ── Acquisition date window (defaults, overridable via CLI) ───────────────
-DEFAULT_START_DATE       = "20230101"   # YYYYMMDD
-DEFAULT_END_DATE         = "20230630"   # YYYYMMDD
+DEFAULT_START_DATE       = "20230801"   # YYYYMMDD — Bolivia fire season peak
+DEFAULT_END_DATE         = "20230930"   # YYYYMMDD — Bolivia fire season peak
 
 # ── Reproducibility ───────────────────────────────────────────────────────
 DEFAULT_SEED             = 42

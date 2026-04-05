@@ -224,15 +224,27 @@ def main(argv=None) -> int:
         if delta_t_file.exists():
             delta_t = np.load(delta_t_file)
         else:
-            # Conservative fallback: no fire pixels detectable without delta_T
             delta_t = np.zeros_like(bt_patch)
             logger.warning(
-                "delta_T missing for %s_p%04d — zeros used (fire labels suppressed).",
+                "delta_T missing for %s_p%04d — zeros used.",
                 granule_id, patch_index,
             )
 
         # ── Label ─────────────────────────────────────────────────────────────
-        label        = compute_patch_label(bt_patch, delta_t)
+        # Prefer the pre-computed label stored in the manifest by run_processing.
+        # That label was derived from 1km SLSTR pixels before 4×4 aggregation,
+        # where fire signals are 16× stronger and thresholds are meaningful.
+        # Fall back to post-aggregation detection only for old manifests that
+        # pre-date this change.
+        stored_label = rec.get("label", None)
+        if stored_label is not None:
+            label = int(stored_label)
+        else:
+            label = compute_patch_label(bt_patch, delta_t)
+            logger.debug(
+                "Fallback label for %s_p%04d: no pre-computed label in manifest.",
+                granule_id, patch_index,
+            )
         surface_type = classify_patch_surface_type(bt_patch, delta_t, label)
         logger.debug(
             "  patch %s_p%04d: label=%d  surface=%s  nan_frac=%.3f",
