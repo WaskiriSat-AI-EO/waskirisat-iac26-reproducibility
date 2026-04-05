@@ -212,3 +212,15 @@ __marimo__/
 sentinel/*
 sentinel_data_raw/*
 *.zip
+
+# Satellite / geospatial data
+*.nc
+*.npy
+*.SEN3/
+**/*.SEN3/
+datagen/data/
+
+# Stray numeric-named files (shell artefacts)
+datagen/[0-9]
+datagen/[0-9][0-9]
+datagen/[0-9][0-9][0-9]
