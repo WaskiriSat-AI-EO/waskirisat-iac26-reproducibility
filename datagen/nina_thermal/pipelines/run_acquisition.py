@@ -140,12 +140,19 @@ def main(argv=None) -> int:
     logger.info("Found %d product(s).", len(products))
 
     # ── Download + extract ────────────────────────────────────────────────────
+    # Refresh token before each download: CDSE bearer tokens expire in ~10 min
+    # and a 50-product session easily outlives one token.
     downloaded = []
     for i, product in enumerate(products, 1):
         pid  = product["Id"]
         name = product["Name"]
         date = product.get("ContentDate", {}).get("Start", "?")
         logger.info("[%d/%d] %s  (sensing: %s)", i, len(products), name, date)
+
+        token = get_access_token()
+        if not token:
+            logger.error("Token refresh failed at product %d — aborting.", i)
+            break
 
         ok = download_and_extract(
             access_token=token,
