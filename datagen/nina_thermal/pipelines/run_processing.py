@@ -32,6 +32,8 @@ from typing import List
 import numpy as np
 
 from nina_thermal.ingestion.validate_granule import validate_granule
+from nina_thermal.ingestion.firms_labels import extract_sensing_date, load_firms_for_granule
+from nina_thermal.ingestion.roi_mask import load_roi_polygon, compute_roi_pixel_mask
 from nina_thermal.processing.spectral import apply_broadband_correction
 from nina_thermal.processing.spatial import tile_granule_to_lepton_patches
 from nina_thermal import config
@@ -70,6 +72,26 @@ def build_parser() -> argparse.ArgumentParser:
             f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}."
         ),
     )
+    p.add_argument(
+        "--roi",
+        default=None,
+        metavar="GEOJSON",
+        help=(
+            "Optional GeoJSON file defining the area of interest. "
+            "When provided, patches with no pixels inside the polygon are dropped. "
+            "Matches the ROI used in run_acquisition."
+        ),
+    )
+    p.add_argument(
+        "--firms_dir",
+        default=None,
+        metavar="DIR",
+        help=(
+            "Optional directory containing FIRMS active-fire CSV files. "
+            "When provided, FIRMS detections are OR-combined with the BT-based "
+            "fire mask for improved recall."
+        ),
+    )
     return p
 
 
@@ -85,6 +107,15 @@ def main(argv=None) -> int:
     input_dir  = Path(args.input_dir)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load ROI polygon once — used to reject patches outside the study area
+    roi_polygon = None
+    if args.roi:
+        try:
+            roi_polygon = load_roi_polygon(Path(args.roi))
+            logger.info("ROI loaded from %s (bounds: %s)", args.roi, roi_polygon.bounds)
+        except Exception as exc:
+            logger.error("Failed to load ROI %s: %s — proceeding without spatial filter.", args.roi, exc)
 
     # Discover granules — one per *_F2_BT.npy file
     f2_files = sorted(input_dir.glob("*_F2_BT.npy"))
@@ -141,29 +172,57 @@ def main(argv=None) -> int:
         # alongside BT (nanmean → fire fraction per 4 km pixel), then label
         # each patch from the aggregated fire fraction.
         delta_T = granule["delta_T"]
-        fire_px_1km = (
+        bt_fire_mask = (
             (f2_bt > config.FIRE_F2_ABS_THRESHOLD_K)
             & (delta_T  > config.FIRE_DELTA_T_THRESHOLD_K)
             & np.isfinite(f2_bt)
             & np.isfinite(delta_T)
-        ).astype(np.float32)
-        n_fire_1km = int(fire_px_1km.sum())
+        )
+        n_bt_fire = int(bt_fire_mask.sum())
+
+        firms_fire_mask = np.zeros_like(bt_fire_mask)
+        if args.firms_dir:
+            sensing_date = extract_sensing_date(granule_id)
+            if sensing_date:
+                firms_result = load_firms_for_granule(
+                    Path(args.firms_dir), lat, lon, sensing_date
+                )
+                if firms_result is not None:
+                    firms_fire_mask = firms_result
+                    logger.info(
+                        "  %s: FIRMS fire pixels = %d", granule_id, int(firms_fire_mask.sum())
+                    )
+            else:
+                logger.warning("  %s: could not parse sensing date — FIRMS skipped.", granule_id)
+
+        fire_px_1km = (bt_fire_mask | firms_fire_mask).astype(np.float32)
+        n_fire_1km  = int(fire_px_1km.sum())
         logger.info(
-            "  %s: fire pixels at 1 km = %d / %d (%.4f%%)",
-            granule_id, n_fire_1km, fire_px_1km.size,
+            "  %s: fire pixels at 1 km = %d (BT-only=%d) / %d (%.4f%%)",
+            granule_id, n_fire_1km, n_bt_fire, fire_px_1km.size,
             100.0 * n_fire_1km / fire_px_1km.size,
         )
+
+        # ── ROI pixel mask at 1 km (co-tiled to get per-patch ROI coverage) ─
+        roi_mask_1km = None
+        if roi_polygon is not None:
+            roi_mask_1km = compute_roi_pixel_mask(lat, lon, roi_polygon).astype(np.float32)
 
         # ── Tile into patches (aggregation is done inside) ───────────────
         # delta_T and fire_frac use simple nanmean (not Planck-domain)
         # because they are not absolute radiances.
+        extra_in = {"delta_T": delta_T, "fire_frac": fire_px_1km}
+        if roi_mask_1km is not None:
+            extra_in["roi_frac"] = roi_mask_1km
+
         patches, extra = tile_granule_to_lepton_patches(
             f2_bt_corrected,
             stride_fraction=0.5,
-            extra_arrays={"delta_T": delta_T, "fire_frac": fire_px_1km},
+            extra_arrays=extra_in,
         )
         delta_t_patches    = extra["delta_T"]
         fire_frac_patches  = extra["fire_frac"]
+        roi_frac_patches   = extra.get("roi_frac")
 
         # Aggregate lat/lon once for centroid computation
         agg = config.SLSTR_AGG_FACTOR
@@ -183,15 +242,26 @@ def main(argv=None) -> int:
         )
 
         w_px, h_px = config.LEPTON_RESOLUTION  # (160, 120)
-        n_cols = lat_agg.shape[1] // w_px
-        n_rows_rejected_before = total_rejected
+        # stride_fraction=0.5 matches the tile_granule_to_lepton_patches call above
+        stride_x = max(1, int(w_px * 0.5))
+        stride_y = max(1, int(h_px * 0.5))
+        n_cols   = max(1, (lat_agg.shape[1] - w_px) // stride_x + 1)
+        n_roi_rejected = 0
 
         for patch_idx, patch in enumerate(patches):
+            # ── ROI filter: skip patches with no pixels inside the study area ─
+            if roi_frac_patches is not None:
+                roi_patch = roi_frac_patches[patch_idx]
+                if float(roi_patch.mean()) == 0.0:
+                    n_roi_rejected += 1
+                    continue
+
             row = patch_idx // n_cols
             col = patch_idx  % n_cols
 
-            # Centroid from aggregated coordinate arrays (best-effort)
-            r0, c0 = row * h_px, col * w_px
+            # Centroid from aggregated coordinate arrays.
+            # Origin uses stride (not full patch size) because patches overlap 50%.
+            r0, c0 = row * stride_y, col * stride_x
             r1, c1 = r0 + h_px, c0 + w_px
 
             lat_patch = lat_agg[r0:r1, c0:c1] if lat_agg.shape[0] >= r1 and lat_agg.shape[1] >= c1 else None
@@ -232,9 +302,10 @@ def main(argv=None) -> int:
                 "fire_fraction": fire_fraction,
             })
 
-        n_patches = len(patches)
+        n_patches = len(patches) - n_roi_rejected
         logger.info(
-            "  %s: %d patch(es) saved.", granule_id, n_patches,
+            "  %s: %d patch(es) saved  (%d outside ROI — dropped).",
+            granule_id, n_patches, n_roi_rejected,
         )
 
     _write_manifest(output_dir, all_patch_records, args)

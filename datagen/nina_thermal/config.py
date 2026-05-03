@@ -117,7 +117,8 @@ FIRE_DELTA_T_THRESHOLD_K = float("-inf")  # effectively disabled
 # MWIR vs LWIR channel pairs (e.g. 3.7 µm vs 11 µm). Since WaskiriSat
 # Lepton is a broadband LWIR sensor (8–14 µm) with no MWIR channel,
 # fire detection relies solely on the absolute F2_BT threshold below.
-FIRE_F2_ABS_THRESHOLD_K  = 320.0       # absolute F2_BT floor [K]
+FIRE_F2_ABS_THRESHOLD_K  = 310.0       # absolute F2_BT floor [K] — matches MODIS/VIIRS 11µm standard
+FIRE_EXEMPT_THRESHOLD_K  = 308.0       # pixels above this are never cloud-masked in extraction
 MIN_FIRE_FRACTION        = 0.0005       # 0.5% of patch pixels
 WARM_SURFACE_THRESH_K    = 310.0       # threshold for warm_surface label
 

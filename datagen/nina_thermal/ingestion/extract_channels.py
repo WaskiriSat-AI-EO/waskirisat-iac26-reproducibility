@@ -10,6 +10,8 @@ from typing import Optional, Tuple
 
 import numpy as np
 
+from nina_thermal import config
+
 logger = logging.getLogger(__name__)
 
 # Nadir (in-scan) NetCDF filenames for SLSTR L1B .SEN3 packages.
@@ -102,6 +104,8 @@ def extract_thermal_channels(
             if fill is not None:
                 f2_bt[f2_bt == float(fill)] = np.nan
             f2_bt[(f2_bt < 200.0) | (f2_bt > 400.0)] = np.nan
+            # Pre-mask copy for fire exemption (fill/range already cleared)
+            f2_raw = f2_bt.copy()
 
         # ── S8_BT ────────────────────────────────────────────────────────────
         s8_path = sen3_dir / SLSTR_NADIR_FILES["S8_BT"]
@@ -136,17 +140,22 @@ def extract_thermal_channels(
 
         cloud_mask     = (cloud_in & 1).astype(bool)
         exception_mask = (confidence_in & 2).astype(bool)
-        combined       = cloud_mask | exception_mask
+
+        # Exempt hot fire pixels: SLSTR cloud tests misfire on anomalously bright TIR
+        fire_exempt = (f2_raw > config.FIRE_EXEMPT_THRESHOLD_K) & np.isfinite(f2_raw)
+        combined    = (cloud_mask | exception_mask) & ~fire_exempt
 
         n_cloud     = int(cloud_mask.sum())
         n_exception = int(exception_mask.sum())
+        n_exempt    = int(fire_exempt.sum())
         n_combined  = int(combined.sum())
         n_finite    = int(np.isfinite(f2_bt).sum()) - n_combined
         logger.info(
             "  bitmask: cloud=%d (%.1f%%)  exception=%d (%.1f%%)  "
-            "combined=%d (%.1f%%)  finite_after=%d (%.1f%%)",
+            "fire_exempt=%d (%.2f%%)  combined=%d (%.1f%%)  finite_after=%d (%.1f%%)",
             n_cloud,     100.0 * n_cloud     / total_px,
             n_exception, 100.0 * n_exception / total_px,
+            n_exempt,    100.0 * n_exempt    / total_px,
             n_combined,  100.0 * n_combined  / total_px,
             max(n_finite, 0), 100.0 * max(n_finite, 0) / total_px,
         )

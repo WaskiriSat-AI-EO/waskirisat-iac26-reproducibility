@@ -9,9 +9,9 @@ from nina_thermal import config
 
 # Convenience constants
 _H, _W = 20, 20
-_AMBIENT_K = config.AMBIENT_REFERENCE_K        # 295 K
-_FIRE_F2    = config.FIRE_F2_ABS_THRESHOLD_K   # 320 K
-_FIRE_DT    = config.FIRE_DELTA_T_THRESHOLD_K  # 8 K
+_AMBIENT_K  = config.AMBIENT_REFERENCE_K        # 295 K
+_FIRE_F2    = config.FIRE_F2_ABS_THRESHOLD_K   # 310 K
+_FIRE_DT    = config.FIRE_DELTA_T_THRESHOLD_K  # effectively -inf (disabled)
 _WARM_THRESH = config.WARM_SURFACE_THRESH_K    # 310 K
 
 
@@ -41,10 +41,10 @@ class TestComputePatchLabel:
         f2 = _ambient_patch()
         dt = _ambient_delta()
 
-        # Mark 2 % of pixels as fire
+        # Mark 2 % of pixels as fire (dt threshold is -inf so any finite value qualifies)
         n_fire = max(1, int(0.02 * _H * _W))
         f2.ravel()[:n_fire] = _FIRE_F2 + 10.0   # above absolute threshold
-        dt.ravel()[:n_fire] = _FIRE_DT + 5.0    # above delta-T threshold
+        dt.ravel()[:n_fire] = 5.0               # finite → satisfies disabled -inf criterion
 
         assert compute_patch_label(f2, dt) == 1
 
@@ -57,6 +57,19 @@ class TestComputePatchLabel:
         dt = np.full((_H, _W), _FIRE_DT - 1.0,  dtype=np.float32)  # below threshold
 
         assert compute_patch_label(f2, dt) == 0
+
+    def test_312k_pixel_gives_label_1_with_lowered_threshold(self):
+        """312 K mixed pixel (previously missed at 320 K) must now label as fire.
+
+        A 1 km pixel with ~10% flaming coverage at 700 K + 300 K background
+        yields ~312-318 K mixed BT.  This was silently rejected at the old
+        320 K threshold; the corrected 310 K threshold must recover it.
+        """
+        f2 = _ambient_patch()
+        dt = _ambient_delta()
+        n_fire = max(1, int(0.02 * _H * _W))
+        f2.ravel()[:n_fire] = 312.0   # above 310 K, below old 320 K threshold
+        assert compute_patch_label(f2, dt) == 1
 
     def test_nan_pixels_do_not_crash(self):
         """Patches containing NaN values must not raise any exception."""
