@@ -129,7 +129,7 @@ DEFAULT_COLORMAP         = "inferno"
 COLORMAPS_AVAILABLE      = ["inferno", "iron", "rainbow", "grayscale"]
 
 # ── Pipeline paths (defaults, overridable via CLI) ────────────────────────
-DEFAULT_DATA_ROOT        = "./data"
+DEFAULT_DATA_ROOT        = "./data/thermal"
 DIR_RAW                  = "01_raw"
 DIR_EXTRACTED            = "02_extracted"
 DIR_PATCHES              = "03_patches"

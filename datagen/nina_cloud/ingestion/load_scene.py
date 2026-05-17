@@ -18,12 +18,16 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
-def load_s2_scene(scene_dir: Path) -> Optional[Dict[str, np.ndarray]]:
+def load_s2_scene(
+    scene_dir: Path,
+    scene_id: Optional[str] = None,
+) -> Optional[Dict[str, np.ndarray]]:
     """Load an S2 scene, choosing the fastest available data path.
 
     Path A — ``.npy`` files present (preferred):
-        Detects any ``*_rgb.npy`` file in *scene_dir*, loads the companion
-        ``*_scl.npy``, and returns the dict immediately.
+        If *scene_id* is given, loads ``{scene_id}_rgb.npy`` directly.
+        Otherwise detects any ``*_rgb.npy`` file in *scene_dir* and loads
+        the first match (legacy behaviour, single-scene directories only).
 
     Path B — ``.SAFE`` directory fallback:
         Locates the ``.SAFE`` directory (either *scene_dir* itself or a
@@ -33,6 +37,9 @@ def load_s2_scene(scene_dir: Path) -> Optional[Dict[str, np.ndarray]]:
     Args:
         scene_dir: Directory that contains either ``.npy`` files or a
             ``.SAFE`` sub-directory (or is itself a ``.SAFE`` directory).
+        scene_id: When provided, targets ``{scene_id}_rgb.npy`` specifically
+            instead of picking an arbitrary file via glob. Required when
+            *scene_dir* holds multiple scenes.
 
     Returns:
         Dict with keys ``"rgb"`` (float32 H×W×3) and ``"scl"`` (uint8 H/2×W/2),
@@ -41,6 +48,10 @@ def load_s2_scene(scene_dir: Path) -> Optional[Dict[str, np.ndarray]]:
     scene_dir = Path(scene_dir)
 
     # ── Path A: .npy files ────────────────────────────────────────────────────
+    if scene_id is not None:
+        rgb_npy = scene_dir / f"{scene_id}_rgb.npy"
+        if rgb_npy.exists():
+            return _load_from_npy(scene_dir, rgb_npy)
     npy_hits = list(scene_dir.glob("*_rgb.npy"))
     if npy_hits:
         return _load_from_npy(scene_dir, npy_hits[0])

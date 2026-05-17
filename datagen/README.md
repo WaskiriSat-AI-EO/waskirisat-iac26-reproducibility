@@ -41,7 +41,7 @@ python -m nina_thermal.pipelines.run_acquisition \
     --roi          resources/bolivia_roi.geojson \
     --start        20230601 \
     --end          20230901 \
-    --output_dir   data/01_raw \
+    --output_dir   data/thermal/01_raw \
     --max_products 50
 ```
 
@@ -52,8 +52,8 @@ products over Bolivia, downloads and extracts .zip archives. Writes `acquisition
 
 ```bash
 python -m nina_thermal.pipelines.run_extraction \
-    --input_dir  data/01_raw \
-    --output_dir data/02_extracted
+    --input_dir  data/thermal/01_raw \
+    --output_dir data/thermal/02_extracted
 ```
 
 Reads NetCDF files from each .SEN3 directory, applies cloud and exception masks, saves
@@ -64,8 +64,8 @@ Reads NetCDF files from each .SEN3 directory, applies cloud and exception masks,
 
 ```bash
 python -m nina_thermal.pipelines.run_processing \
-    --input_dir  data/02_extracted \
-    --output_dir data/03_patches
+    --input_dir  data/thermal/02_extracted \
+    --output_dir data/thermal/03_patches
 ```
 
 For each granule: applies broadband spectral correction, performs radiance-consistent
@@ -76,8 +76,8 @@ NaN handling. Saves patch `.npy` files and `patches_manifest.json`.
 
 ```bash
 python -m nina_thermal.pipelines.run_simulation \
-    --input_dir  data/03_patches \
-    --output_dir data/04_dataset \
+    --input_dir  data/thermal/03_patches \
+    --output_dir data/thermal/04_dataset \
     --profiles   A,B,C \
     --agc_modes  fixed,global \
     --seed       42
@@ -92,7 +92,7 @@ and `label_manifest.json`.
 
 ```bash
 python -m nina_thermal.pipelines.run_split \
-    --dataset_dir data/04_dataset \
+    --dataset_dir data/thermal/04_dataset \
     --seed        42
 ```
 
@@ -103,7 +103,7 @@ fraction tier. Prevents spatial autocorrelation leakage. Writes `split_manifest.
 
 ```bash
 python -m nina_thermal.pipelines.run_balance \
-    --dataset_dir data/04_dataset \
+    --dataset_dir data/thermal/04_dataset \
     --fire_ratio  0.20 \
     --seed        42
 ```
@@ -116,8 +116,8 @@ are deleted).
 
 ```bash
 python -m nina_thermal.pipelines.run_report \
-    --dataset_dir data/04_dataset \
-    --output      data/04_dataset/dataset_summary.json
+    --dataset_dir data/thermal/04_dataset \
+    --output      data/thermal/04_dataset/dataset_summary.json
 ```
 
 Aggregates statistics across all metadata JSON files. Prints summary table to stdout.
@@ -129,39 +129,40 @@ Writes `dataset_summary.json` — the primary deliverable for the paper's datase
 
 ```
 data/
-├── 01_raw/
-│   ├── S3A_SL_1_RBT____20230601T...SEN3/   # extracted granule directories
-│   │   ├── F2_BT.nc
-│   │   ├── S8_BT.nc
-│   │   ├── geodetic_in.nc
-│   │   └── flags_in.nc
-│   └── acquisition_manifest.json
-│
-├── 02_extracted/
-│   ├── S3A_SL_1_RBT____20230601T..._F2_BT.npy
-│   ├── S3A_SL_1_RBT____20230601T..._S8_BT.npy
-│   ├── S3A_SL_1_RBT____20230601T..._lat.npy
-│   ├── S3A_SL_1_RBT____20230601T..._lon.npy
-│   └── extraction_manifest.json
-│
-├── 03_patches/
-│   ├── S3A_SL_1_RBT____20230601T..._p0000_bt.npy   # 160×120 BT patches [K]
-│   ├── S3A_SL_1_RBT____20230601T..._p0001_bt.npy
-│   └── patches_manifest.json
-│
-└── 04_dataset/
-    ├── images/
-    │   ├── S3A_SL_1_RBT____20230601T..._p0000_fixed_A.png   # uint8 grayscale
-    │   └── ...                                                # one per patch × mode × profile
-    ├── metadata/
-    │   ├── S3A_SL_1_RBT____20230601T..._p0000_fixed_A.json
-    │   └── ...
-    ├── viz/                                                   # false-colour PNGs (optional)
-    ├── label_manifest.json       # per-patch: label, granule_id, surface_type, split
-    ├── balanced_manifest.json    # filtered to balanced subset
-    ├── split_manifest.json       # {"train": [...], "val": [...], "test": [...]}
-    ├── simulation_manifest.json
-    └── dataset_summary.json      # paper dataset table source
+└── thermal/
+    ├── 01_raw/
+    │   ├── S3A_SL_1_RBT____20230601T...SEN3/   # extracted granule directories
+    │   │   ├── F2_BT.nc
+    │   │   ├── S8_BT.nc
+    │   │   ├── geodetic_in.nc
+    │   │   └── flags_in.nc
+    │   └── acquisition_manifest.json
+    │
+    ├── 02_extracted/
+    │   ├── S3A_SL_1_RBT____20230601T..._F2_BT.npy
+    │   ├── S3A_SL_1_RBT____20230601T..._S8_BT.npy
+    │   ├── S3A_SL_1_RBT____20230601T..._lat.npy
+    │   ├── S3A_SL_1_RBT____20230601T..._lon.npy
+    │   └── extraction_manifest.json
+    │
+    ├── 03_patches/
+    │   ├── S3A_SL_1_RBT____20230601T..._p0000_bt.npy   # 160×120 BT patches [K]
+    │   ├── S3A_SL_1_RBT____20230601T..._p0001_bt.npy
+    │   └── patches_manifest.json
+    │
+    └── 04_dataset/
+        ├── images/
+        │   ├── S3A_SL_1_RBT____20230601T..._p0000_fixed_A.png   # uint8 grayscale
+        │   └── ...                                                # one per patch × mode × profile
+        ├── metadata/
+        │   ├── S3A_SL_1_RBT____20230601T..._p0000_fixed_A.json
+        │   └── ...
+        ├── viz/                                                   # false-colour PNGs (optional)
+        ├── label_manifest.json       # per-patch: label, granule_id, surface_type, split
+        ├── balanced_manifest.json    # filtered to balanced subset
+        ├── split_manifest.json       # {"train": [...], "val": [...], "test": [...]}
+        ├── simulation_manifest.json
+        └── dataset_summary.json      # paper dataset table source
 ```
 
 **Image naming convention:** `{granule_id}_p{patch_index:04d}_{agc_mode}_{profile}.png`

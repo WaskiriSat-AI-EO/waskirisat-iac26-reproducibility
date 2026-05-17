@@ -41,7 +41,7 @@ def main(argv: List[str] = None) -> int:
     )
     parser.add_argument("--input_dir",  required=True, help="03_tiles/ directory")
     parser.add_argument("--output_dir", required=True, help="04_dataset/ directory")
-    parser.add_argument("--profiles",   default="A,B,C", help="Degradation profiles (comma-separated)")
+    parser.add_argument("--profiles",   default="B", help="Degradation profiles (comma-separated)")
     parser.add_argument("--seed",       type=int, default=config.DEFAULT_SEED)
     parser.add_argument("--validation", action="store_true", help="Run image quality checks")
     parser.add_argument("--log_dir",    default="data/logs")

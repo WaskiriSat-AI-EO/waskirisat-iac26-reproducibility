@@ -54,7 +54,7 @@ def main(argv: List[str] = None) -> int:
             n_fail += 1
             continue
 
-        scene = load_s2_scene(output_dir)
+        scene = load_s2_scene(output_dir, scene_id=scene_id)
         if scene is None or not validate_scene(scene):
             logger.warning("Validation failed: %s", scene_id)
             records.append({"safe_dir": safe_dir.name, "scene_id": scene_id, "status": "invalid"})

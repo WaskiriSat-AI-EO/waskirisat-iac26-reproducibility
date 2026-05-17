@@ -60,8 +60,7 @@ def main(argv: List[str] = None) -> int:
     n_cloud = n_clear = n_ambig = n_nodata_rejected = 0
 
     for scene_id in scene_ids:
-        scene_dir = input_dir
-        scene = load_s2_scene(scene_dir)
+        scene = load_s2_scene(input_dir, scene_id=scene_id)
         if scene is None:
             logger.warning("Could not load scene: %s", scene_id)
             continue

@@ -126,7 +126,7 @@ CDSE_PASSWORD=yourpassword
 ```bash
 python -m nina_thermal.pipelines.run_acquisition \
   --roi resources/bo_nina_roi_simplified.geojson \
-  --output_dir data/01_raw \
+  --output_dir data/thermal/01_raw \
   --max_products 50
 ```
 
@@ -142,8 +142,8 @@ Downloads Sentinel-3 SLSTR L1B granules intersecting the AOI, extracts them as `
 
 ```bash
 python -m nina_thermal.pipelines.run_extraction \
-  --input_dir data/01_raw \
-  --output_dir data/02_extracted
+  --input_dir data/thermal/01_raw \
+  --output_dir data/thermal/02_extracted
 ```
 
 Reads F2_BT, S8_BT, lat, lon from NetCDF; applies cloud and exception bitmasks (sets masked pixels to NaN); saves as `.npy`.
@@ -160,8 +160,8 @@ Reads F2_BT, S8_BT, lat, lon from NetCDF; applies cloud and exception bitmasks (
 
 ```bash
 python -m nina_thermal.pipelines.run_processing \
-  --input_dir data/02_extracted \
-  --output_dir data/03_patches
+  --input_dir data/thermal/02_extracted \
+  --output_dir data/thermal/03_patches
 ```
 
 For each granule:
@@ -181,8 +181,8 @@ For each granule:
 
 ```bash
 python -m nina_thermal.pipelines.run_simulation \
-  --input_dir data/03_patches \
-  --output_dir data/04_dataset \
+  --input_dir data/thermal/03_patches \
+  --output_dir data/thermal/04_dataset \
   --profiles A,B,C \
   --agc_modes fixed,global \
   --seed 42
@@ -225,7 +225,7 @@ For each patch × AGC mode × degradation profile:
 
 ```bash
 python -m nina_thermal.pipelines.run_split \
-  --dataset_dir data/04_dataset \
+  --dataset_dir data/thermal/04_dataset \
   --seed 42
 ```
 
@@ -243,7 +243,7 @@ Splits at **granule level** (never patch level) using stratified sampling: high-
 
 ```bash
 python -m nina_thermal.pipelines.run_balance \
-  --dataset_dir data/04_dataset \
+  --dataset_dir data/thermal/04_dataset \
   --fire_ratio 0.20 \
   --seed 42
 ```
@@ -259,7 +259,7 @@ Undersamples no-fire patches within each split independently to reach the target
 
 ```bash
 python -m nina_thermal.pipelines.run_report \
-  --dataset_dir data/04_dataset
+  --dataset_dir data/thermal/04_dataset
 ```
 
 **Output:** `data/04_dataset/dataset_summary.json` — comprehensive statistics including granule/patch counts per split, fire fraction, surface type breakdown, BT statistics, geographic and temporal coverage, and all processing parameters.

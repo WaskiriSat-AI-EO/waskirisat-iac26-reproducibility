@@ -67,7 +67,7 @@ CLOUD_LABEL_LOW_THRESH    = 0.30   # cloud_frac < 0.30 → label = 0 (clear)
 
 # ── Acquisition cloud cover search bounds ────────────────────────────────────
 ACQUISITION_CLEAR_MAX_PCT  = 30    # CDSE cloudCover ≤ 30 → "clear" acquisition pass
-ACQUISITION_CLOUDY_MIN_PCT = 70    # CDSE cloudCover ≥ 70 → "cloudy" acquisition pass
+ACQUISITION_CLOUDY_MIN_PCT = 60    # CDSE cloudCover ≥ 60 → "cloudy" acquisition pass
 
 # ── Degradation profiles (CMOS dark-current / noise envelope) ─────────────────
 # A: nominal (cool sensor, low radiation dose)
@@ -137,7 +137,7 @@ SCL_CLASS_COLORS = {
 }
 
 # ── Pipeline defaults (overridable via CLI) ───────────────────────────────────
-DEFAULT_DATA_ROOT         = "./data"
+DEFAULT_DATA_ROOT         = "./data/cloud"
 DIR_RAW                   = "01_raw"
 DIR_EXTRACTED             = "02_extracted"
 DIR_TILES                 = "03_tiles"
