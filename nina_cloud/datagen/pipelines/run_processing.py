@@ -19,6 +19,7 @@ from typing import List
 import numpy as np
 
 from shared.pipeline_logging import configure_logging, log_run_footer
+from shared.manifest import expected_scene_ids, assert_chain
 
 from nina_cloud.datagen import config
 from nina_cloud.datagen.ingestion.load_scene import load_s2_scene
@@ -53,11 +54,14 @@ def main(argv: List[str] = None) -> int:
     with open(manifest_path) as f:
         extraction_manifest = json.load(f)
 
+    upstream_ids = expected_scene_ids(extraction_manifest["scenes"])
     scene_ids = [r["scene_id"] for r in extraction_manifest["scenes"] if r["status"] == "ok"]
     logger.info("Processing %d scenes", len(scene_ids))
 
     tile_records = []
     n_cloud = n_clear = n_ambig = n_nodata_rejected = 0
+    scenes_fully_ambiguous: set = set()
+    scenes_with_tiles: set = set()
 
     for scene_id in scene_ids:
         scene = load_s2_scene(input_dir, scene_id=scene_id)
@@ -69,6 +73,8 @@ def main(argv: List[str] = None) -> int:
             scene["rgb"], scene["scl"]
         )
 
+        scene_tile_count = 0
+        scene_ambig_count = 0
         for tile_idx, (rgb_tile, scl_tile, (row, col)) in enumerate(
             zip(rgb_patches, scl_patches, origins)
         ):
@@ -77,6 +83,7 @@ def main(argv: List[str] = None) -> int:
 
             if label == -1:
                 n_ambig += 1
+                scene_ambig_count += 1
                 continue
 
             # Save tile files
@@ -102,11 +109,31 @@ def main(argv: List[str] = None) -> int:
                 json.dump(meta, f, indent=2)
 
             tile_records.append(meta)
+            scene_tile_count += 1
 
             if label == 1:
                 n_cloud += 1
             else:
                 n_clear += 1
+
+        if scene_tile_count == 0:
+            if scene_ambig_count > 0:
+                logger.warning(
+                    "Scene %s produced 0 tiles (all %d patches ambiguous — "
+                    "cloud_frac in [%.2f, %.2f]); excluded from dataset",
+                    scene_id, scene_ambig_count,
+                    config.CLOUD_LABEL_LOW_THRESH, config.CLOUD_LABEL_HIGH_THRESH,
+                )
+                scenes_fully_ambiguous.add(scene_id)
+            # Scenes that failed to load are already warned above
+        else:
+            scenes_with_tiles.add(scene_id)
+
+    # Chain validation: scenes expected but absent (excluding scenes whose tiles
+    # were all ambiguous — that is legitimate exclusion, not data loss) cause
+    # a fast failure. Load failures are included as missing.
+    if not assert_chain(upstream_ids - scenes_fully_ambiguous, scenes_with_tiles, logger):
+        return log_run_footer(start_time, 1)
 
     tiles_manifest_path = output_dir / "tiles_manifest.json"
     with open(tiles_manifest_path, "w") as f:

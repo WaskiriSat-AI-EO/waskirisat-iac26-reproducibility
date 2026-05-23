@@ -19,6 +19,8 @@ from typing import List
 import numpy as np
 
 from shared.pipeline_logging import configure_logging, log_run_footer
+from shared.manifest import expected_scene_ids, assert_chain, load_records
+from shared.seeding import derive_seed
 
 from nina_cloud.datagen import config
 from nina_cloud.datagen.dataset.export import (
@@ -73,7 +75,7 @@ def main(argv: List[str] = None) -> int:
     logger.info("Simulating %d tiles × %d profiles", len(tile_records), len(profiles))
 
     label_manifest = []
-    rng_global = np.random.default_rng(args.seed)
+    upstream_ids = expected_scene_ids(tile_records)  # no status field in tiles manifest
 
     for meta in tile_records:
         scene_id  = meta["scene_id"]
@@ -95,9 +97,10 @@ def main(argv: List[str] = None) -> int:
                 shape=rgb_float.shape[:2],
                 column_strength=prof_cfg["fpn_column_strength"],
                 pixel_strength=prof_cfg["fpn_pixel_strength"],
-                seed=int(rng_global.integers(0, 2**31)),
+                seed=derive_seed(args.seed, scene_id, tile_idx, profile, "fpn"),
             )
-            rng_tile = np.random.default_rng(int(rng_global.integers(0, 2**31)))
+            noise_seed = derive_seed(args.seed, scene_id, tile_idx, profile, "noise")
+            rng_tile = np.random.default_rng(noise_seed)
 
             img_u8 = simulate_pag7936(
                 rgb_float, profile=profile, fpn=fpn, rng=rng_tile
@@ -117,7 +120,7 @@ def main(argv: List[str] = None) -> int:
                 origin_row=meta["origin_row"],
                 origin_col=meta["origin_col"],
                 split="",  # filled in by run_split
-                seed=args.seed,
+                seed=noise_seed,
             )
             if args.validation:
                 img_meta["validation"] = {
@@ -139,6 +142,10 @@ def main(argv: List[str] = None) -> int:
                 "profile":    profile,
                 "split":      "",
             })
+
+    produced_ids = {r["scene_id"] for r in label_manifest}
+    if not assert_chain(upstream_ids, produced_ids, logger):
+        return log_run_footer(start_time, 1)
 
     save_label_manifest(label_manifest, output_dir / "label_manifest.json")
     logger.info(
