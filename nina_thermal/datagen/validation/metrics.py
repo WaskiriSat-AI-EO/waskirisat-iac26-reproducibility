@@ -43,7 +43,7 @@ def calculate_snr_db(image: np.ndarray) -> float:
     laplacian = _laplacian(img)
     # Immerkær estimator for sigma of additive white Gaussian noise
     sigma_noise = np.sqrt(np.pi / 2.0) * np.mean(np.abs(laplacian)) / 6.0
-    noise_var = sigma_noise ** 2
+    noise_var = sigma_noise**2
 
     signal_var = max(total_var - noise_var, 1e-12)
     return float(10.0 * np.log10(signal_var / noise_var))
@@ -70,23 +70,26 @@ def calculate_histogram_stats(image: np.ndarray) -> Dict[str, float]:
 
     if finite.size == 0:
         nan = float("nan")
-        return {k: nan for k in ("mean", "std", "min", "max",
-                                 "p2", "p25", "p50", "p75", "p98")}
+        return {
+            k: nan
+            for k in ("mean", "std", "min", "max", "p2", "p25", "p50", "p75", "p98")
+        }
 
     return {
         "mean": float(finite.mean()),
-        "std":  float(finite.std()),
-        "min":  float(finite.min()),
-        "max":  float(finite.max()),
-        "p2":   float(np.percentile(finite, 2)),
-        "p25":  float(np.percentile(finite, 25)),
-        "p50":  float(np.percentile(finite, 50)),
-        "p75":  float(np.percentile(finite, 75)),
-        "p98":  float(np.percentile(finite, 98)),
+        "std": float(finite.std()),
+        "min": float(finite.min()),
+        "max": float(finite.max()),
+        "p2": float(np.percentile(finite, 2)),
+        "p25": float(np.percentile(finite, 25)),
+        "p50": float(np.percentile(finite, 50)),
+        "p75": float(np.percentile(finite, 75)),
+        "p98": float(np.percentile(finite, 98)),
     }
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
+
 
 def _laplacian(img: np.ndarray) -> np.ndarray:
     """Apply discrete Laplacian kernel to a 2-D float64 image.
@@ -108,9 +111,9 @@ def _laplacian(img: np.ndarray) -> np.ndarray:
     # Manual valid convolution avoids a scipy dependency
     c = img[1:-1, 1:-1]
     lap = (
-        img[:-2, 1:-1]   # top
+        img[:-2, 1:-1]  # top
         + img[2:, 1:-1]  # bottom
-        + img[1:-1, :-2] # left
+        + img[1:-1, :-2]  # left
         + img[1:-1, 2:]  # right
         - 4.0 * c
     )

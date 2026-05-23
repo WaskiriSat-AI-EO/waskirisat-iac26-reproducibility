@@ -110,9 +110,7 @@ def generate_lepton_fpn(
     column_fpn = np.broadcast_to(col_offsets, (h, w)).copy()
 
     # Pixel FPN: independent per-pixel
-    pixel_fpn = (
-        rng.standard_normal((h, w)).astype(np.float32) * pixel_strength
-    )
+    pixel_fpn = rng.standard_normal((h, w)).astype(np.float32) * pixel_strength
 
     return {"column_fpn": column_fpn, "pixel_fpn": pixel_fpn}
 

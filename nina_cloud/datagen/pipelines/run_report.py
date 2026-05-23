@@ -23,7 +23,7 @@ def main(argv: List[str] = None) -> int:
         description="nina_cloud stage 7: generate dataset_summary.json"
     )
     parser.add_argument("--dataset_dir", required=True, help="04_dataset/ directory")
-    parser.add_argument("--log_dir",     default="data/logs")
+    parser.add_argument("--log_dir", default="data/logs")
     args = parser.parse_args(argv)
 
     log_file, start_time = configure_logging(
@@ -50,7 +50,8 @@ def main(argv: List[str] = None) -> int:
     summary = build_dataset_report(records, dataset_dir / "dataset_summary.json")
     logger.info(
         "Report written: %s  total=%d",
-        dataset_dir / "dataset_summary.json", summary["total_images"],
+        dataset_dir / "dataset_summary.json",
+        summary["total_images"],
     )
     return log_run_footer(start_time, 0)
 

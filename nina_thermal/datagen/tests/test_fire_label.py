@@ -3,16 +3,19 @@
 import numpy as np
 import pytest
 
-from nina_thermal.datagen.labeling.fire_label import compute_patch_label, classify_patch_surface_type
+from nina_thermal.datagen.labeling.fire_label import (
+    compute_patch_label,
+    classify_patch_surface_type,
+)
 from nina_thermal.datagen import config
 
 
 # Convenience constants
 _H, _W = 20, 20
-_AMBIENT_K  = config.AMBIENT_REFERENCE_K        # 295 K
-_FIRE_F2    = config.FIRE_F2_ABS_THRESHOLD_K   # 310 K
-_FIRE_DT    = config.FIRE_DELTA_T_THRESHOLD_K  # effectively -inf (disabled)
-_WARM_THRESH = config.WARM_SURFACE_THRESH_K    # 310 K
+_AMBIENT_K = config.AMBIENT_REFERENCE_K  # 295 K
+_FIRE_F2 = config.FIRE_F2_ABS_THRESHOLD_K  # 310 K
+_FIRE_DT = config.FIRE_DELTA_T_THRESHOLD_K  # effectively -inf (disabled)
+_WARM_THRESH = config.WARM_SURFACE_THRESH_K  # 310 K
 
 
 def _ambient_patch():
@@ -43,8 +46,8 @@ class TestComputePatchLabel:
 
         # Mark 2 % of pixels as fire (dt threshold is -inf so any finite value qualifies)
         n_fire = max(1, int(0.02 * _H * _W))
-        f2.ravel()[:n_fire] = _FIRE_F2 + 10.0   # above absolute threshold
-        dt.ravel()[:n_fire] = 5.0               # finite → satisfies disabled -inf criterion
+        f2.ravel()[:n_fire] = _FIRE_F2 + 10.0  # above absolute threshold
+        dt.ravel()[:n_fire] = 5.0  # finite → satisfies disabled -inf criterion
 
         assert compute_patch_label(f2, dt) == 1
 
@@ -54,7 +57,7 @@ class TestComputePatchLabel:
         This tests the dual-criterion logic: high F2_BT alone is not enough.
         """
         f2 = np.full((_H, _W), _FIRE_F2 + 20.0, dtype=np.float32)  # warm
-        dt = np.full((_H, _W), _FIRE_DT - 1.0,  dtype=np.float32)  # below threshold
+        dt = np.full((_H, _W), _FIRE_DT - 1.0, dtype=np.float32)  # below threshold
 
         assert compute_patch_label(f2, dt) == 0
 
@@ -68,7 +71,7 @@ class TestComputePatchLabel:
         f2 = _ambient_patch()
         dt = _ambient_delta()
         n_fire = max(1, int(0.02 * _H * _W))
-        f2.ravel()[:n_fire] = 312.0   # above 310 K, below old 320 K threshold
+        f2.ravel()[:n_fire] = 312.0  # above 310 K, below old 320 K threshold
         assert compute_patch_label(f2, dt) == 1
 
     def test_nan_pixels_do_not_crash(self):

@@ -88,18 +88,24 @@ class TestReadNoise:
 
 class TestGeneratePag7936Fpn:
     def test_output_keys(self):
-        fpn = generate_pag7936_fpn((120, 160), column_strength=0.01, pixel_strength=0.01)
+        fpn = generate_pag7936_fpn(
+            (120, 160), column_strength=0.01, pixel_strength=0.01
+        )
         assert "column_fpn" in fpn
         assert "pixel_fpn" in fpn
 
     def test_output_shapes(self):
-        fpn = generate_pag7936_fpn((800, 1280), column_strength=0.01, pixel_strength=0.01)
+        fpn = generate_pag7936_fpn(
+            (800, 1280), column_strength=0.01, pixel_strength=0.01
+        )
         assert fpn["column_fpn"].shape == (800, 1280)
         assert fpn["pixel_fpn"].shape == (800, 1280)
 
     def test_column_fpn_has_vertical_stripe_structure(self):
         """All rows in a given column must share the same FPN value."""
-        fpn = generate_pag7936_fpn((100, 200), column_strength=0.1, pixel_strength=0.0, seed=0)
+        fpn = generate_pag7936_fpn(
+            (100, 200), column_strength=0.1, pixel_strength=0.0, seed=0
+        )
         col = fpn["column_fpn"]
         # Every row in column 0 should be identical
         np.testing.assert_array_equal(col[:, 0], col[0, 0] * np.ones(100))
@@ -112,9 +118,9 @@ class TestGeneratePag7936Fpn:
         # Std of column means > std of row means for pure column FPN
         col_means = fpn["column_fpn"].mean(axis=0)  # per-column mean
         row_means = fpn["column_fpn"].mean(axis=1)  # per-row mean
-        assert col_means.std() > row_means.std(), (
-            "Column FPN must produce vertical stripes: column std > row std"
-        )
+        assert (
+            col_means.std() > row_means.std()
+        ), "Column FPN must produce vertical stripes: column std > row std"
 
     def test_deterministic_with_seed(self):
         fpn1 = generate_pag7936_fpn((100, 100), column_strength=0.01, seed=7)
@@ -127,7 +133,7 @@ class TestApplyFpn:
         img = np.full((100, 100, 3), 0.5, dtype=np.float32)
         fpn = {
             "column_fpn": np.full((100, 100), 2.0, dtype=np.float32),
-            "pixel_fpn":  np.full((100, 100), 2.0, dtype=np.float32),
+            "pixel_fpn": np.full((100, 100), 2.0, dtype=np.float32),
         }
         out = apply_fpn(img, fpn, factor=1.0)
         assert out.max() <= 1.0

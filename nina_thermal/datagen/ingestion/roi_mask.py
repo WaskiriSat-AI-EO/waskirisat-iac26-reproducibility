@@ -42,8 +42,10 @@ def compute_roi_pixel_mask(
 
     minx, miny, maxx, maxy = roi_polygon.bounds
     in_bbox = (
-        (flat_lat >= miny) & (flat_lat <= maxy)
-        & (flat_lon >= minx) & (flat_lon <= maxx)
+        (flat_lat >= miny)
+        & (flat_lat <= maxy)
+        & (flat_lon >= minx)
+        & (flat_lon <= maxx)
     )
 
     mask_flat = np.zeros(H * W, dtype=bool)
@@ -55,6 +57,8 @@ def compute_roi_pixel_mask(
     n_inside = int(mask_flat.sum())
     logger.info(
         "  ROI mask: %d / %d pixels inside polygon (%.1f%%)",
-        n_inside, H * W, 100.0 * n_inside / (H * W),
+        n_inside,
+        H * W,
+        100.0 * n_inside / (H * W),
     )
     return mask_flat.reshape(H, W)

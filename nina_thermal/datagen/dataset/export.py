@@ -15,6 +15,7 @@ from nina_thermal.datagen import config
 
 # ── Image and metadata persistence ───────────────────────────────────────────
 
+
 def save_patch_image(img_uint8: np.ndarray, path: Path) -> None:
     """Save a (H, W) uint8 grayscale array as a PNG file.
 
@@ -122,23 +123,23 @@ def build_image_metadata(
     ]
 
     return {
-        "granule_id":    granule_id,
-        "patch_index":   patch_index,
-        "label":         label,
-        "surface_type":  surface_type,
-        "agc_mode":      agc_mode,
-        "profile":       profile,
-        "t_min":         t_min,
-        "t_max":         t_max,
-        "agc_range_k":   agc_range_k,
-        "nan_fraction":  nan_fraction,
-        "centroid_lat":  centroid_lat,
-        "centroid_lon":  centroid_lon,
-        "split":         split,
-        "seed":          seed,
+        "granule_id": granule_id,
+        "patch_index": patch_index,
+        "label": label,
+        "surface_type": surface_type,
+        "agc_mode": agc_mode,
+        "profile": profile,
+        "t_min": t_min,
+        "t_max": t_max,
+        "agc_range_k": agc_range_k,
+        "nan_fraction": nan_fraction,
+        "centroid_lat": centroid_lat,
+        "centroid_lon": centroid_lon,
+        "split": split,
+        "seed": seed,
         "flight_config": agc_mode == config.FLIGHT_AGC_MODE,
         "script_version": config.SCRIPT_VERSION,
-        "provenance":    provenance,
+        "provenance": provenance,
     }
 
 

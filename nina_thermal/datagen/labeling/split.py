@@ -70,9 +70,7 @@ def granule_level_split(
 
     total_frac = train_frac + val_frac + test_frac
     if not math.isclose(total_frac, 1.0, abs_tol=1e-6):
-        raise ValueError(
-            f"Fractions must sum to 1.0, got {total_frac:.6f}"
-        )
+        raise ValueError(f"Fractions must sum to 1.0, got {total_frac:.6f}")
 
     rng = np.random.default_rng(seed)
 
@@ -83,12 +81,19 @@ def granule_level_split(
         for gid, labels in granule_ids_with_labels.items()
     }
 
-    high_fire = [g for g in granule_ids if fire_fracs[g] > config.HIGH_FIRE_GRANULE_THRESH]
-    low_fire  = [g for g in granule_ids if fire_fracs[g] <= config.HIGH_FIRE_GRANULE_THRESH]
+    high_fire = [
+        g for g in granule_ids if fire_fracs[g] > config.HIGH_FIRE_GRANULE_THRESH
+    ]
+    low_fire = [
+        g for g in granule_ids if fire_fracs[g] <= config.HIGH_FIRE_GRANULE_THRESH
+    ]
 
     logger.info(
         "stratification: high_fire=%d (fire_frac>%.2f)  low_fire=%d  total=%d",
-        len(high_fire), config.HIGH_FIRE_GRANULE_THRESH, len(low_fire), len(granule_ids),
+        len(high_fire),
+        config.HIGH_FIRE_GRANULE_THRESH,
+        len(low_fire),
+        len(granule_ids),
     )
 
     rng.shuffle(high_fire)
@@ -101,9 +106,9 @@ def granule_level_split(
     for tier, tier_name in zip((high_fire, low_fire), tier_labels):
         n = len(tier)
         n_train = round(n * train_frac)
-        n_val   = round(n * val_frac)
+        n_val = round(n * val_frac)
         # test gets remainder to avoid accumulating rounding error
-        n_test  = n - n_train - n_val
+        n_test = n - n_train - n_val
 
         splits["train"].extend(tier[:n_train])
         splits["val"].extend(tier[n_train : n_train + n_val])
@@ -111,16 +116,22 @@ def granule_level_split(
 
         logger.info(
             "  %s → train=%d  val=%d  test=%d",
-            tier_name, n_train, n_val, n_test,
+            tier_name,
+            n_train,
+            n_val,
+            n_test,
         )
 
     for split_name, gids in splits.items():
-        n_patches  = sum(len(granule_ids_with_labels[g]) for g in gids)
+        n_patches = sum(len(granule_ids_with_labels[g]) for g in gids)
         fire_count = sum(sum(granule_ids_with_labels[g]) for g in gids)
-        fire_frac  = fire_count / n_patches if n_patches else 0.0
+        fire_frac = fire_count / n_patches if n_patches else 0.0
         logger.info(
             "  [%s] granules=%d  patches=%d  fire_frac=%.3f",
-            split_name, len(gids), n_patches, fire_frac,
+            split_name,
+            len(gids),
+            n_patches,
+            fire_frac,
         )
 
     return splits

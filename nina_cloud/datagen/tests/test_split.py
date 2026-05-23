@@ -27,8 +27,8 @@ class TestSceneLevelSplit:
         data = _make_scenes(30, 30)
         splits = scene_level_split(data, seed=42)
         train_set = set(splits["train"])
-        val_set   = set(splits["val"])
-        test_set  = set(splits["test"])
+        val_set = set(splits["val"])
+        test_set = set(splits["test"])
         assert train_set.isdisjoint(val_set)
         assert train_set.isdisjoint(test_set)
         assert val_set.isdisjoint(test_set)
@@ -43,8 +43,8 @@ class TestSceneLevelSplit:
         s1 = scene_level_split(data, seed=7)
         s2 = scene_level_split(data, seed=7)
         assert s1["train"] == s2["train"]
-        assert s1["val"]   == s2["val"]
-        assert s1["test"]  == s2["test"]
+        assert s1["val"] == s2["val"]
+        assert s1["test"] == s2["test"]
 
     def test_different_seeds_give_different_splits(self):
         data = _make_scenes(40, 40)
@@ -65,11 +65,13 @@ class TestSceneLevelSplit:
     def test_ambiguous_tiles_do_not_affect_stratification(self):
         """Ambiguous labels (-1) must be ignored when computing cloud fraction."""
         data = {
-            "scene_A": [1, 1, -1, -1],   # 2 cloud, 2 ambiguous → cloud frac = 1.0
-            "scene_B": [0, 0, -1, -1],   # 2 clear, 2 ambiguous → cloud frac = 0.0
+            "scene_A": [1, 1, -1, -1],  # 2 cloud, 2 ambiguous → cloud frac = 1.0
+            "scene_B": [0, 0, -1, -1],  # 2 clear, 2 ambiguous → cloud frac = 0.0
         }
         # Should not raise and should still assign both scenes
-        splits = scene_level_split(data, train_frac=0.5, val_frac=0.25, test_frac=0.25, seed=0)
+        splits = scene_level_split(
+            data, train_frac=0.5, val_frac=0.25, test_frac=0.25, seed=0
+        )
         all_assigned = splits["train"] + splits["val"] + splits["test"]
         assert set(all_assigned) == {"scene_A", "scene_B"}
 
@@ -78,5 +80,5 @@ class TestSceneLevelSplit:
         data = _make_scenes(50, 50)
         splits = scene_level_split(data, seed=0)
         assert 65 <= len(splits["train"]) <= 75
-        assert 10 <= len(splits["val"])   <= 20
-        assert 10 <= len(splits["test"])  <= 20
+        assert 10 <= len(splits["val"]) <= 20
+        assert 10 <= len(splits["test"]) <= 20

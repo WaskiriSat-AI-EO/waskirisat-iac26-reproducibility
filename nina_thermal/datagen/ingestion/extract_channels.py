@@ -17,10 +17,10 @@ logger = logging.getLogger(__name__)
 # Nadir (in-scan) NetCDF filenames for SLSTR L1B .SEN3 packages.
 # Keys are logical channel names; values are the actual filenames on disk.
 SLSTR_NADIR_FILES = {
-    "F2_BT":   "F2_BT_in.nc",
-    "S8_BT":   "S8_BT_in.nc",
+    "F2_BT": "F2_BT_in.nc",
+    "S8_BT": "S8_BT_in.nc",
     "geodetic": "geodetic_in.nc",
-    "flags":    "flags_in.nc",
+    "flags": "flags_in.nc",
 }
 
 
@@ -75,7 +75,9 @@ def extract_thermal_channels(
     try:
         import netCDF4  # type: ignore
     except ImportError:
-        logger.error("netCDF4 is required for .SEN3 extraction. Install it with: pip install netCDF4")
+        logger.error(
+            "netCDF4 is required for .SEN3 extraction. Install it with: pip install netCDF4"
+        )
         return None
 
     try:
@@ -91,15 +93,20 @@ def extract_thermal_channels(
         f2_path = sen3_dir / SLSTR_NADIR_FILES["F2_BT"]
         logger.debug("Opening F2_BT file: %s", f2_path)
         with netCDF4.Dataset(f2_path) as ds:
-            var   = ds.variables["F2_BT_in"]
+            var = ds.variables["F2_BT_in"]
             f2_bt = np.array(var[:], dtype=np.float32)
-            fill  = getattr(var, "_FillValue", None)
-            total_px         = f2_bt.size
-            fill_replaced_f2 = int((f2_bt == float(fill)).sum()) if fill is not None else 0
-            out_of_range_f2  = int(((f2_bt < 200.0) | (f2_bt > 400.0)).sum())
+            fill = getattr(var, "_FillValue", None)
+            total_px = f2_bt.size
+            fill_replaced_f2 = (
+                int((f2_bt == float(fill)).sum()) if fill is not None else 0
+            )
+            out_of_range_f2 = int(((f2_bt < 200.0) | (f2_bt > 400.0)).sum())
             logger.info(
                 "  F2_BT: total_px=%d  fill_value=%s  fill_replaced=%d  out_of_range(<200|>400K)=%d",
-                total_px, fill, fill_replaced_f2, out_of_range_f2,
+                total_px,
+                fill,
+                fill_replaced_f2,
+                out_of_range_f2,
             )
             if fill is not None:
                 f2_bt[f2_bt == float(fill)] = np.nan
@@ -111,14 +118,19 @@ def extract_thermal_channels(
         s8_path = sen3_dir / SLSTR_NADIR_FILES["S8_BT"]
         logger.debug("Opening S8_BT file: %s", s8_path)
         with netCDF4.Dataset(s8_path) as ds:
-            var   = ds.variables["S8_BT_in"]
+            var = ds.variables["S8_BT_in"]
             s8_bt = np.array(var[:], dtype=np.float32)
-            fill  = getattr(var, "_FillValue", None)
-            fill_replaced_s8 = int((s8_bt == float(fill)).sum()) if fill is not None else 0
-            out_of_range_s8  = int(((s8_bt < 200.0) | (s8_bt > 400.0)).sum())
+            fill = getattr(var, "_FillValue", None)
+            fill_replaced_s8 = (
+                int((s8_bt == float(fill)).sum()) if fill is not None else 0
+            )
+            out_of_range_s8 = int(((s8_bt < 200.0) | (s8_bt > 400.0)).sum())
             logger.info(
                 "  S8_BT: total_px=%d  fill_value=%s  fill_replaced=%d  out_of_range(<200|>400K)=%d",
-                total_px, fill, fill_replaced_s8, out_of_range_s8,
+                total_px,
+                fill,
+                fill_replaced_s8,
+                out_of_range_s8,
             )
             if fill is not None:
                 s8_bt[s8_bt == float(fill)] = np.nan
@@ -135,29 +147,34 @@ def extract_thermal_channels(
         flags_path = sen3_dir / SLSTR_NADIR_FILES["flags"]
         logger.debug("Opening flags file: %s", flags_path)
         with netCDF4.Dataset(flags_path) as ds:
-            cloud_in      = np.array(ds.variables["cloud_in"][:])
+            cloud_in = np.array(ds.variables["cloud_in"][:])
             confidence_in = np.array(ds.variables["confidence_in"][:])
 
-        cloud_mask     = (cloud_in & 1).astype(bool)
+        cloud_mask = (cloud_in & 1).astype(bool)
         exception_mask = (confidence_in & 2).astype(bool)
 
         # Exempt hot fire pixels: SLSTR cloud tests misfire on anomalously bright TIR
         fire_exempt = (f2_raw > config.FIRE_EXEMPT_THRESHOLD_K) & np.isfinite(f2_raw)
-        combined    = (cloud_mask | exception_mask) & ~fire_exempt
+        combined = (cloud_mask | exception_mask) & ~fire_exempt
 
-        n_cloud     = int(cloud_mask.sum())
+        n_cloud = int(cloud_mask.sum())
         n_exception = int(exception_mask.sum())
-        n_exempt    = int(fire_exempt.sum())
-        n_combined  = int(combined.sum())
-        n_finite    = int(np.isfinite(f2_bt).sum()) - n_combined
+        n_exempt = int(fire_exempt.sum())
+        n_combined = int(combined.sum())
+        n_finite = int(np.isfinite(f2_bt).sum()) - n_combined
         logger.info(
             "  bitmask: cloud=%d (%.1f%%)  exception=%d (%.1f%%)  "
             "fire_exempt=%d (%.2f%%)  combined=%d (%.1f%%)  finite_after=%d (%.1f%%)",
-            n_cloud,     100.0 * n_cloud     / total_px,
-            n_exception, 100.0 * n_exception / total_px,
-            n_exempt,    100.0 * n_exempt    / total_px,
-            n_combined,  100.0 * n_combined  / total_px,
-            max(n_finite, 0), 100.0 * max(n_finite, 0) / total_px,
+            n_cloud,
+            100.0 * n_cloud / total_px,
+            n_exception,
+            100.0 * n_exception / total_px,
+            n_exempt,
+            100.0 * n_exempt / total_px,
+            n_combined,
+            100.0 * n_combined / total_px,
+            max(n_finite, 0),
+            100.0 * max(n_finite, 0) / total_px,
         )
 
         f2_bt[combined] = np.nan

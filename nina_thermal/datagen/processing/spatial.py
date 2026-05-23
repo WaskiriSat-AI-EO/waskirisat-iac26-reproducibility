@@ -108,12 +108,13 @@ def tile_granule_to_lepton_patches(
             Hx, Wx = arr.shape
             Hx_crop = (Hx // agg_factor) * agg_factor
             Wx_crop = (Wx // agg_factor) * agg_factor
-            Hx_out  = Hx_crop // agg_factor
-            Wx_out  = Wx_crop // agg_factor
+            Hx_out = Hx_crop // agg_factor
+            Wx_out = Wx_crop // agg_factor
             with np.errstate(all="ignore"):
                 agg_extras[name] = np.nanmean(
-                    arr[:Hx_crop, :Wx_crop]
-                    .reshape(Hx_out, agg_factor, Wx_out, agg_factor),
+                    arr[:Hx_crop, :Wx_crop].reshape(
+                        Hx_out, agg_factor, Wx_out, agg_factor
+                    ),
                     axis=(1, 3),
                 ).astype(np.float32)
 
@@ -123,14 +124,15 @@ def tile_granule_to_lepton_patches(
     stride_y = max(1, int(lepton_h * stride_fraction))
     stride_x = max(1, int(lepton_w * stride_fraction))
 
-    n_rejected   = 0
+    n_rejected = 0
     n_nan_filled = 0
 
     # Step 2: Tile with configurable stride (50% overlap by default)
     for row_start in range(0, H - lepton_h + 1, stride_y):
         for col_start in range(0, W - lepton_w + 1, stride_x):
-            patch = agg[row_start:row_start + lepton_h,
-                        col_start:col_start + lepton_w].copy()
+            patch = agg[
+                row_start : row_start + lepton_h, col_start : col_start + lepton_w
+            ].copy()
 
             nan_fraction = np.isnan(patch).mean()
 
@@ -146,19 +148,23 @@ def tile_granule_to_lepton_patches(
 
             # Co-tile extras for the same accepted window
             for name, agg_extra in agg_extras.items():
-                ep = agg_extra[row_start:row_start + lepton_h,
-                               col_start:col_start + lepton_w].copy()
+                ep = agg_extra[
+                    row_start : row_start + lepton_h, col_start : col_start + lepton_w
+                ].copy()
                 if np.isnan(ep).any():
                     fill = np.nanmedian(ep)
                     ep[np.isnan(ep)] = fill if np.isfinite(fill) else 0.0
                 extra_patches[name].append(ep.astype(np.float32))
 
     n_accepted = len(patches)
-    n_total    = n_accepted + n_rejected
+    n_total = n_accepted + n_rejected
     rejection_rate = 100.0 * n_rejected / n_total if n_total > 0 else 0.0
     logger.info(
         "  tiling: accepted=%d  rejected=%d (%.1f%%)  nan_filled=%d",
-        n_accepted, n_rejected, rejection_rate, n_nan_filled,
+        n_accepted,
+        n_rejected,
+        rejection_rate,
+        n_nan_filled,
     )
 
     if extra_arrays is not None:

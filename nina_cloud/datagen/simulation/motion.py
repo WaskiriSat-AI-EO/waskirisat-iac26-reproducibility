@@ -62,6 +62,7 @@ def motion_blur_kernel(length_px: float, angle_deg: float = 0.0) -> np.ndarray:
 
     if angle_deg != 0.0:
         import cv2
+
         M = cv2.getRotationMatrix2D((centre, centre), angle_deg, 1.0)
         kernel = cv2.warpAffine(kernel, M, (size, size))
 

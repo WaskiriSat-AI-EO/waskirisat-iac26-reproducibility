@@ -66,7 +66,9 @@ def tile_scene_to_patches(
     """
     tile_w = tile_w or config.TILE_WIDTH_PX
     tile_h = tile_h or config.TILE_HEIGHT_PX
-    max_nodata_frac = max_nodata_frac if max_nodata_frac is not None else config.MAX_NODATA_FRACTION
+    max_nodata_frac = (
+        max_nodata_frac if max_nodata_frac is not None else config.MAX_NODATA_FRACTION
+    )
 
     scl_10m = upsample_scl_to_rgb_scale(scl_uint8)
 
@@ -102,6 +104,11 @@ def tile_scene_to_patches(
 
     logger.info(
         "tiling: tile=%dx%d  stride=%dx%d  accepted=%d  rejected_nodata=%d",
-        tile_w, tile_h, stride_w, stride_h, n_accepted, n_rejected,
+        tile_w,
+        tile_h,
+        stride_w,
+        stride_h,
+        n_accepted,
+        n_rejected,
     )
     return rgb_patches, scl_patches, origins

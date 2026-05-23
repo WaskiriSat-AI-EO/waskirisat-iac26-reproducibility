@@ -39,9 +39,9 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 
-_STREAM_FORMAT    = "%(asctime)s  %(levelname)-8s  %(message)s"
-_FILE_FORMAT      = "%(asctime)s  %(levelname)-8s  %(name)s  %(message)s"
-_DATE_FORMAT      = "%H:%M:%S"
+_STREAM_FORMAT = "%(asctime)s  %(levelname)-8s  %(message)s"
+_FILE_FORMAT = "%(asctime)s  %(levelname)-8s  %(name)s  %(message)s"
+_DATE_FORMAT = "%H:%M:%S"
 _FILE_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 _SEPARATOR = "=" * 72
@@ -79,7 +79,7 @@ def configure_logging(
     log_path.mkdir(parents=True, exist_ok=True)
 
     start_time = datetime.now(timezone.utc)
-    timestamp  = start_time.strftime("%Y%m%d_%H%M%S")
+    timestamp = start_time.strftime("%Y%m%d_%H%M%S")
 
     parts = [stage_name]
     if extra_id:
@@ -103,9 +103,7 @@ def configure_logging(
 
     stream_handler = logging.StreamHandler(sys.stdout)
     stream_handler.setLevel(logging.INFO)
-    stream_handler.setFormatter(
-        logging.Formatter(_STREAM_FORMAT, datefmt=_DATE_FORMAT)
-    )
+    stream_handler.setFormatter(logging.Formatter(_STREAM_FORMAT, datefmt=_DATE_FORMAT))
 
     # Append mode — header was already written above
     file_handler = logging.FileHandler(log_file, mode="a", encoding="utf-8")
@@ -142,9 +140,7 @@ def log_run_footer(start_time: datetime, exit_code: int = 0) -> int:
     elapsed_str = f"{hours:02d}h {minutes:02d}m {seconds:02d}s"
 
     logger = logging.getLogger(__name__)
-    logger.info(
-        "Run finished — exit_code=%d  elapsed=%s", exit_code, elapsed_str
-    )
+    logger.info("Run finished — exit_code=%d  elapsed=%s", exit_code, elapsed_str)
 
     # Append footer to log file via the file handler
     for handler in logging.getLogger().handlers:

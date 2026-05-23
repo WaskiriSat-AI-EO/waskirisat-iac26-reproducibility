@@ -61,9 +61,9 @@ class TestBuildBalancedDataset:
         balanced = build_balanced_dataset(records, cloud_ratio=0.5, seed=42)
         labels = [r["label"] for r in balanced]
         # If perfectly shuffled, it should not be sorted
-        assert labels != sorted(labels, reverse=True), (
-            "Output appears unshuffled (all cloud first)"
-        )
+        assert labels != sorted(
+            labels, reverse=True
+        ), "Output appears unshuffled (all cloud first)"
 
     def test_clear_cannot_exceed_cloud_when_supply_is_limited(self):
         """When there are fewer clear than needed, use all available clear."""

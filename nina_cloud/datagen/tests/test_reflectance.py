@@ -3,7 +3,10 @@
 import numpy as np
 import pytest
 
-from nina_cloud.datagen.processing.reflectance import normalize_reflectance, reflectance_to_uint8
+from nina_cloud.datagen.processing.reflectance import (
+    normalize_reflectance,
+    reflectance_to_uint8,
+)
 
 
 class TestNormalizeReflectance:

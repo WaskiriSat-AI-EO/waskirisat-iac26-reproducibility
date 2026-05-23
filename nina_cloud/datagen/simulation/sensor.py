@@ -25,8 +25,15 @@ import numpy as np
 
 from nina_cloud.datagen import config
 from nina_cloud.datagen.processing.reflectance import reflectance_to_uint8
-from nina_cloud.datagen.simulation.motion import calculate_motion_blur_px, motion_blur_kernel
-from nina_cloud.datagen.simulation.noise import add_read_noise, add_shot_noise, apply_fpn
+from nina_cloud.datagen.simulation.motion import (
+    calculate_motion_blur_px,
+    motion_blur_kernel,
+)
+from nina_cloud.datagen.simulation.noise import (
+    add_read_noise,
+    add_shot_noise,
+    apply_fpn,
+)
 from nina_cloud.datagen.simulation.optics import apply_pag7936_psf
 
 

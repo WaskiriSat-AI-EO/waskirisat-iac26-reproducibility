@@ -26,8 +26,8 @@ def main(argv: List[str] = None) -> int:
         description="nina_cloud stage 6: balance dataset to 50/50 cloud:clear"
     )
     parser.add_argument("--dataset_dir", required=True, help="04_dataset/ directory")
-    parser.add_argument("--seed",        type=int, default=config.DEFAULT_SEED)
-    parser.add_argument("--log_dir",     default="data/logs")
+    parser.add_argument("--seed", type=int, default=config.DEFAULT_SEED)
+    parser.add_argument("--log_dir", default="data/logs")
     args = parser.parse_args(argv)
 
     log_file, start_time = configure_logging(
@@ -55,7 +55,11 @@ def main(argv: List[str] = None) -> int:
         n_clear = sum(1 for r in balanced_split if r["label"] == 0)
         logger.info(
             "[%s] before=%d  after=%d  cloud=%d  clear=%d",
-            split_name, len(split_records), len(balanced_split), n_cloud, n_clear,
+            split_name,
+            len(split_records),
+            len(balanced_split),
+            n_cloud,
+            n_clear,
         )
         balanced_all.extend(balanced_split)
 
@@ -68,7 +72,8 @@ def main(argv: List[str] = None) -> int:
                 "total": len(balanced_all),
                 "records": balanced_all,
             },
-            f, indent=2,
+            f,
+            indent=2,
         )
 
     logger.info(

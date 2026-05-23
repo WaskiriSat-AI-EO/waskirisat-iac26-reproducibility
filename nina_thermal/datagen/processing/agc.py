@@ -66,14 +66,18 @@ def compute_global_percentiles(
         raise ValueError("No finite values found across all patches.")
 
     all_values = np.concatenate(samples)
-    t_low  = float(np.percentile(all_values, percentiles[0]))
+    t_low = float(np.percentile(all_values, percentiles[0]))
     t_high = float(np.percentile(all_values, percentiles[1]))
 
     logger.info(
         "global percentiles: patches_used=%d/%d (%d skipped all-NaN)  "
         "total_samples=%d  T_low=%.2fK  T_high=%.2fK",
-        len(samples), len(all_patches), n_skipped,
-        len(all_values), t_low, t_high,
+        len(samples),
+        len(all_patches),
+        n_skipped,
+        len(all_values),
+        t_low,
+        t_high,
     )
     return t_low, t_high
 

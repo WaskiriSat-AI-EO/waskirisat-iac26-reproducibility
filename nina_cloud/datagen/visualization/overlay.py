@@ -38,9 +38,8 @@ def render_scl_overlay(
         mask = scl_uint8 == cls
         color_layer[mask] = rgb_color
 
-    blended = (
-        (1.0 - alpha) * rgb_uint8.astype(np.float32)
-        + alpha * color_layer.astype(np.float32)
+    blended = (1.0 - alpha) * rgb_uint8.astype(np.float32) + alpha * color_layer.astype(
+        np.float32
     )
     return np.clip(blended, 0, 255).astype(np.uint8)
 
@@ -70,8 +69,7 @@ def render_cloud_mask_overlay(
 
     cloud_mask = np.isin(scl_uint8, list(cloud_classes))
     overlay = rgb_uint8.astype(np.float32).copy()
-    overlay[cloud_mask] = (
-        (1.0 - alpha) * overlay[cloud_mask]
-        + alpha * np.array(cloud_color, dtype=np.float32)
+    overlay[cloud_mask] = (1.0 - alpha) * overlay[cloud_mask] + alpha * np.array(
+        cloud_color, dtype=np.float32
     )
     return np.clip(overlay, 0, 255).astype(np.uint8)

@@ -41,10 +41,12 @@ def compute_tile_cloud_label(
     Returns:
         (label, cloud_frac) where label ∈ {-1, 0, 1}.
     """
-    cloud_classes   = cloud_classes   or config.SCL_CLOUD_CLASSES
+    cloud_classes = cloud_classes or config.SCL_CLOUD_CLASSES
     invalid_classes = invalid_classes or config.SCL_INVALID_CLASSES
-    high_thresh     = high_thresh     if high_thresh is not None else config.CLOUD_LABEL_HIGH_THRESH
-    low_thresh      = low_thresh      if low_thresh  is not None else config.CLOUD_LABEL_LOW_THRESH
+    high_thresh = (
+        high_thresh if high_thresh is not None else config.CLOUD_LABEL_HIGH_THRESH
+    )
+    low_thresh = low_thresh if low_thresh is not None else config.CLOUD_LABEL_LOW_THRESH
 
     flat = scl_patch.ravel()
 

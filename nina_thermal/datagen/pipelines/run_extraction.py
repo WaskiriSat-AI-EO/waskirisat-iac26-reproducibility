@@ -68,9 +68,12 @@ def main(argv=None) -> int:
         Exit code: 0 on success, 1 if no .SEN3 directories were found.
     """
     args = build_parser().parse_args(argv)
-    log_dir = args.log_dir or f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}"
+    log_dir = (
+        args.log_dir
+        or f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}"
+    )
     _, start_time = configure_logging("run_extraction", log_dir, argv=sys.argv[1:])
-    input_dir  = Path(args.input_dir)
+    input_dir = Path(args.input_dir)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -94,37 +97,41 @@ def main(argv=None) -> int:
         p_f2, p_s8, p_lat, p_lon = result
         # Derive prefix: filename stem of F2_BT file minus the _F2_BT suffix
         prefix = p_f2.stem[: -len("_F2_BT")]
-        records.append({
-            "granule_id":  sen3_dir.stem,
-            "prefix":      prefix,
-            "sen3_dir":    str(sen3_dir),
-            "npy_files": {
-                "F2_BT": str(p_f2),
-                "S8_BT": str(p_s8),
-                "lat":   str(p_lat),
-                "lon":   str(p_lon),
-            },
-        })
+        records.append(
+            {
+                "granule_id": sen3_dir.stem,
+                "prefix": prefix,
+                "sen3_dir": str(sen3_dir),
+                "npy_files": {
+                    "F2_BT": str(p_f2),
+                    "S8_BT": str(p_s8),
+                    "lat": str(p_lat),
+                    "lon": str(p_lon),
+                },
+            }
+        )
 
     _write_manifest(output_dir, records, args)
     logger.info(
         "Extraction complete: %d/%d granules extracted.  "
         "Manifest → %s/extraction_manifest.json",
-        len(records), len(sen3_dirs), output_dir,
+        len(records),
+        len(sen3_dirs),
+        output_dir,
     )
     return log_run_footer(start_time, exit_code=0)
 
 
 def _write_manifest(output_dir: Path, records: list, args) -> None:
     manifest = {
-        "created_utc":    datetime.now(timezone.utc).isoformat(),
+        "created_utc": datetime.now(timezone.utc).isoformat(),
         "script_version": config.SCRIPT_VERSION,
         "args": {
-            "input_dir":  args.input_dir,
+            "input_dir": args.input_dir,
             "output_dir": args.output_dir,
         },
-        "granules":         records,
-        "total_extracted":  len(records),
+        "granules": records,
+        "total_extracted": len(records),
     }
     path = output_dir / "extraction_manifest.json"
     with open(path, "w", encoding="utf-8") as fh:

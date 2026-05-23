@@ -123,24 +123,30 @@ def main(argv=None) -> int:
         Exit code: 0 on success, 1 on failure.
     """
     args = build_parser().parse_args(argv)
-    log_dir = args.log_dir or f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}"
+    log_dir = (
+        args.log_dir
+        or f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}"
+    )
     _, start_time = configure_logging("run_simulation", log_dir, argv=sys.argv[1:])
-    input_dir  = Path(args.input_dir)
+    input_dir = Path(args.input_dir)
     output_dir = Path(args.output_dir)
 
-    profiles  = [p.strip() for p in args.profiles.split(",")]
+    profiles = [p.strip() for p in args.profiles.split(",")]
     agc_modes = [m.strip() for m in args.agc_modes.split(",")]
-    seed      = args.seed
+    seed = args.seed
 
     # ── Validate profiles ─────────────────────────────────────────────────────
     for prof in profiles:
         if prof not in config.DEGRADATION_PROFILES:
-            logger.error("Unknown profile '%s'. Valid: %s", prof,
-                         list(config.DEGRADATION_PROFILES))
+            logger.error(
+                "Unknown profile '%s'. Valid: %s",
+                prof,
+                list(config.DEGRADATION_PROFILES),
+            )
             return log_run_footer(start_time, exit_code=1)
 
     # ── Output directories ────────────────────────────────────────────────────
-    img_dir  = output_dir / "images"
+    img_dir = output_dir / "images"
     meta_dir = output_dir / "metadata"
     img_dir.mkdir(parents=True, exist_ok=True)
     meta_dir.mkdir(parents=True, exist_ok=True)
@@ -173,13 +179,13 @@ def main(argv=None) -> int:
     global_t_low: Optional[float] = None
     global_t_high: Optional[float] = None
     if "global" in agc_modes and all_bt_patches:
-        logger.info("Computing global BT percentiles across %d patches …",
-                    len(all_bt_patches))
+        logger.info(
+            "Computing global BT percentiles across %d patches …", len(all_bt_patches)
+        )
         global_t_low, global_t_high = compute_global_percentiles(
             all_bt_patches, seed=seed
         )
-        logger.info("  Global AGC bounds: %.2f K – %.2f K",
-                    global_t_low, global_t_high)
+        logger.info("  Global AGC bounds: %.2f K – %.2f K", global_t_low, global_t_high)
 
     # ── Generate FPN maps per profile (deterministic) ─────────────────────────
     fpn_maps: Dict[str, Dict] = {}
@@ -194,17 +200,17 @@ def main(argv=None) -> int:
     rng = np.random.default_rng(seed)
 
     # ── Process each patch ────────────────────────────────────────────────────
-    label_records:  List[Dict] = []
-    sim_records:    List[Dict] = []
-    n_fire   = 0
+    label_records: List[Dict] = []
+    sim_records: List[Dict] = []
+    n_fire = 0
     n_nofire = 0
 
     n_total_patches = len(patch_records)
     for patch_num, rec in enumerate(patch_records, 1):
-        granule_id   = rec["granule_id"]
-        patch_index  = rec["patch_index"]
-        patch_file   = input_dir / rec["patch_file"]
-        nan_frac     = rec.get("nan_fraction", 0.0)
+        granule_id = rec["granule_id"]
+        patch_index = rec["patch_index"]
+        patch_file = input_dir / rec["patch_file"]
+        nan_frac = rec.get("nan_fraction", 0.0)
         centroid_lat = rec.get("centroid_lat", float("nan"))
         centroid_lon = rec.get("centroid_lon", float("nan"))
 
@@ -227,7 +233,8 @@ def main(argv=None) -> int:
             delta_t = np.zeros_like(bt_patch)
             logger.warning(
                 "delta_T missing for %s_p%04d — zeros used.",
-                granule_id, patch_index,
+                granule_id,
+                patch_index,
             )
 
         # ── Label ─────────────────────────────────────────────────────────────
@@ -243,12 +250,17 @@ def main(argv=None) -> int:
             label = compute_patch_label(bt_patch, delta_t)
             logger.debug(
                 "Fallback label for %s_p%04d: no pre-computed label in manifest.",
-                granule_id, patch_index,
+                granule_id,
+                patch_index,
             )
         surface_type = classify_patch_surface_type(bt_patch, delta_t, label)
         logger.debug(
             "  patch %s_p%04d: label=%d  surface=%s  nan_frac=%.3f",
-            granule_id, patch_index, label, surface_type, nan_frac,
+            granule_id,
+            patch_index,
+            label,
+            surface_type,
+            nan_frac,
         )
 
         if label == 1:
@@ -259,13 +271,15 @@ def main(argv=None) -> int:
         base_key = f"{granule_id}_p{patch_index:04d}"
 
         # One label-manifest entry per physical patch (independent of config)
-        label_records.append({
-            "patch":        base_key,
-            "label":        label,
-            "granule_id":   granule_id,
-            "surface_type": surface_type,
-            "split":        "",  # populated by run_split
-        })
+        label_records.append(
+            {
+                "patch": base_key,
+                "label": label,
+                "granule_id": granule_id,
+                "surface_type": surface_type,
+                "split": "",  # populated by run_split
+            }
+        )
 
         # ── Simulate per AGC mode × profile ───────────────────────────────────
         for agc_mode in agc_modes:
@@ -288,12 +302,12 @@ def main(argv=None) -> int:
                 if t_max <= t_min:
                     t_max = t_min + 1.0  # avoid zero-range
 
-            agc_range_k   = t_max - t_min
+            agc_range_k = t_max - t_min
             bt_normalized = apply_agc(bt_patch, t_min, t_max)
 
             for prof in profiles:
-                img_name  = f"{base_key}_{agc_mode}_{prof}"
-                img_path  = img_dir / f"{img_name}.png"
+                img_name = f"{base_key}_{agc_mode}_{prof}"
+                img_path = img_dir / f"{img_name}.png"
                 meta_path = meta_dir / f"{img_name}.json"
 
                 # Simulate
@@ -329,40 +343,43 @@ def main(argv=None) -> int:
 
                 # Optional false-colour visualisation
                 if args.validation:
-                    from nina_thermal.datagen.visualization.colormap import apply_colormap
+                    from nina_thermal.datagen.visualization.colormap import (
+                        apply_colormap,
+                    )
 
                     rgb = apply_colormap(img_u8)
                     _save_rgb_png(rgb, output_dir / "viz" / f"{img_name}_viz.png")
 
-                sim_records.append({
-                    "image":       f"images/{img_name}.png",
-                    "metadata":    f"metadata/{img_name}.json",
-                    "granule_id":  granule_id,
-                    "patch_index": patch_index,
-                    "agc_mode":    agc_mode,
-                    "profile":     prof,
-                    "label":       label,
-                })
+                sim_records.append(
+                    {
+                        "image": f"images/{img_name}.png",
+                        "metadata": f"metadata/{img_name}.json",
+                        "granule_id": granule_id,
+                        "patch_index": patch_index,
+                        "agc_mode": agc_mode,
+                        "profile": prof,
+                        "label": label,
+                    }
+                )
 
     # ── Save label manifest ───────────────────────────────────────────────────
     save_label_manifest(label_records, output_dir / "label_manifest.json")
-    logger.info("Wrote label_manifest.json (%d patch records).",
-                len(label_records))
+    logger.info("Wrote label_manifest.json (%d patch records).", len(label_records))
 
     # ── Write simulation manifest ─────────────────────────────────────────────
     sim_manifest = {
-        "created_utc":    datetime.now(timezone.utc).isoformat(),
+        "created_utc": datetime.now(timezone.utc).isoformat(),
         "script_version": config.SCRIPT_VERSION,
         "args": {
-            "input_dir":  str(args.input_dir),
+            "input_dir": str(args.input_dir),
             "output_dir": str(args.output_dir),
-            "profiles":   profiles,
-            "agc_modes":  agc_modes,
-            "seed":       seed,
+            "profiles": profiles,
+            "agc_modes": agc_modes,
+            "seed": seed,
         },
         "total_patches": len(label_records),
-        "total_images":  len(sim_records),
-        "fire_patches":  n_fire,
+        "total_images": len(sim_records),
+        "fire_patches": n_fire,
         "nofire_patches": n_nofire,
         "images": sim_records,
     }
@@ -385,15 +402,18 @@ def main(argv=None) -> int:
 
 # ── Private helpers ───────────────────────────────────────────────────────────
 
+
 def _save_grayscale_png(img_u8: np.ndarray, path: Path) -> None:
     """Save (H, W) uint8 array as a grayscale PNG."""
     from PIL import Image  # type: ignore
+
     Image.fromarray(img_u8, mode="L").save(path)
 
 
 def _save_rgb_png(rgb: np.ndarray, path: Path) -> None:
     """Save (H, W, 3) uint8 array as an RGB PNG."""
     from PIL import Image  # type: ignore
+
     Image.fromarray(rgb, mode="RGB").save(path)
 
 

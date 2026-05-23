@@ -25,8 +25,8 @@ def main(argv: List[str] = None) -> int:
         description="nina_cloud stage 5: scene-level train/val/test split"
     )
     parser.add_argument("--dataset_dir", required=True, help="04_dataset/ directory")
-    parser.add_argument("--seed",        type=int, default=config.DEFAULT_SEED)
-    parser.add_argument("--log_dir",     default="data/logs")
+    parser.add_argument("--seed", type=int, default=config.DEFAULT_SEED)
+    parser.add_argument("--log_dir", default="data/logs")
     args = parser.parse_args(argv)
 
     log_file, start_time = configure_logging(
@@ -76,7 +76,9 @@ def main(argv: List[str] = None) -> int:
     with open(manifest_path, "w") as f:
         json.dump(records, f, indent=2)
 
-    split_counts = {s: sum(1 for r in records if r["split"] == s) for s in ("train", "val", "test")}
+    split_counts = {
+        s: sum(1 for r in records if r["split"] == s) for s in ("train", "val", "test")
+    }
     logger.info("Split complete: %s  manifest=%s", split_counts, manifest_path)
     return log_run_footer(start_time, 0)
 

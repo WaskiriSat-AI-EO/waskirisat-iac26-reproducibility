@@ -117,7 +117,11 @@ def _simplify_geometry(geom, tolerance):
 
     elif gtype == "MultiPolygon":
         geom["coordinates"] = [
-            [r for r in (_simplify_ring(r, tolerance) for r in polygon) if r is not None]
+            [
+                r
+                for r in (_simplify_ring(r, tolerance) for r in polygon)
+                if r is not None
+            ]
             for polygon in geom["coordinates"]
         ]
 

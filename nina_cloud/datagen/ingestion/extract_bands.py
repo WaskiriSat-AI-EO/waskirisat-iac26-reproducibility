@@ -52,8 +52,8 @@ def extract_s2_scene(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     scene_id = _parse_scene_id(safe_dir.name)
-    out_rgb  = output_dir / f"{scene_id}_rgb.npy"
-    out_scl  = output_dir / f"{scene_id}_scl.npy"
+    out_rgb = output_dir / f"{scene_id}_rgb.npy"
+    out_scl = output_dir / f"{scene_id}_scl.npy"
     out_meta = output_dir / f"{scene_id}_meta.json"
 
     if not overwrite and out_rgb.exists() and out_scl.exists():
@@ -90,7 +90,9 @@ def extract_s2_scene(
     if scl_uint8.shape != (rgb_float.shape[0] // 2, rgb_float.shape[1] // 2):
         logger.warning(
             "extract_s2_scene: unexpected SCL shape %s vs RGB %s for %s",
-            scl_uint8.shape, rgb_float.shape[:2], scene_id,
+            scl_uint8.shape,
+            rgb_float.shape[:2],
+            scene_id,
         )
 
     np.save(out_rgb, rgb_float)
@@ -102,7 +104,9 @@ def extract_s2_scene(
 
     logger.info(
         "extracted %s: rgb=%s  scl=%s",
-        scene_id, rgb_float.shape, scl_uint8.shape,
+        scene_id,
+        rgb_float.shape,
+        scl_uint8.shape,
     )
     return scene_id
 
@@ -149,8 +153,8 @@ def _build_meta(safe_dir: Path, scene_id: str, rgb_shape: tuple) -> dict:
     """Build a metadata dict for the extracted scene."""
     name = safe_dir.name
     sensing_date = ""
-    cloud_cover  = None
-    mgrs_tile    = ""
+    cloud_cover = None
+    mgrs_tile = ""
 
     # Parse sensing date from S2 standard naming: S2X_MSIL2A_YYYYMMDDTHHMMSS_...
     m = re.search(r"_(\d{8}T\d{6})_", name)
@@ -163,11 +167,11 @@ def _build_meta(safe_dir: Path, scene_id: str, rgb_shape: tuple) -> dict:
         mgrs_tile = m2.group(1)
 
     return {
-        "scene_id":     scene_id,
+        "scene_id": scene_id,
         "sensing_date": sensing_date,
-        "mgrs_tile":    mgrs_tile,
-        "cloud_cover":  cloud_cover,
-        "rgb_shape":    list(rgb_shape),
-        "s2_gsd_m":     config.S2_GSD_M,
+        "mgrs_tile": mgrs_tile,
+        "cloud_cover": cloud_cover,
+        "rgb_shape": list(rgb_shape),
+        "s2_gsd_m": config.S2_GSD_M,
         "script_version": config.SCRIPT_VERSION,
     }

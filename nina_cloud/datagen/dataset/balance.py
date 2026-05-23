@@ -49,8 +49,8 @@ def build_balanced_dataset(
     if seed is None:
         seed = config.DEFAULT_SEED
 
-    cloud   = [r for r in records if r["label"] == 1]
-    clear   = [r for r in records if r["label"] == 0]
+    cloud = [r for r in records if r["label"] == 1]
+    clear = [r for r in records if r["label"] == 0]
     n_ambig = sum(1 for r in records if r["label"] == -1)
 
     n_cloud = len(cloud)
@@ -77,8 +77,12 @@ def build_balanced_dataset(
     logger.info(
         "balance: cloud=%d  clear_orig=%d  clear_target=%d  "
         "clear_removed=%d  ambiguous_excluded=%d  achieved_cloud_frac=%.3f",
-        n_cloud, n_clear, n_clear_target,
-        n_clear - len(clear_selected), n_ambig, achieved,
+        n_cloud,
+        n_clear,
+        n_clear_target,
+        n_clear - len(clear_selected),
+        n_ambig,
+        achieved,
     )
 
     combined = cloud + clear_selected

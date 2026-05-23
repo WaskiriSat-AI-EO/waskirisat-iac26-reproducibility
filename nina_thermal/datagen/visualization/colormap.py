@@ -57,11 +57,9 @@ def apply_colormap(
     try:
         cmap = cm.get_cmap(mpl_name)
     except ValueError:
-        raise ValueError(
-            f"Matplotlib does not recognise colormap '{mpl_name}'"
-        )
+        raise ValueError(f"Matplotlib does not recognise colormap '{mpl_name}'")
 
     normalised = uint8_image.astype(np.float32) / 255.0
-    rgba = cmap(normalised)           # (H, W, 4) float64 in [0, 1]
-    rgb  = (rgba[:, :, :3] * 255.0).round().astype(np.uint8)
+    rgba = cmap(normalised)  # (H, W, 4) float64 in [0, 1]
+    rgb = (rgba[:, :, :3] * 255.0).round().astype(np.uint8)
     return rgb

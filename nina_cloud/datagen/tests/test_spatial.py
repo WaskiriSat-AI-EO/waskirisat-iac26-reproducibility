@@ -4,7 +4,10 @@ import numpy as np
 import pytest
 
 from nina_cloud.datagen import config
-from nina_cloud.datagen.processing.spatial import tile_scene_to_patches, upsample_scl_to_rgb_scale
+from nina_cloud.datagen.processing.spatial import (
+    tile_scene_to_patches,
+    upsample_scl_to_rgb_scale,
+)
 
 
 class TestUpsampleSclToRgbScale:
@@ -103,8 +106,6 @@ class TestNodataRejection:
         H, W = 800, 1280
         rgb = np.zeros((H, W, 3), dtype=np.float32)
         scl = np.full((H // 2, W // 2), 9, dtype=np.uint8)  # cloud high prob
-        _, scl_patches, _ = tile_scene_to_patches(
-            rgb, scl, tile_w=1280, tile_h=800
-        )
+        _, scl_patches, _ = tile_scene_to_patches(rgb, scl, tile_w=1280, tile_h=800)
         assert len(scl_patches) == 1
         assert np.all(scl_patches[0] == 9)

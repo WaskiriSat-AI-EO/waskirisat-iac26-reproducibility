@@ -70,7 +70,7 @@ def simulate_lepton(
 
     # ── Step 1: thermal noise in BT space ─────────────────────────────────────
     netd_mk = config.LEPTON_NETD_MK * prof["thermal_noise_factor"]
-    sigma   = (netd_mk / 1000.0) / agc_range_k
+    sigma = (netd_mk / 1000.0) / agc_range_k
     img = add_thermal_noise(bt_normalized, sigma, rng)
 
     # ── Step 2: AGC quantisation → uint8 ──────────────────────────────────────

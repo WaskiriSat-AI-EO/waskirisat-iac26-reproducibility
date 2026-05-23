@@ -32,8 +32,14 @@ from typing import List
 import numpy as np
 
 from nina_thermal.datagen.ingestion.validate_granule import validate_granule
-from nina_thermal.datagen.ingestion.firms_labels import extract_sensing_date, load_firms_for_granule
-from nina_thermal.datagen.ingestion.roi_mask import load_roi_polygon, compute_roi_pixel_mask
+from nina_thermal.datagen.ingestion.firms_labels import (
+    extract_sensing_date,
+    load_firms_for_granule,
+)
+from nina_thermal.datagen.ingestion.roi_mask import (
+    load_roi_polygon,
+    compute_roi_pixel_mask,
+)
 from nina_thermal.datagen.processing.spectral import apply_broadband_correction
 from nina_thermal.datagen.processing.spatial import tile_granule_to_lepton_patches
 from nina_thermal.datagen import config
@@ -102,9 +108,12 @@ def main(argv=None) -> int:
         Exit code: 0 on success, 1 if no granules were found.
     """
     args = build_parser().parse_args(argv)
-    log_dir = args.log_dir or f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}"
+    log_dir = (
+        args.log_dir
+        or f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}"
+    )
     _, start_time = configure_logging("run_processing", log_dir, argv=sys.argv[1:])
-    input_dir  = Path(args.input_dir)
+    input_dir = Path(args.input_dir)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -115,7 +124,11 @@ def main(argv=None) -> int:
             roi_polygon = load_roi_polygon(Path(args.roi))
             logger.info("ROI loaded from %s (bounds: %s)", args.roi, roi_polygon.bounds)
         except Exception as exc:
-            logger.error("Failed to load ROI %s: %s — proceeding without spatial filter.", args.roi, exc)
+            logger.error(
+                "Failed to load ROI %s: %s — proceeding without spatial filter.",
+                args.roi,
+                exc,
+            )
 
     # Discover granules — one per *_F2_BT.npy file
     f2_files = sorted(input_dir.glob("*_F2_BT.npy"))
@@ -130,8 +143,8 @@ def main(argv=None) -> int:
     total_rejected = 0
 
     for f2_file in f2_files:
-        prefix      = f2_file.stem[: -len("_F2_BT")]
-        granule_id  = prefix
+        prefix = f2_file.stem[: -len("_F2_BT")]
+        granule_id = prefix
         granule_dir = f2_file.parent
 
         logger.info("Processing granule %s …", granule_id)
@@ -140,26 +153,26 @@ def main(argv=None) -> int:
         try:
             f2_bt_raw = np.load(granule_dir / f"{prefix}_F2_BT.npy").astype(np.float32)
             s8_bt_raw = np.load(granule_dir / f"{prefix}_S8_BT.npy").astype(np.float32)
-            lat       = np.load(granule_dir / f"{prefix}_lat.npy").astype(np.float32)
-            lon       = np.load(granule_dir / f"{prefix}_lon.npy").astype(np.float32)
+            lat = np.load(granule_dir / f"{prefix}_lat.npy").astype(np.float32)
+            lon = np.load(granule_dir / f"{prefix}_lon.npy").astype(np.float32)
         except Exception as exc:
             logger.warning("Could not load %s — skipped: %s", granule_id, exc)
             continue
 
         granule = {
-            "F2_BT":   f2_bt_raw,
-            "S8_BT":   s8_bt_raw,
+            "F2_BT": f2_bt_raw,
+            "S8_BT": s8_bt_raw,
             "delta_T": (f2_bt_raw - s8_bt_raw).astype(np.float32),
-            "lat":     lat,
-            "lon":     lon,
+            "lat": lat,
+            "lon": lon,
         }
         if not validate_granule(granule):
             logger.warning("Granule %s failed validation — skipped.", granule_id)
             continue
 
         f2_bt = granule["F2_BT"]
-        lat   = granule["lat"]
-        lon   = granule["lon"]
+        lat = granule["lat"]
+        lon = granule["lon"]
 
         # ── Spectral correction ───────────────────────────────────────────
         f2_bt_corrected = apply_broadband_correction(f2_bt).astype(np.float32)
@@ -174,7 +187,7 @@ def main(argv=None) -> int:
         delta_T = granule["delta_T"]
         bt_fire_mask = (
             (f2_bt > config.FIRE_F2_ABS_THRESHOLD_K)
-            & (delta_T  > config.FIRE_DELTA_T_THRESHOLD_K)
+            & (delta_T > config.FIRE_DELTA_T_THRESHOLD_K)
             & np.isfinite(f2_bt)
             & np.isfinite(delta_T)
         )
@@ -190,23 +203,32 @@ def main(argv=None) -> int:
                 if firms_result is not None:
                     firms_fire_mask = firms_result
                     logger.info(
-                        "  %s: FIRMS fire pixels = %d", granule_id, int(firms_fire_mask.sum())
+                        "  %s: FIRMS fire pixels = %d",
+                        granule_id,
+                        int(firms_fire_mask.sum()),
                     )
             else:
-                logger.warning("  %s: could not parse sensing date — FIRMS skipped.", granule_id)
+                logger.warning(
+                    "  %s: could not parse sensing date — FIRMS skipped.", granule_id
+                )
 
         fire_px_1km = (bt_fire_mask | firms_fire_mask).astype(np.float32)
-        n_fire_1km  = int(fire_px_1km.sum())
+        n_fire_1km = int(fire_px_1km.sum())
         logger.info(
             "  %s: fire pixels at 1 km = %d (BT-only=%d) / %d (%.4f%%)",
-            granule_id, n_fire_1km, n_bt_fire, fire_px_1km.size,
+            granule_id,
+            n_fire_1km,
+            n_bt_fire,
+            fire_px_1km.size,
             100.0 * n_fire_1km / fire_px_1km.size,
         )
 
         # ── ROI pixel mask at 1 km (co-tiled to get per-patch ROI coverage) ─
         roi_mask_1km = None
         if roi_polygon is not None:
-            roi_mask_1km = compute_roi_pixel_mask(lat, lon, roi_polygon).astype(np.float32)
+            roi_mask_1km = compute_roi_pixel_mask(lat, lon, roi_polygon).astype(
+                np.float32
+            )
 
         # ── Tile into patches (aggregation is done inside) ───────────────
         # delta_T and fire_frac use simple nanmean (not Planck-domain)
@@ -220,9 +242,9 @@ def main(argv=None) -> int:
             stride_fraction=0.5,
             extra_arrays=extra_in,
         )
-        delta_t_patches    = extra["delta_T"]
-        fire_frac_patches  = extra["fire_frac"]
-        roi_frac_patches   = extra.get("roi_frac")
+        delta_t_patches = extra["delta_T"]
+        fire_frac_patches = extra["fire_frac"]
+        roi_frac_patches = extra.get("roi_frac")
 
         # Aggregate lat/lon once for centroid computation
         agg = config.SLSTR_AGG_FACTOR
@@ -245,7 +267,7 @@ def main(argv=None) -> int:
         # stride_fraction=0.5 matches the tile_granule_to_lepton_patches call above
         stride_x = max(1, int(w_px * 0.5))
         stride_y = max(1, int(h_px * 0.5))
-        n_cols   = max(1, (lat_agg.shape[1] - w_px) // stride_x + 1)
+        n_cols = max(1, (lat_agg.shape[1] - w_px) // stride_x + 1)
         n_roi_rejected = 0
 
         for patch_idx, patch in enumerate(patches):
@@ -257,18 +279,30 @@ def main(argv=None) -> int:
                     continue
 
             row = patch_idx // n_cols
-            col = patch_idx  % n_cols
+            col = patch_idx % n_cols
 
             # Centroid from aggregated coordinate arrays.
             # Origin uses stride (not full patch size) because patches overlap 50%.
             r0, c0 = row * stride_y, col * stride_x
             r1, c1 = r0 + h_px, c0 + w_px
 
-            lat_patch = lat_agg[r0:r1, c0:c1] if lat_agg.shape[0] >= r1 and lat_agg.shape[1] >= c1 else None
-            lon_patch = lon_agg[r0:r1, c0:c1] if lon_agg.shape[0] >= r1 and lon_agg.shape[1] >= c1 else None
+            lat_patch = (
+                lat_agg[r0:r1, c0:c1]
+                if lat_agg.shape[0] >= r1 and lat_agg.shape[1] >= c1
+                else None
+            )
+            lon_patch = (
+                lon_agg[r0:r1, c0:c1]
+                if lon_agg.shape[0] >= r1 and lon_agg.shape[1] >= c1
+                else None
+            )
 
-            centroid_lat = float(np.nanmean(lat_patch)) if lat_patch is not None else float("nan")
-            centroid_lon = float(np.nanmean(lon_patch)) if lon_patch is not None else float("nan")
+            centroid_lat = (
+                float(np.nanmean(lat_patch)) if lat_patch is not None else float("nan")
+            )
+            centroid_lon = (
+                float(np.nanmean(lon_patch)) if lon_patch is not None else float("nan")
+            )
 
             nan_fraction = float(np.isnan(patch).mean())
             finite = patch[np.isfinite(patch)]
@@ -277,9 +311,9 @@ def main(argv=None) -> int:
 
             # ── Fire label from 1km mask (aggregated to patch) ────────────
             fire_frac_patch = fire_frac_patches[patch_idx]
-            finite_frac     = fire_frac_patch[np.isfinite(fire_frac_patch)]
-            fire_fraction   = float(finite_frac.mean()) if finite_frac.size else 0.0
-            label           = 1 if fire_fraction >= config.MIN_FIRE_FRACTION else 0
+            finite_frac = fire_frac_patch[np.isfinite(fire_frac_patch)]
+            fire_fraction = float(finite_frac.mean()) if finite_frac.size else 0.0
+            label = 1 if fire_fraction >= config.MIN_FIRE_FRACTION else 0
 
             # Save BT patch and co-tiled delta_T patch
             patch_filename = f"{granule_id}_p{patch_idx:04d}_bt.npy"
@@ -289,23 +323,27 @@ def main(argv=None) -> int:
                 delta_t_patches[patch_idx],
             )
 
-            all_patch_records.append({
-                "granule_id":    granule_id,
-                "patch_index":   patch_idx,
-                "patch_file":    patch_filename,
-                "nan_fraction":  nan_fraction,
-                "centroid_lat":  centroid_lat,
-                "centroid_lon":  centroid_lon,
-                "bt_min":        bt_min,
-                "bt_max":        bt_max,
-                "label":         label,
-                "fire_fraction": fire_fraction,
-            })
+            all_patch_records.append(
+                {
+                    "granule_id": granule_id,
+                    "patch_index": patch_idx,
+                    "patch_file": patch_filename,
+                    "nan_fraction": nan_fraction,
+                    "centroid_lat": centroid_lat,
+                    "centroid_lon": centroid_lon,
+                    "bt_min": bt_min,
+                    "bt_max": bt_max,
+                    "label": label,
+                    "fire_fraction": fire_fraction,
+                }
+            )
 
         n_patches = len(patches) - n_roi_rejected
         logger.info(
             "  %s: %d patch(es) saved  (%d outside ROI — dropped).",
-            granule_id, n_patches, n_roi_rejected,
+            granule_id,
+            n_patches,
+            n_roi_rejected,
         )
 
     _write_manifest(output_dir, all_patch_records, args)
@@ -321,13 +359,13 @@ def main(argv=None) -> int:
 
 def _write_manifest(output_dir: Path, records: list, args) -> None:
     manifest = {
-        "created_utc":   datetime.now(timezone.utc).isoformat(),
+        "created_utc": datetime.now(timezone.utc).isoformat(),
         "script_version": config.SCRIPT_VERSION,
         "args": {
-            "input_dir":  args.input_dir,
+            "input_dir": args.input_dir,
             "output_dir": args.output_dir,
         },
-        "patches":      records,
+        "patches": records,
         "total_patches": len(records),
     }
     path = output_dir / "patches_manifest.json"

@@ -82,12 +82,19 @@ def scene_level_split(
         definitive = [l for l in labels if l in (0, 1)]
         cloud_fracs[sid] = (sum(definitive) / len(definitive)) if definitive else 0.0
 
-    high_cloud = [s for s in scene_ids if cloud_fracs[s] > config.HIGH_CLOUD_SCENE_THRESH]
-    low_cloud  = [s for s in scene_ids if cloud_fracs[s] <= config.HIGH_CLOUD_SCENE_THRESH]
+    high_cloud = [
+        s for s in scene_ids if cloud_fracs[s] > config.HIGH_CLOUD_SCENE_THRESH
+    ]
+    low_cloud = [
+        s for s in scene_ids if cloud_fracs[s] <= config.HIGH_CLOUD_SCENE_THRESH
+    ]
 
     logger.info(
         "stratification: high_cloud=%d (cloud_frac>%.2f)  low_cloud=%d  total=%d",
-        len(high_cloud), config.HIGH_CLOUD_SCENE_THRESH, len(low_cloud), len(scene_ids),
+        len(high_cloud),
+        config.HIGH_CLOUD_SCENE_THRESH,
+        len(low_cloud),
+        len(scene_ids),
     )
 
     rng.shuffle(high_cloud)
@@ -98,14 +105,16 @@ def scene_level_split(
     for tier, tier_name in zip((high_cloud, low_cloud), ("high_cloud", "low_cloud")):
         n = len(tier)
         n_train = round(n * train_frac)
-        n_val   = round(n * val_frac)
-        n_test  = n - n_train - n_val
+        n_val = round(n * val_frac)
+        n_test = n - n_train - n_val
 
         splits["train"].extend(tier[:n_train])
         splits["val"].extend(tier[n_train : n_train + n_val])
         splits["test"].extend(tier[n_train + n_val : n_train + n_val + n_test])
 
-        logger.info("  %s → train=%d  val=%d  test=%d", tier_name, n_train, n_val, n_test)
+        logger.info(
+            "  %s → train=%d  val=%d  test=%d", tier_name, n_train, n_val, n_test
+        )
 
     for split_name, sids in splits.items():
         n_tiles = sum(len(scene_ids_with_labels[s]) for s in sids)
@@ -118,7 +127,10 @@ def scene_level_split(
         frac = (cloud_count / definitive_count) if definitive_count else 0.0
         logger.info(
             "  [%s] scenes=%d  tiles=%d  cloud_frac=%.3f",
-            split_name, len(sids), n_tiles, frac,
+            split_name,
+            len(sids),
+            n_tiles,
+            frac,
         )
 
     return splits

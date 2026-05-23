@@ -11,7 +11,7 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 _CONFIDENCE_RANK = {"low": 0, "nominal": 1, "high": 2}
-_REQUIRED_COLS   = {"latitude", "longitude", "acq_date", "confidence"}
+_REQUIRED_COLS = {"latitude", "longitude", "acq_date", "confidence"}
 
 
 def load_firms_csv(csv_path: Path):
@@ -32,7 +32,11 @@ def load_firms_csv(csv_path: Path):
         return None
 
     if not _REQUIRED_COLS.issubset(df.columns):
-        logger.warning("FIRMS CSV %s missing columns: %s", csv_path, _REQUIRED_COLS - set(df.columns))
+        logger.warning(
+            "FIRMS CSV %s missing columns: %s",
+            csv_path,
+            _REQUIRED_COLS - set(df.columns),
+        )
         return None
 
     return df
@@ -62,26 +66,26 @@ def rasterise_firms_to_slstr(
     fire_mask = np.zeros(lat_grid.shape, dtype=bool)
 
     # Confidence filter
-    min_rank  = _CONFIDENCE_RANK.get(min_confidence.lower(), 1)
+    min_rank = _CONFIDENCE_RANK.get(min_confidence.lower(), 1)
     conf_rank = firms_df["confidence"].str.lower().map(_CONFIDENCE_RANK)
     df = firms_df[conf_rank >= min_rank].copy()
     if df.empty:
         return fire_mask
 
     # Date filter
-    center    = date.fromisoformat(sensing_date)
-    date_min  = (center - timedelta(days=time_window_days)).isoformat()
-    date_max  = (center + timedelta(days=time_window_days)).isoformat()
+    center = date.fromisoformat(sensing_date)
+    date_min = (center - timedelta(days=time_window_days)).isoformat()
+    date_max = (center + timedelta(days=time_window_days)).isoformat()
     df = df[(df["acq_date"] >= date_min) & (df["acq_date"] <= date_max)]
     if df.empty:
         return fire_mask
 
     # KD-tree nearest-neighbour snap (degrees; 1° lat ≈ 111 km)
-    W          = lat_grid.shape[1]
-    grid_pts   = np.column_stack([lat_grid.ravel(), lon_grid.ravel()])
-    tree       = KDTree(grid_pts)
-    firms_pts  = np.column_stack([df["latitude"].values, df["longitude"].values])
-    tol_deg    = tolerance_km / 111.0
+    W = lat_grid.shape[1]
+    grid_pts = np.column_stack([lat_grid.ravel(), lon_grid.ravel()])
+    tree = KDTree(grid_pts)
+    firms_pts = np.column_stack([df["latitude"].values, df["longitude"].values])
+    tol_deg = tolerance_km / 111.0
 
     dists, idxs = tree.query(firms_pts, distance_upper_bound=tol_deg)
     valid = dists < tol_deg
@@ -120,7 +124,7 @@ def load_firms_for_granule(
         logger.warning("No .csv files found in FIRMS dir %s.", firms_dir)
         return None
 
-    center   = date.fromisoformat(sensing_date)
+    center = date.fromisoformat(sensing_date)
     date_min = (center - timedelta(days=1)).isoformat()
     date_max = (center + timedelta(days=1)).isoformat()
 
@@ -138,6 +142,8 @@ def load_firms_for_granule(
         return None
 
     merged = pd.concat(frames, ignore_index=True)
-    logger.info("  FIRMS: %d detection(s) in window %s ± 1d.", len(merged), sensing_date)
+    logger.info(
+        "  FIRMS: %d detection(s) in window %s ± 1d.", len(merged), sensing_date
+    )
 
     return rasterise_firms_to_slstr(merged, lat_grid, lon_grid, sensing_date)

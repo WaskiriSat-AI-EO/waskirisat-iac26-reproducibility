@@ -19,7 +19,7 @@ _DOWNLOAD_BASE = (
     "https://zipper.dataspace.copernicus.eu/odata/v1/Products({product_id})/$value"
 )
 _CHUNK_BYTES = 8192
-_TIMEOUT_S   = 600   # large granules can be several hundred MB
+_TIMEOUT_S = 600  # large granules can be several hundred MB
 
 
 def download_and_extract(
@@ -72,7 +72,9 @@ def download_and_extract(
         except requests.HTTPError as exc:
             logger.error(
                 "Download HTTP error %s for %s: %s",
-                exc.response.status_code, product_name, exc,
+                exc.response.status_code,
+                product_name,
+                exc,
             )
             return False
         except Exception as exc:

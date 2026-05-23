@@ -82,11 +82,14 @@ def main(argv=None) -> int:
     Returns:
         Exit code: 0 on success, 1 on failure.
     """
-    args        = build_parser().parse_args(argv)
-    log_dir = args.log_dir or f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}"
+    args = build_parser().parse_args(argv)
+    log_dir = (
+        args.log_dir
+        or f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}"
+    )
     _, start_time = configure_logging("run_balance", log_dir, argv=sys.argv[1:])
     dataset_dir = Path(args.dataset_dir)
-    meta_dir    = dataset_dir / "metadata"
+    meta_dir = dataset_dir / "metadata"
 
     # ── Load split manifest ───────────────────────────────────────────────────
     split_path = dataset_dir / "split_manifest.json"
@@ -129,8 +132,9 @@ def main(argv=None) -> int:
             logger.info("  Split '%s': no records — skipped.", split_name)
             continue
 
-        logger.info("  Split '%s': %d records before balance …", split_name,
-                    len(split_records))
+        logger.info(
+            "  Split '%s': %d records before balance …", split_name, len(split_records)
+        )
 
         balanced = build_balanced_dataset(
             split_records,
@@ -172,19 +176,19 @@ def main(argv=None) -> int:
 
     # ── Write balanced manifest ───────────────────────────────────────────────
     balanced_manifest = {
-        "created_utc":    datetime.now(timezone.utc).isoformat(),
+        "created_utc": datetime.now(timezone.utc).isoformat(),
         "script_version": config.SCRIPT_VERSION,
-        "fire_ratio":     args.fire_ratio,
-        "seed":           args.seed,
+        "fire_ratio": args.fire_ratio,
+        "seed": args.seed,
         "total_retained": len(all_retained),
         "total_excluded": len(excluded_patches),
-        "records":        all_retained,
+        "records": all_retained,
     }
     balanced_path = dataset_dir / "balanced_manifest.json"
     with open(balanced_path, "w", encoding="utf-8") as fh:
         json.dump(balanced_manifest, fh, indent=2)
 
-    n_fire   = sum(1 for r in all_retained if r.get("label") == 1)
+    n_fire = sum(1 for r in all_retained if r.get("label") == 1)
     n_nofire = len(all_retained) - n_fire
     achieved = n_fire / len(all_retained) if all_retained else 0.0
 

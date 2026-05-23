@@ -15,9 +15,9 @@ from nina_cloud.datagen import config
 
 logger = logging.getLogger(__name__)
 
-_SEARCH_URL  = "https://catalogue.dataspace.copernicus.eu/odata/v1/Products"
-_TIMEOUT_S   = 60
-_CHUNK_PAGES = 20   # max items per OData $top request
+_SEARCH_URL = "https://catalogue.dataspace.copernicus.eu/odata/v1/Products"
+_TIMEOUT_S = 60
+_CHUNK_PAGES = 20  # max items per OData $top request
 
 
 def search_s2_products(
@@ -65,7 +65,7 @@ def search_s2_products(
 
     try:
         start = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
-        end   = datetime.strptime(end_date,   "%Y%m%d").strftime("%Y-%m-%d")
+        end = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
     except ValueError as exc:
         logger.error("Invalid date format (expected YYYYMMDD): %s", exc)
         return []
@@ -95,8 +95,8 @@ def search_s2_products(
     )
 
     params: Dict = {
-        "$filter":  filter_query,
-        "$top":     min(max_results, _CHUNK_PAGES),
+        "$filter": filter_query,
+        "$top": min(max_results, _CHUNK_PAGES),
         "$orderby": "ContentDate/Start asc",
     }
     headers = {"Authorization": f"Bearer {access_token}"}
@@ -117,7 +117,8 @@ def search_s2_products(
         except requests.HTTPError as exc:
             logger.error(
                 "CDSE S2 search HTTP error %s: %s",
-                exc.response.status_code, exc,
+                exc.response.status_code,
+                exc,
             )
             break
         except Exception as exc:
@@ -131,6 +132,8 @@ def search_s2_products(
     result = products[:max_results]
     logger.info(
         "Found %d S2MSI2A products  cloud_mode=%s  requested≤%d",
-        len(result), cloud_mode, max_results,
+        len(result),
+        cloud_mode,
+        max_results,
     )
     return result

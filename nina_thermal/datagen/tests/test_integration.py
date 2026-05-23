@@ -24,30 +24,33 @@ from nina_thermal.datagen.pipelines.run_report import main as report_main
 
 # 7 high-fire + 7 low-fire granules → 5 train + 1 val + 1 test per tier ✓
 N_HIGH_FIRE_GRANULES = 7
-N_LOW_FIRE_GRANULES  = 7
-PATCHES_PER_GRANULE  = 2   # 1 fire + 1 no-fire for high-fire; 2 no-fire for low-fire
+N_LOW_FIRE_GRANULES = 7
+PATCHES_PER_GRANULE = 2  # 1 fire + 1 no-fire for high-fire; 2 no-fire for low-fire
 
 PATCH_H, PATCH_W = config.LEPTON_RESOLUTION[1], config.LEPTON_RESOLUTION[0]  # 120, 160
 
-FIRE_F2_BT   = 330.0   # > FIRE_F2_ABS_THRESHOLD_K (320 K)
-FIRE_DELTA_T = 15.0    # > FIRE_DELTA_T_THRESHOLD_K (8 K)
-NOMINAL_F2_BT   = 295.0
-NOMINAL_DELTA_T = 2.0   # < 8 K — not a fire pixel
+FIRE_F2_BT = 330.0  # > FIRE_F2_ABS_THRESHOLD_K (320 K)
+FIRE_DELTA_T = 15.0  # > FIRE_DELTA_T_THRESHOLD_K (8 K)
+NOMINAL_F2_BT = 295.0
+NOMINAL_DELTA_T = 2.0  # < 8 K — not a fire pixel
 
-DATE_STR = "20230601T120000"   # embeds a parseable date
+DATE_STR = "20230601T120000"  # embeds a parseable date
 
 
 def _make_patch(is_fire: bool) -> np.ndarray:
     """Return a (120, 160) float32 BT array."""
-    bt = np.full((PATCH_H, PATCH_W), FIRE_F2_BT if is_fire else NOMINAL_F2_BT,
-                 dtype=np.float32)
+    bt = np.full(
+        (PATCH_H, PATCH_W), FIRE_F2_BT if is_fire else NOMINAL_F2_BT, dtype=np.float32
+    )
     return bt
 
 
 def _make_delta_t(is_fire: bool) -> np.ndarray:
-    delta = np.full((PATCH_H, PATCH_W),
-                    FIRE_DELTA_T if is_fire else NOMINAL_DELTA_T,
-                    dtype=np.float32)
+    delta = np.full(
+        (PATCH_H, PATCH_W),
+        FIRE_DELTA_T if is_fire else NOMINAL_DELTA_T,
+        dtype=np.float32,
+    )
     return delta
 
 
@@ -58,10 +61,9 @@ def _build_patches_dir(tmp_path: Path) -> Path:
 
     patch_records: List[Dict] = []
 
-    all_granules = (
-        [f"S3A_SL_1_RBT____{DATE_STR}_HF{i:02d}" for i in range(N_HIGH_FIRE_GRANULES)]
-        + [f"S3A_SL_1_RBT____{DATE_STR}_LF{i:02d}" for i in range(N_LOW_FIRE_GRANULES)]
-    )
+    all_granules = [
+        f"S3A_SL_1_RBT____{DATE_STR}_HF{i:02d}" for i in range(N_HIGH_FIRE_GRANULES)
+    ] + [f"S3A_SL_1_RBT____{DATE_STR}_LF{i:02d}" for i in range(N_LOW_FIRE_GRANULES)]
 
     for granule_id in all_granules:
         is_high_fire = "_HF" in granule_id
@@ -70,32 +72,34 @@ def _build_patches_dir(tmp_path: Path) -> Path:
             # Low-fire granules:  all patches = no-fire
             is_fire = is_high_fire and (patch_idx == 0)
 
-            bt      = _make_patch(is_fire)
+            bt = _make_patch(is_fire)
             delta_t = _make_delta_t(is_fire)
 
-            bt_fname      = f"{granule_id}_p{patch_idx:04d}_bt.npy"
+            bt_fname = f"{granule_id}_p{patch_idx:04d}_bt.npy"
             delta_t_fname = f"{granule_id}_p{patch_idx:04d}_delta_t.npy"
 
             np.save(patches_dir / bt_fname, bt)
             np.save(patches_dir / delta_t_fname, delta_t)
 
-            patch_records.append({
-                "granule_id":    granule_id,
-                "patch_index":   patch_idx,
-                "patch_file":    bt_fname,
-                "nan_fraction":  0.0,
-                "centroid_lat":  -15.0 + patch_idx * 0.5,
-                "centroid_lon":  -62.0 + patch_idx * 0.5,
-                "bt_min":        float(bt.min()),
-                "bt_max":        float(bt.max()),
-            })
+            patch_records.append(
+                {
+                    "granule_id": granule_id,
+                    "patch_index": patch_idx,
+                    "patch_file": bt_fname,
+                    "nan_fraction": 0.0,
+                    "centroid_lat": -15.0 + patch_idx * 0.5,
+                    "centroid_lon": -62.0 + patch_idx * 0.5,
+                    "bt_min": float(bt.min()),
+                    "bt_max": float(bt.max()),
+                }
+            )
 
     manifest = {
-        "created_utc":    "2023-06-01T12:00:00+00:00",
+        "created_utc": "2023-06-01T12:00:00+00:00",
         "script_version": config.SCRIPT_VERSION,
-        "args":           {"input_dir": ".", "output_dir": str(patches_dir)},
-        "patches":        patch_records,
-        "total_patches":  len(patch_records),
+        "args": {"input_dir": ".", "output_dir": str(patches_dir)},
+        "patches": patch_records,
+        "total_patches": len(patch_records),
     }
     with open(patches_dir / "patches_manifest.json", "w") as fh:
         json.dump(manifest, fh, indent=2)
@@ -105,6 +109,7 @@ def _build_patches_dir(tmp_path: Path) -> Path:
 
 # ── Fixture: complete pipeline run ───────────────────────────────────────────
 
+
 @pytest.fixture(scope="module")
 def pipeline_output(tmp_path_factory):
     """Run the full pipeline and return (dataset_dir, summary_dict)."""
@@ -113,34 +118,53 @@ def pipeline_output(tmp_path_factory):
     dataset_dir = tmp / "04_dataset"
 
     # Pass 2: simulate
-    rc = sim_main([
-        "--input_dir",  str(patches_dir),
-        "--output_dir", str(dataset_dir),
-        "--profiles",   "A,B",     # two profiles for speed
-        "--agc_modes",  "fixed",   # one mode
-        "--seed",       "42",
-    ])
+    rc = sim_main(
+        [
+            "--input_dir",
+            str(patches_dir),
+            "--output_dir",
+            str(dataset_dir),
+            "--profiles",
+            "A,B",  # two profiles for speed
+            "--agc_modes",
+            "fixed",  # one mode
+            "--seed",
+            "42",
+        ]
+    )
     assert rc == 0, "run_simulation failed"
 
     # Split
-    rc = split_main([
-        "--dataset_dir", str(dataset_dir),
-        "--seed",        "42",
-    ])
+    rc = split_main(
+        [
+            "--dataset_dir",
+            str(dataset_dir),
+            "--seed",
+            "42",
+        ]
+    )
     assert rc == 0, "run_split failed"
 
     # Balance
-    rc = balance_main([
-        "--dataset_dir", str(dataset_dir),
-        "--fire_ratio",  str(config.FIRE_RATIO),
-        "--seed",        "42",
-    ])
+    rc = balance_main(
+        [
+            "--dataset_dir",
+            str(dataset_dir),
+            "--fire_ratio",
+            str(config.FIRE_RATIO),
+            "--seed",
+            "42",
+        ]
+    )
     assert rc == 0, "run_balance failed"
 
     # Report
-    rc = report_main([
-        "--dataset_dir", str(dataset_dir),
-    ])
+    rc = report_main(
+        [
+            "--dataset_dir",
+            str(dataset_dir),
+        ]
+    )
     assert rc == 0, "run_report failed"
 
     summary_path = dataset_dir / "dataset_summary.json"
@@ -152,6 +176,7 @@ def pipeline_output(tmp_path_factory):
 
 
 # ── Section 6.14: all required fields present ─────────────────────────────────
+
 
 class TestDatasetSummaryFields:
     def test_top_level_fields(self, pipeline_output):
@@ -239,6 +264,7 @@ class TestDatasetSummaryFields:
 
 # ── Section 12: all 10 paper claims verifiable ────────────────────────────────
 
+
 class TestPaperClaims:
     def test_claim1_radiance_consistent_aggregation(self, pipeline_output):
         """Claim 1: radiance-consistent averaging."""
@@ -299,7 +325,9 @@ class TestPaperClaims:
             assert isinstance(sm[key], list)
         # No granule appears in more than one split
         all_gids = sm["train"] + sm["val"] + sm["test"]
-        assert len(all_gids) == len(set(all_gids)), "Duplicate granule IDs across splits"
+        assert len(all_gids) == len(
+            set(all_gids)
+        ), "Duplicate granule IDs across splits"
 
     def test_claim6_fire_ratio(self, pipeline_output):
         """Claim 6: 1:4 fire ratio (fire_ratio_target = 0.20)."""
@@ -361,6 +389,7 @@ class TestPaperClaims:
 
 # ── Additional pipeline integrity checks ─────────────────────────────────────
 
+
 class TestPipelineIntegrity:
     def test_images_written(self, pipeline_output):
         dataset_dir, _ = pipeline_output
@@ -378,9 +407,11 @@ class TestPipelineIntegrity:
             records = json.load(fh)
         assert records, "label_manifest.json is empty"
         for rec in records:
-            assert rec.get("split") in ("train", "val", "test"), (
-                f"Invalid split value: {rec.get('split')!r}"
-            )
+            assert rec.get("split") in (
+                "train",
+                "val",
+                "test",
+            ), f"Invalid split value: {rec.get('split')!r}"
 
     def test_balanced_manifest_exists(self, pipeline_output):
         dataset_dir, _ = pipeline_output
@@ -400,11 +431,11 @@ class TestPipelineIntegrity:
             sm = json.load(fh)
         # Every record's granule_id must map to exactly one split
         all_train = set(sm["train"])
-        all_val   = set(sm["val"])
-        all_test  = set(sm["test"])
+        all_val = set(sm["val"])
+        all_test = set(sm["test"])
         assert not (all_train & all_val), "Granule overlap: train ∩ val"
         assert not (all_train & all_test), "Granule overlap: train ∩ test"
-        assert not (all_val   & all_test), "Granule overlap: val ∩ test"
+        assert not (all_val & all_test), "Granule overlap: val ∩ test"
 
     def test_metadata_flight_config_flag(self, pipeline_output):
         dataset_dir, _ = pipeline_output
@@ -412,25 +443,22 @@ class TestPipelineIntegrity:
         for f in list(meta_dir.glob("*_fixed_*.json"))[:5]:
             with open(f) as fh:
                 m = json.load(fh)
-            assert m.get("flight_config") is True, (
-                f"flight_config should be True for fixed AGC: {f.name}"
-            )
+            assert (
+                m.get("flight_config") is True
+            ), f"flight_config should be True for fixed AGC: {f.name}"
 
     def test_total_patches_consistent(self, pipeline_output):
         _, s = pipeline_output
         # Patches across all splits must equal total_patches_after_rejection
-        split_total = sum(
-            s["splits"][sp]["patches"]
-            for sp in ("train", "val", "test")
-        )
+        split_total = sum(s["splits"][sp]["patches"] for sp in ("train", "val", "test"))
         assert split_total == s["total_patches_after_rejection"]
 
     def test_processing_parameters_values(self, pipeline_output):
         _, s = pipeline_output
         pp = s["processing_parameters"]
-        assert pp["agg_factor"]          == config.SLSTR_AGG_FACTOR
-        assert pp["synthetic_gsd_m"]     == config.SLSTR_SYNTHETIC_GSD_M
-        assert pp["nina_lepton_gsd_m"]   == config.NINA_LEPTON_GSD_M
-        assert pp["fixed_agc_range_k"]   == config.FIXED_TEMP_RANGE_K
-        assert pp["fire_ratio_target"]   == config.FIRE_RATIO
-        assert pp["script_version"]      == config.SCRIPT_VERSION
+        assert pp["agg_factor"] == config.SLSTR_AGG_FACTOR
+        assert pp["synthetic_gsd_m"] == config.SLSTR_SYNTHETIC_GSD_M
+        assert pp["nina_lepton_gsd_m"] == config.NINA_LEPTON_GSD_M
+        assert pp["fixed_agc_range_k"] == config.FIXED_TEMP_RANGE_K
+        assert pp["fire_ratio_target"] == config.FIRE_RATIO
+        assert pp["script_version"] == config.SCRIPT_VERSION

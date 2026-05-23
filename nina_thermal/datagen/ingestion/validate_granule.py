@@ -68,7 +68,9 @@ def validate_granule(granule: Dict[str, np.ndarray]) -> bool:
         if arr.shape != ref_shape:
             logger.warning(
                 "validate_granule: shape mismatch — '%s' is %s, expected %s",
-                key, arr.shape, ref_shape,
+                key,
+                arr.shape,
+                ref_shape,
             )
             return False
 
@@ -77,7 +79,8 @@ def validate_granule(granule: Dict[str, np.ndarray]) -> bool:
         if arr.dtype != np.float32:
             logger.warning(
                 "validate_granule: dtype mismatch — '%s' is %s, expected float32",
-                key, arr.dtype,
+                key,
+                arr.dtype,
             )
             return False
 
@@ -88,12 +91,15 @@ def validate_granule(granule: Dict[str, np.ndarray]) -> bool:
         logger.warning(
             "validate_granule: finite fraction %.3f <= %.3f "
             "(granule too masked; SLSTR buffer zones account for ~50-60%% of array)",
-            finite_fraction, _MIN_FINITE_FRACTION,
+            finite_fraction,
+            _MIN_FINITE_FRACTION,
         )
         return False
 
     logger.info(
         "validate OK: shape=%s  dtype=%s  finite_fraction=%.3f",
-        ref_shape, arrays[0].dtype, finite_fraction,
+        ref_shape,
+        arrays[0].dtype,
+        finite_fraction,
     )
     return True

@@ -26,9 +26,7 @@ logger = logging.getLogger(__name__)
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="python -m nina_thermal.pipelines.run_report",
-        description=(
-            "Generate dataset_summary.json and print a summary table."
-        ),
+        description=("Generate dataset_summary.json and print a summary table."),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     p.add_argument(
@@ -64,8 +62,11 @@ def main(argv=None) -> int:
     Returns:
         Exit code: 0 on success, 1 on failure.
     """
-    args        = build_parser().parse_args(argv)
-    log_dir = args.log_dir or f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}"
+    args = build_parser().parse_args(argv)
+    log_dir = (
+        args.log_dir
+        or f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}"
+    )
     _, start_time = configure_logging("run_report", log_dir, argv=sys.argv[1:])
     dataset_dir = Path(args.dataset_dir)
 
@@ -92,7 +93,7 @@ def main(argv=None) -> int:
 
 def _print_summary(report: dict) -> None:
     """Print a formatted summary table to stdout."""
-    sep  = "─" * 58
+    sep = "─" * 58
     sep2 = "═" * 58
 
     print(f"\n{sep2}")
@@ -100,8 +101,10 @@ def _print_summary(report: dict) -> None:
     print(sep2)
 
     print(f"  {'Total granules':<30} {report.get('total_granules', '?'):>8}")
-    print(f"  {'Patches (after NaN rejection)':<30} "
-          f"{report.get('total_patches_after_rejection', '?'):>8}")
+    print(
+        f"  {'Patches (after NaN rejection)':<30} "
+        f"{report.get('total_patches_after_rejection', '?'):>8}"
+    )
     rr = report.get("rejection_rate", 0.0)
     print(f"  {'Rejection rate':<30} {rr:>8.1%}")
 
@@ -118,7 +121,7 @@ def _print_summary(report: dict) -> None:
         )
 
     # Labels
-    ld   = report.get("label_distribution", {})
+    ld = report.get("label_distribution", {})
     print(f"\n{sep}")
     print(f"  Label distribution")
     print(sep)
@@ -138,11 +141,13 @@ def _print_summary(report: dict) -> None:
     # Profiles / AGC
     print(f"\n{sep}")
     prof_counts = report.get("profiles", {})
-    agc_counts  = report.get("agc_modes", {})
-    print(f"  {'Profiles':<30} "
-          + "  ".join(f"{k}={v}" for k, v in prof_counts.items()))
-    print(f"  {'AGC modes':<30} "
-          + "  ".join(f"{k}={v}" for k, v in agc_counts.items()))
+    agc_counts = report.get("agc_modes", {})
+    print(
+        f"  {'Profiles':<30} " + "  ".join(f"{k}={v}" for k, v in prof_counts.items())
+    )
+    print(
+        f"  {'AGC modes':<30} " + "  ".join(f"{k}={v}" for k, v in agc_counts.items())
+    )
 
     # Geographic coverage
     geo = report.get("geographic_coverage", {})
@@ -168,7 +173,9 @@ def _print_summary(report: dict) -> None:
     print(f"  {'AGG factor':<30} {pp.get('agg_factor', '?'):>8}")
     print(f"  {'Synthetic GSD [m]':<30} {pp.get('synthetic_gsd_m', '?'):>8.0f}")
     print(f"  {'NINA GSD [m]':<30} {pp.get('nina_lepton_gsd_m', '?'):>8.0f}")
-    print(f"  {'GSD overestimation [%]':<30} {pp.get('gsd_overestimation_pct', '?'):>8.1f}")
+    print(
+        f"  {'GSD overestimation [%]':<30} {pp.get('gsd_overestimation_pct', '?'):>8.1f}"
+    )
     print(f"  {'Fixed AGC range [K]':<30} {pp.get('fixed_agc_range_k', '?'):>8.1f}")
     print(f"  {'Fire ratio target':<30} {pp.get('fire_ratio_target', '?'):>8.3f}")
     print(f"  {'Script version':<30} {pp.get('script_version', '?'):>8}")

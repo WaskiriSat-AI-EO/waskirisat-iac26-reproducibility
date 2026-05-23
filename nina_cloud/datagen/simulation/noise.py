@@ -102,7 +102,7 @@ def generate_pag7936_fpn(
     rng = np.random.default_rng(seed)
 
     col_offsets = rng.standard_normal(w).astype(np.float32) * column_strength
-    column_fpn  = np.broadcast_to(col_offsets, (h, w)).copy()
+    column_fpn = np.broadcast_to(col_offsets, (h, w)).copy()
 
     pixel_fpn = rng.standard_normal((h, w)).astype(np.float32) * pixel_strength
 

@@ -68,14 +68,14 @@ def load_s2_scene(
     return None
 
 
-def _load_from_npy(
-    directory: Path, rgb_npy: Path
-) -> Optional[Dict[str, np.ndarray]]:
+def _load_from_npy(directory: Path, rgb_npy: Path) -> Optional[Dict[str, np.ndarray]]:
     try:
         prefix = rgb_npy.stem[: -len("_rgb")]
         rgb = np.load(directory / f"{prefix}_rgb.npy").astype(np.float32)
         scl = np.load(directory / f"{prefix}_scl.npy").astype(np.uint8)
-        logger.debug("load_s2_scene (npy path): %s  rgb=%s  scl=%s", prefix, rgb.shape, scl.shape)
+        logger.debug(
+            "load_s2_scene (npy path): %s  rgb=%s  scl=%s", prefix, rgb.shape, scl.shape
+        )
         return {"rgb": rgb, "scl": scl}
     except Exception as exc:
         logger.error("load_s2_scene (npy path) failed: %s", exc)

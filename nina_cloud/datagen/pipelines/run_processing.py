@@ -23,7 +23,10 @@ from shared.manifest import expected_scene_ids, assert_chain
 
 from nina_cloud.datagen import config
 from nina_cloud.datagen.ingestion.load_scene import load_s2_scene
-from nina_cloud.datagen.labeling.cloud_label import classify_tile_type, compute_tile_cloud_label
+from nina_cloud.datagen.labeling.cloud_label import (
+    classify_tile_type,
+    compute_tile_cloud_label,
+)
 from nina_cloud.datagen.processing.spatial import tile_scene_to_patches
 
 logger = logging.getLogger(__name__)
@@ -33,16 +36,16 @@ def main(argv: List[str] = None) -> int:
     parser = argparse.ArgumentParser(
         description="nina_cloud stage 3: tile scenes and assign cloud labels"
     )
-    parser.add_argument("--input_dir",  required=True, help="02_extracted/ directory")
+    parser.add_argument("--input_dir", required=True, help="02_extracted/ directory")
     parser.add_argument("--output_dir", required=True, help="03_tiles/ directory")
-    parser.add_argument("--log_dir",    default="data/logs")
+    parser.add_argument("--log_dir", default="data/logs")
     args = parser.parse_args(argv)
 
     log_file, start_time = configure_logging(
         "run_processing", log_dir=args.log_dir, argv=sys.argv[1:]
     )
 
-    input_dir  = Path(args.input_dir)
+    input_dir = Path(args.input_dir)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -55,7 +58,9 @@ def main(argv: List[str] = None) -> int:
         extraction_manifest = json.load(f)
 
     upstream_ids = expected_scene_ids(extraction_manifest["scenes"])
-    scene_ids = [r["scene_id"] for r in extraction_manifest["scenes"] if r["status"] == "ok"]
+    scene_ids = [
+        r["scene_id"] for r in extraction_manifest["scenes"] if r["status"] == "ok"
+    ]
     logger.info("Processing %d scenes", len(scene_ids))
 
     tile_records = []
@@ -96,10 +101,10 @@ def main(argv: List[str] = None) -> int:
             )
 
             meta = {
-                "scene_id":   scene_id,
-                "tile_idx":   tile_idx,
-                "label":      label,
-                "tile_type":  tile_type,
+                "scene_id": scene_id,
+                "tile_idx": tile_idx,
+                "label": label,
+                "tile_type": tile_type,
                 "cloud_frac": round(cloud_frac, 4),
                 "nodata_frac": round(nodata_frac, 4),
                 "origin_row": row,
@@ -121,8 +126,10 @@ def main(argv: List[str] = None) -> int:
                 logger.warning(
                     "Scene %s produced 0 tiles (all %d patches ambiguous — "
                     "cloud_frac in [%.2f, %.2f]); excluded from dataset",
-                    scene_id, scene_ambig_count,
-                    config.CLOUD_LABEL_LOW_THRESH, config.CLOUD_LABEL_HIGH_THRESH,
+                    scene_id,
+                    scene_ambig_count,
+                    config.CLOUD_LABEL_LOW_THRESH,
+                    config.CLOUD_LABEL_HIGH_THRESH,
                 )
                 scenes_fully_ambiguous.add(scene_id)
             # Scenes that failed to load are already warned above
@@ -132,7 +139,9 @@ def main(argv: List[str] = None) -> int:
     # Chain validation: scenes expected but absent (excluding scenes whose tiles
     # were all ambiguous — that is legitimate exclusion, not data loss) cause
     # a fast failure. Load failures are included as missing.
-    if not assert_chain(upstream_ids - scenes_fully_ambiguous, scenes_with_tiles, logger):
+    if not assert_chain(
+        upstream_ids - scenes_fully_ambiguous, scenes_with_tiles, logger
+    ):
         return log_run_footer(start_time, 1)
 
     tiles_manifest_path = output_dir / "tiles_manifest.json"
@@ -141,16 +150,21 @@ def main(argv: List[str] = None) -> int:
             {
                 "stage": "run_processing",
                 "generated_at": datetime.now(timezone.utc).isoformat(),
-                "n_cloud": n_cloud, "n_clear": n_clear,
+                "n_cloud": n_cloud,
+                "n_clear": n_clear,
                 "n_ambig_rejected": n_ambig,
                 "tiles": tile_records,
             },
-            f, indent=2,
+            f,
+            indent=2,
         )
 
     logger.info(
         "Tiling complete: cloud=%d  clear=%d  ambig_rejected=%d  manifest=%s",
-        n_cloud, n_clear, n_ambig, tiles_manifest_path,
+        n_cloud,
+        n_clear,
+        n_ambig,
+        tiles_manifest_path,
     )
     return log_run_footer(start_time, 0)
 

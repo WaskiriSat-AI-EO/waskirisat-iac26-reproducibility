@@ -121,7 +121,10 @@ def main(argv=None) -> int:
     # ── Search ────────────────────────────────────────────────────────────────
     logger.info(
         "Searching catalog: %s  %s – %s  (max %d products) …",
-        args.product_type, args.start, args.end, args.max_products,
+        args.product_type,
+        args.start,
+        args.end,
+        args.max_products,
     )
     products = search_slstr_products(
         access_token=token,
@@ -144,7 +147,7 @@ def main(argv=None) -> int:
     # and a 50-product session easily outlives one token.
     downloaded = []
     for i, product in enumerate(products, 1):
-        pid  = product["Id"]
+        pid = product["Id"]
         name = product["Name"]
         date = product.get("ContentDate", {}).get("Start", "?")
         logger.info("[%d/%d] %s  (sensing: %s)", i, len(products), name, date)
@@ -164,12 +167,14 @@ def main(argv=None) -> int:
         if ok:
             # The extracted directory follows Sentinel-3 naming conventions
             sen3_dir = output_dir / f"{name}.SEN3"
-            downloaded.append({
-                "product_id":   pid,
-                "product_name": name,
-                "sensing_start": date,
-                "sen3_dir":     str(sen3_dir),
-            })
+            downloaded.append(
+                {
+                    "product_id": pid,
+                    "product_name": name,
+                    "sensing_start": date,
+                    "sen3_dir": str(sen3_dir),
+                }
+            )
         else:
             logger.warning("Download failed for %s — skipped.", name)
 
@@ -177,19 +182,21 @@ def main(argv=None) -> int:
     logger.info(
         "Acquisition complete: %d/%d products downloaded.  "
         "Manifest → %s/acquisition_manifest.json",
-        len(downloaded), len(products), output_dir,
+        len(downloaded),
+        len(products),
+        output_dir,
     )
     return log_run_footer(start_time, exit_code=0)
 
 
 def _write_manifest(output_dir: Path, records: list, args) -> None:
     manifest = {
-        "created_utc":    datetime.now(timezone.utc).isoformat(),
+        "created_utc": datetime.now(timezone.utc).isoformat(),
         "script_version": config.SCRIPT_VERSION,
         "args": {
-            "roi":          args.roi,
-            "start":        args.start,
-            "end":          args.end,
+            "roi": args.roi,
+            "start": args.start,
+            "end": args.end,
             "product_type": args.product_type,
             "max_products": args.max_products,
         },

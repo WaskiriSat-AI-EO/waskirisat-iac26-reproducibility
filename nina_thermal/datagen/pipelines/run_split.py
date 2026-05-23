@@ -39,9 +39,7 @@ logger = logging.getLogger(__name__)
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="python -m nina_thermal.pipelines.run_split",
-        description=(
-            "Assign granule-level train/val/test splits and update metadata."
-        ),
+        description=("Assign granule-level train/val/test splits and update metadata."),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     p.add_argument(
@@ -74,11 +72,14 @@ def main(argv=None) -> int:
     Returns:
         Exit code: 0 on success, 1 on failure.
     """
-    args      = build_parser().parse_args(argv)
-    log_dir = args.log_dir or f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}"
+    args = build_parser().parse_args(argv)
+    log_dir = (
+        args.log_dir
+        or f"data/logs/run_{config.DEFAULT_START_DATE}-{config.DEFAULT_END_DATE}"
+    )
     _, start_time = configure_logging("run_split", log_dir, argv=sys.argv[1:])
     dataset_dir = Path(args.dataset_dir)
-    meta_dir    = dataset_dir / "metadata"
+    meta_dir = dataset_dir / "metadata"
 
     # ── Load label manifest ───────────────────────────────────────────────────
     manifest_path = dataset_dir / "label_manifest.json"
@@ -106,11 +107,7 @@ def main(argv=None) -> int:
 
     # Log per-split summary (granule count, patch count, fire fraction)
     for split_name, gids in splits.items():
-        patch_labels = [
-            lbl
-            for gid in gids
-            for lbl in granule_labels[gid]
-        ]
+        patch_labels = [lbl for gid in gids for lbl in granule_labels[gid]]
         n_patches = len(patch_labels)
         fire_frac = (sum(patch_labels) / n_patches) if n_patches else 0.0
         logger.info(
@@ -143,7 +140,7 @@ def main(argv=None) -> int:
             try:
                 with open(meta_file, encoding="utf-8") as fh:
                     meta = json.load(fh)
-                gid        = meta.get("granule_id", "")
+                gid = meta.get("granule_id", "")
                 split_name = granule_to_split.get(gid, "train")
                 meta["split"] = split_name
                 with open(meta_file, "w", encoding="utf-8") as fh:
@@ -156,12 +153,12 @@ def main(argv=None) -> int:
 
     # ── Write split manifest ──────────────────────────────────────────────────
     split_manifest = {
-        "created_utc":    datetime.now(timezone.utc).isoformat(),
+        "created_utc": datetime.now(timezone.utc).isoformat(),
         "script_version": config.SCRIPT_VERSION,
-        "seed":           args.seed,
-        "train":          splits["train"],
-        "val":            splits["val"],
-        "test":           splits["test"],
+        "seed": args.seed,
+        "train": splits["train"],
+        "val": splits["val"],
+        "test": splits["test"],
     }
     split_path = dataset_dir / "split_manifest.json"
     with open(split_path, "w", encoding="utf-8") as fh:
@@ -169,8 +166,7 @@ def main(argv=None) -> int:
 
     n_total = sum(len(v) for v in splits.values())
     logger.info(
-        "Wrote split_manifest.json: train=%d, val=%d, test=%d granules "
-        "(total=%d).",
+        "Wrote split_manifest.json: train=%d, val=%d, test=%d granules " "(total=%d).",
         len(splits["train"]),
         len(splits["val"]),
         len(splits["test"]),

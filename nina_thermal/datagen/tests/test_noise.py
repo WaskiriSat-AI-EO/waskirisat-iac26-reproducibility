@@ -15,16 +15,16 @@ from nina_thermal.datagen import config
 class TestCalculateThermalNoiseSigma:
     def test_sigma_scales_with_netd_and_agc_range(self):
         """sigma = (netd_mk / 1000) / agc_range_k — verify the formula directly."""
-        netd_mk    = 50.0   # mK
-        agc_range  = 100.0  # K
-        expected   = (netd_mk / 1000.0) / agc_range   # 0.0005
+        netd_mk = 50.0  # mK
+        agc_range = 100.0  # K
+        expected = (netd_mk / 1000.0) / agc_range  # 0.0005
 
         result = calculate_thermal_noise_sigma(netd_mk=netd_mk, agc_range_k=agc_range)
         assert result == pytest.approx(expected)
 
     def test_sigma_doubles_when_netd_doubles(self):
         """Doubling NETD must double sigma (linearity check)."""
-        s1 = calculate_thermal_noise_sigma(netd_mk=50.0,  agc_range_k=100.0)
+        s1 = calculate_thermal_noise_sigma(netd_mk=50.0, agc_range_k=100.0)
         s2 = calculate_thermal_noise_sigma(netd_mk=100.0, agc_range_k=100.0)
         assert s2 == pytest.approx(2 * s1)
 
@@ -58,7 +58,7 @@ class TestColumnFpnStructure:
         fpn = generate_lepton_fpn(
             resolution=(160, 120),
             column_strength=0.02,
-            pixel_strength=0.0,   # isolate column component
+            pixel_strength=0.0,  # isolate column component
             seed=0,
         )
         col_map = fpn["column_fpn"]  # (H=120, W=160)
@@ -77,7 +77,7 @@ class TestColumnFpnStructure:
         """Pure pixel FPN must NOT produce systematic column variation."""
         fpn = generate_lepton_fpn(
             resolution=(160, 120),
-            column_strength=0.0,   # isolate pixel component
+            column_strength=0.0,  # isolate pixel component
             pixel_strength=0.02,
             seed=1,
         )
@@ -88,9 +88,9 @@ class TestColumnFpnStructure:
 
         # With pure pixel noise the column and row mean stds should be comparable
         ratio = col_means.std() / (row_means.std() + 1e-12)
-        assert ratio < 3.0, (
-            f"Pixel FPN unexpectedly shows column structure (ratio={ratio:.2f})"
-        )
+        assert (
+            ratio < 3.0
+        ), f"Pixel FPN unexpectedly shows column structure (ratio={ratio:.2f})"
 
 
 class TestApplyFpn:

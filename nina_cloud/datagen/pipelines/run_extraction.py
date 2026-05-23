@@ -27,16 +27,16 @@ def main(argv: List[str] = None) -> int:
     parser = argparse.ArgumentParser(
         description="nina_cloud stage 2: extract S2 bands from .SAFE to .npy"
     )
-    parser.add_argument("--input_dir",  required=True, help="01_raw/ directory")
+    parser.add_argument("--input_dir", required=True, help="01_raw/ directory")
     parser.add_argument("--output_dir", required=True, help="02_extracted/ directory")
-    parser.add_argument("--log_dir",    default="data/logs")
+    parser.add_argument("--log_dir", default="data/logs")
     args = parser.parse_args(argv)
 
     log_file, start_time = configure_logging(
         "run_extraction", log_dir=args.log_dir, argv=sys.argv[1:]
     )
 
-    input_dir  = Path(args.input_dir)
+    input_dir = Path(args.input_dir)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -57,11 +57,15 @@ def main(argv: List[str] = None) -> int:
         scene = load_s2_scene(output_dir, scene_id=scene_id)
         if scene is None or not validate_scene(scene):
             logger.warning("Validation failed: %s", scene_id)
-            records.append({"safe_dir": safe_dir.name, "scene_id": scene_id, "status": "invalid"})
+            records.append(
+                {"safe_dir": safe_dir.name, "scene_id": scene_id, "status": "invalid"}
+            )
             n_invalid += 1
             continue
 
-        records.append({"safe_dir": safe_dir.name, "scene_id": scene_id, "status": "ok"})
+        records.append(
+            {"safe_dir": safe_dir.name, "scene_id": scene_id, "status": "ok"}
+        )
         n_ok += 1
 
     manifest_path = output_dir / "extraction_manifest.json"
@@ -70,14 +74,20 @@ def main(argv: List[str] = None) -> int:
             {
                 "stage": "run_extraction",
                 "generated_at": datetime.now(timezone.utc).isoformat(),
-                "n_ok": n_ok, "n_fail": n_fail, "n_invalid": n_invalid,
+                "n_ok": n_ok,
+                "n_fail": n_fail,
+                "n_invalid": n_invalid,
                 "scenes": records,
             },
-            f, indent=2,
+            f,
+            indent=2,
         )
     logger.info(
         "Extraction complete: ok=%d  fail=%d  invalid=%d  manifest=%s",
-        n_ok, n_fail, n_invalid, manifest_path,
+        n_ok,
+        n_fail,
+        n_invalid,
+        manifest_path,
     )
     return log_run_footer(start_time, 0 if n_fail == 0 else 1)
 

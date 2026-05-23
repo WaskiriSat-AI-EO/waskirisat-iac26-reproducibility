@@ -75,7 +75,9 @@ def validate_noise_floor(
     measured_sigma = float(img.std())
     theoretical_sigma = expected_netd_mk / (1000.0 * agc_range_k)
 
-    ratio = measured_sigma / theoretical_sigma if theoretical_sigma > 0 else float("inf")
+    ratio = (
+        measured_sigma / theoretical_sigma if theoretical_sigma > 0 else float("inf")
+    )
 
     # Pass criterion: ratio within ±20 % of the nearest recognised noise factor
     recognised_factors = [1.0, 2.0, 4.0]
@@ -83,10 +85,10 @@ def validate_noise_floor(
     passed = abs(ratio - nearest) / nearest <= 0.20
 
     return {
-        "measured_sigma":    measured_sigma,
+        "measured_sigma": measured_sigma,
         "theoretical_sigma": theoretical_sigma,
-        "ratio":             ratio,
-        "pass":              passed,
-        "expected_netd_mk":  expected_netd_mk,
-        "agc_range_k":       agc_range_k,
+        "ratio": ratio,
+        "pass": passed,
+        "expected_netd_mk": expected_netd_mk,
+        "agc_range_k": agc_range_k,
     }

@@ -30,9 +30,11 @@ def _load_roi_wkt(roi_path: str) -> str:
     """Load a GeoJSON AOI file and return its WKT geometry string."""
     try:
         from sentinelsat import geojson_to_wkt, read_geojson  # type: ignore
+
         return geojson_to_wkt(read_geojson(roi_path))
     except ImportError:
         import json
+
         with open(roi_path) as f:
             gj = json.load(f)
         coords = gj["features"][0]["geometry"]["coordinates"][0]
@@ -44,16 +46,25 @@ def main(argv: List[str] = None) -> int:
     parser = argparse.ArgumentParser(
         description="nina_cloud stage 1: acquire Sentinel-2 L2A scenes from CDSE"
     )
-    parser.add_argument("--roi",          required=True,  help="AOI GeoJSON file")
-    parser.add_argument("--start",        required=True,  help="Start date YYYYMMDD")
-    parser.add_argument("--end",          required=True,  help="End date YYYYMMDD")
-    parser.add_argument("--output_dir",   required=True,  help="Output directory (01_raw)")
-    parser.add_argument("--cloud_mode",   default="both", choices=["clear", "cloudy", "both"],
-                        help="Which cloud-cover tier to acquire (default: both)")
-    parser.add_argument("--max_products", type=int, default=50,
-                        help="Max products per cloud mode (default: 50)")
-    parser.add_argument("--log_dir",      default="data/logs",
-                        help="Directory for log files")
+    parser.add_argument("--roi", required=True, help="AOI GeoJSON file")
+    parser.add_argument("--start", required=True, help="Start date YYYYMMDD")
+    parser.add_argument("--end", required=True, help="End date YYYYMMDD")
+    parser.add_argument("--output_dir", required=True, help="Output directory (01_raw)")
+    parser.add_argument(
+        "--cloud_mode",
+        default="both",
+        choices=["clear", "cloudy", "both"],
+        help="Which cloud-cover tier to acquire (default: both)",
+    )
+    parser.add_argument(
+        "--max_products",
+        type=int,
+        default=50,
+        help="Max products per cloud mode (default: 50)",
+    )
+    parser.add_argument(
+        "--log_dir", default="data/logs", help="Directory for log files"
+    )
     args = parser.parse_args(argv)
 
     log_file, start_time = configure_logging(
@@ -84,7 +95,12 @@ def main(argv: List[str] = None) -> int:
     manifest_records = []
 
     for mode in modes:
-        logger.info("Searching %s scenes (mode=%s, max=%d)", config.S2_PRODUCT_TYPE, mode, args.max_products)
+        logger.info(
+            "Searching %s scenes (mode=%s, max=%d)",
+            config.S2_PRODUCT_TYPE,
+            mode,
+            args.max_products,
+        )
         products = search_s2_products(
             access_token=access_token,
             footprint_wkt=footprint_wkt,
@@ -96,7 +112,7 @@ def main(argv: List[str] = None) -> int:
         logger.info("Found %d products for mode=%s", len(products), mode)
 
         for product in products:
-            pid  = product["Id"]
+            pid = product["Id"]
             name = product["Name"]
             safe_path = output_dir / f"{name}.SAFE"
             if safe_path.exists():
@@ -105,12 +121,14 @@ def main(argv: List[str] = None) -> int:
             else:
                 ok = download_and_extract(access_token, pid, name, str(output_dir))
                 status = "downloaded" if ok else "failed"
-            manifest_records.append({
-                "product_id":   pid,
-                "product_name": name,
-                "cloud_mode":   mode,
-                "status":       status,
-            })
+            manifest_records.append(
+                {
+                    "product_id": pid,
+                    "product_name": name,
+                    "cloud_mode": mode,
+                    "status": status,
+                }
+            )
 
     manifest_path = output_dir / "acquisition_manifest.json"
     with open(manifest_path, "w") as f:
@@ -121,7 +139,8 @@ def main(argv: List[str] = None) -> int:
                 "args": vars(args),
                 "products": manifest_records,
             },
-            f, indent=2,
+            f,
+            indent=2,
         )
     logger.info("Manifest written: %s", manifest_path)
     return log_run_footer(start_time, 0)

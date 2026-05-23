@@ -41,21 +41,25 @@ def main(argv: List[str] = None) -> int:
     parser = argparse.ArgumentParser(
         description="nina_cloud stage 4: simulate PAG7936 images from tiles"
     )
-    parser.add_argument("--input_dir",  required=True, help="03_tiles/ directory")
+    parser.add_argument("--input_dir", required=True, help="03_tiles/ directory")
     parser.add_argument("--output_dir", required=True, help="04_dataset/ directory")
-    parser.add_argument("--profiles",   default="B", help="Degradation profiles (comma-separated)")
-    parser.add_argument("--seed",       type=int, default=config.DEFAULT_SEED)
-    parser.add_argument("--validation", action="store_true", help="Run image quality checks")
-    parser.add_argument("--log_dir",    default="data/logs")
+    parser.add_argument(
+        "--profiles", default="B", help="Degradation profiles (comma-separated)"
+    )
+    parser.add_argument("--seed", type=int, default=config.DEFAULT_SEED)
+    parser.add_argument(
+        "--validation", action="store_true", help="Run image quality checks"
+    )
+    parser.add_argument("--log_dir", default="data/logs")
     args = parser.parse_args(argv)
 
     log_file, start_time = configure_logging(
         "run_simulation", log_dir=args.log_dir, argv=sys.argv[1:]
     )
 
-    input_dir  = Path(args.input_dir)
+    input_dir = Path(args.input_dir)
     output_dir = Path(args.output_dir)
-    images_dir   = output_dir / "images"
+    images_dir = output_dir / "images"
     metadata_dir = output_dir / "metadata"
     images_dir.mkdir(parents=True, exist_ok=True)
     metadata_dir.mkdir(parents=True, exist_ok=True)
@@ -78,9 +82,9 @@ def main(argv: List[str] = None) -> int:
     upstream_ids = expected_scene_ids(tile_records)  # no status field in tiles manifest
 
     for meta in tile_records:
-        scene_id  = meta["scene_id"]
-        tile_idx  = meta["tile_idx"]
-        label     = meta["label"]
+        scene_id = meta["scene_id"]
+        tile_idx = meta["tile_idx"]
+        label = meta["label"]
         tile_type = meta["tile_type"]
 
         stem = f"{scene_id}_tile{tile_idx:04d}"
@@ -102,9 +106,7 @@ def main(argv: List[str] = None) -> int:
             noise_seed = derive_seed(args.seed, scene_id, tile_idx, profile, "noise")
             rng_tile = np.random.default_rng(noise_seed)
 
-            img_u8 = simulate_pag7936(
-                rgb_float, profile=profile, fpn=fpn, rng=rng_tile
-            )
+            img_u8 = simulate_pag7936(rgb_float, profile=profile, fpn=fpn, rng=rng_tile)
 
             img_name = f"{stem}_profile{profile}.png"
             save_tile_image(img_u8, images_dir / img_name)
@@ -125,23 +127,25 @@ def main(argv: List[str] = None) -> int:
             if args.validation:
                 img_meta["validation"] = {
                     "snr_laplacian": compute_snr_laplacian(img_u8),
-                    "entropy":       compute_entropy(img_u8),
+                    "entropy": compute_entropy(img_u8),
                 }
 
             meta_name = f"{stem}_profile{profile}_meta.json"
             save_tile_metadata(img_meta, metadata_dir / meta_name)
 
-            label_manifest.append({
-                "image":      img_name,
-                "metadata":   meta_name,
-                "scene_id":   scene_id,
-                "tile_idx":   tile_idx,
-                "label":      label,
-                "tile_type":  tile_type,
-                "cloud_frac": meta["cloud_frac"],
-                "profile":    profile,
-                "split":      "",
-            })
+            label_manifest.append(
+                {
+                    "image": img_name,
+                    "metadata": meta_name,
+                    "scene_id": scene_id,
+                    "tile_idx": tile_idx,
+                    "label": label,
+                    "tile_type": tile_type,
+                    "cloud_frac": meta["cloud_frac"],
+                    "profile": profile,
+                    "split": "",
+                }
+            )
 
     produced_ids = {r["scene_id"] for r in label_manifest}
     if not assert_chain(upstream_ids, produced_ids, logger):
@@ -150,7 +154,8 @@ def main(argv: List[str] = None) -> int:
     save_label_manifest(label_manifest, output_dir / "label_manifest.json")
     logger.info(
         "Simulation complete: %d images  profiles=%s",
-        len(label_manifest), profiles,
+        len(label_manifest),
+        profiles,
     )
     return log_run_footer(start_time, 0)
 

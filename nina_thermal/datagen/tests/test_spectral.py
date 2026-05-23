@@ -48,11 +48,13 @@ def test_correction_correct_on_large_array():
     # correction = 0.015 * 55 = 0.825 K
     # expected = 350 + 0.825 = 350.825 K
     expected = 350.0 + config.BROADBAND_ALPHA * (350.0 - config.AMBIENT_REFERENCE_K)
-    assert np.allclose(result, expected, atol=0.01), \
-        f"Expected {expected:.3f} K, got {result.mean():.3f} K — possible buffer aliasing"
+    assert np.allclose(
+        result, expected, atol=0.01
+    ), f"Expected {expected:.3f} K, got {result.mean():.3f} K — possible buffer aliasing"
 
     # Also verify ambient pixels are unchanged (correction = 0)
     bt_ambient = np.full((300, 400), 295.0, dtype=np.float32)
     result_ambient = apply_broadband_correction(bt_ambient)
-    assert np.allclose(result_ambient, 295.0, atol=0.01), \
-        "Ambient pixels should not be modified"
+    assert np.allclose(
+        result_ambient, 295.0, atol=0.01
+    ), "Ambient pixels should not be modified"

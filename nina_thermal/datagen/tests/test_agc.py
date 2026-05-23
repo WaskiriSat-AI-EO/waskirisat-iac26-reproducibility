@@ -3,12 +3,16 @@
 import numpy as np
 import pytest
 
-from nina_thermal.datagen.processing.agc import apply_agc, agc_to_uint8, compute_global_percentiles
+from nina_thermal.datagen.processing.agc import (
+    apply_agc,
+    agc_to_uint8,
+    compute_global_percentiles,
+)
 from nina_thermal.datagen import config
 
 
-T_MIN = config.FIXED_TEMP_MIN_K   # 258.15 K
-T_MAX = config.FIXED_TEMP_MAX_K   # 358.15 K
+T_MIN = config.FIXED_TEMP_MIN_K  # 258.15 K
+T_MAX = config.FIXED_TEMP_MAX_K  # 358.15 K
 
 
 class TestApplyAgc:
@@ -57,6 +61,6 @@ class TestAgcToUint8:
         assert result.dtype == np.uint8
         assert result[0] == 0
         assert result[1] == 0
-        assert result[2] == 128   # round(0.5 * 255) = round(127.5) = 128
+        assert result[2] == 128  # round(0.5 * 255) = round(127.5) = 128
         assert result[3] == 255
         assert result[4] == 255

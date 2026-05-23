@@ -41,9 +41,7 @@ class TestRadianceConsistentAggregation:
         )
 
         diff = radiance_agg_bt - temperature_avg_bt
-        assert diff > 1.0, (
-            f"Difference must be > 1.0 K, got {diff:.4f} K"
-        )
+        assert diff > 1.0, f"Difference must be > 1.0 K, got {diff:.4f} K"
 
     def test_uniform_block_radiance_equals_temperature_average(self):
         """For a uniform temperature field the two methods must agree."""
@@ -63,9 +61,10 @@ class TestOutputShape:
         H, W = 2400, 1500
         bt = np.full((H, W), 295.0, dtype=np.float32)
         agg = aggregate_bt_to_lepton_gsd(bt, agg_factor=4)
-        assert agg.shape == (H // 4, W // 4), (
-            f"Expected ({H//4}, {W//4}), got {agg.shape}"
-        )
+        assert agg.shape == (
+            H // 4,
+            W // 4,
+        ), f"Expected ({H//4}, {W//4}), got {agg.shape}"
 
     def test_shape_non_multiple_cropped(self):
         """Non-multiple dimensions should be cropped before aggregation."""
@@ -95,9 +94,9 @@ class TestNaNHandling:
         bt = np.full((4, 4), 295.0, dtype=np.float64)
         bt[0, 0] = np.nan  # only one NaN
         agg = aggregate_bt_to_lepton_gsd(bt, agg_factor=4)
-        assert not np.isnan(agg[0, 0]), (
-            "Partial-NaN block should not produce NaN (nanmean used)"
-        )
+        assert not np.isnan(
+            agg[0, 0]
+        ), "Partial-NaN block should not produce NaN (nanmean used)"
 
     def test_mixed_nan_and_valid_blocks(self):
         """Array with one all-NaN block and one valid block."""
@@ -138,9 +137,7 @@ class TestTileGranuleToLeptonPatches:
         patches = tile_granule_to_lepton_patches(
             bt, agg_factor=4, lepton_h=120, lepton_w=160, max_nan_fraction=0.15
         )
-        assert len(patches) == 0, (
-            "Patch with NaN fraction > 0.15 should be rejected"
-        )
+        assert len(patches) == 0, "Patch with NaN fraction > 0.15 should be rejected"
 
     def test_nan_patch_filled_below_threshold(self):
         """Patches with NaN fraction <= max_nan_fraction must be kept and filled."""
@@ -151,9 +148,9 @@ class TestTileGranuleToLeptonPatches:
             bt, agg_factor=4, lepton_h=120, lepton_w=160, max_nan_fraction=0.15
         )
         assert len(patches) == 1
-        assert not np.isnan(patches[0]).any(), (
-            "NaN pixels below threshold should be filled"
-        )
+        assert not np.isnan(
+            patches[0]
+        ).any(), "NaN pixels below threshold should be filled"
 
     def test_no_patches_when_array_too_small(self):
         """An array smaller than one patch after aggregation yields no patches."""

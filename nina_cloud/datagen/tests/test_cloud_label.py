@@ -3,7 +3,10 @@
 import numpy as np
 import pytest
 
-from nina_cloud.datagen.labeling.cloud_label import classify_tile_type, compute_tile_cloud_label
+from nina_cloud.datagen.labeling.cloud_label import (
+    classify_tile_type,
+    compute_tile_cloud_label,
+)
 
 
 class TestComputeTileCloudLabel:
@@ -31,8 +34,8 @@ class TestComputeTileCloudLabel:
 
     def test_fifty_percent_is_ambiguous(self):
         scl = np.zeros((100, 100), dtype=np.uint8)
-        scl[:50, :] = 9   # 50% cloud high prob
-        scl[50:, :] = 4   # 50% vegetation
+        scl[:50, :] = 9  # 50% cloud high prob
+        scl[50:, :] = 4  # 50% vegetation
         label, frac = compute_tile_cloud_label(scl)
         assert label == -1
         assert frac == pytest.approx(0.5)

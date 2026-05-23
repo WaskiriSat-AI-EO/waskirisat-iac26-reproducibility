@@ -62,7 +62,11 @@ def compute_patch_label(
     label = 1 if fire_fraction >= min_fire_fraction else 0
     logger.debug(
         "  label: fire_px=%d/%d (frac=%.5f) threshold=%.5f → label=%d",
-        int(fire_mask.sum()), total, fire_fraction, min_fire_fraction, label,
+        int(fire_mask.sum()),
+        total,
+        fire_fraction,
+        min_fire_fraction,
+        label,
     )
     return label
 

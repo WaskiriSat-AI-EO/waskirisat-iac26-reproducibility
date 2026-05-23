@@ -84,9 +84,8 @@ def load_slstr_granule(granule_dir: Path) -> Optional[Dict[str, np.ndarray]]:
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
-def _load_from_npy(
-    directory: Path, f2_npy: Path
-) -> Optional[Dict[str, np.ndarray]]:
+
+def _load_from_npy(directory: Path, f2_npy: Path) -> Optional[Dict[str, np.ndarray]]:
     """Load pre-extracted .npy arrays for a granule.
 
     Args:
@@ -101,15 +100,15 @@ def _load_from_npy(
 
         f2_bt = np.load(directory / f"{prefix}_F2_BT.npy").astype(np.float32)
         s8_bt = np.load(directory / f"{prefix}_S8_BT.npy").astype(np.float32)
-        lat   = np.load(directory / f"{prefix}_lat.npy").astype(np.float32)
-        lon   = np.load(directory / f"{prefix}_lon.npy").astype(np.float32)
+        lat = np.load(directory / f"{prefix}_lat.npy").astype(np.float32)
+        lon = np.load(directory / f"{prefix}_lon.npy").astype(np.float32)
 
         return {
-            "F2_BT":   f2_bt,
-            "S8_BT":   s8_bt,
+            "F2_BT": f2_bt,
+            "S8_BT": s8_bt,
             "delta_T": (f2_bt - s8_bt).astype(np.float32),
-            "lat":     lat,
-            "lon":     lon,
+            "lat": lat,
+            "lon": lon,
         }
     except Exception as exc:
         logger.error("load_slstr_granule (npy path) failed for %s: %s", directory, exc)
@@ -170,26 +169,28 @@ def _load_from_netcdf(sen3_dir: Path) -> Optional[Dict[str, np.ndarray]]:
 
         # Bitmasks
         with netCDF4.Dataset(sen3_dir / SLSTR_NADIR_FILES["flags"]) as ds:
-            cloud_in      = np.array(ds.variables["cloud_in"][:])
+            cloud_in = np.array(ds.variables["cloud_in"][:])
             confidence_in = np.array(ds.variables["confidence_in"][:])
 
-        cloud_mask     = (cloud_in & 1).astype(bool)
+        cloud_mask = (cloud_in & 1).astype(bool)
         exception_mask = (confidence_in & 2).astype(bool)
-        combined       = cloud_mask | exception_mask
+        combined = cloud_mask | exception_mask
 
         f2_bt[combined] = np.nan
         s8_bt[combined] = np.nan
 
         return {
-            "F2_BT":   f2_bt,
-            "S8_BT":   s8_bt,
+            "F2_BT": f2_bt,
+            "S8_BT": s8_bt,
             "delta_T": (f2_bt - s8_bt).astype(np.float32),
-            "lat":     lat,
-            "lon":     lon,
+            "lat": lat,
+            "lon": lon,
         }
 
     except Exception as exc:
-        logger.error("load_slstr_granule (NetCDF path) failed for %s: %s", sen3_dir, exc)
+        logger.error(
+            "load_slstr_granule (NetCDF path) failed for %s: %s", sen3_dir, exc
+        )
         return None
 
 

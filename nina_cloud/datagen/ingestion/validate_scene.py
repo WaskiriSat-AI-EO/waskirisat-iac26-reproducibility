@@ -37,9 +37,7 @@ def validate_scene(scene: Dict[str, np.ndarray]) -> bool:
     scl = scene["scl"]
 
     if rgb.ndim != 3 or rgb.shape[2] != 3:
-        logger.warning(
-            "validate_scene: rgb must be (H, W, 3), got %s", rgb.shape
-        )
+        logger.warning("validate_scene: rgb must be (H, W, 3), got %s", rgb.shape)
         return False
 
     h_rgb, w_rgb = rgb.shape[:2]
@@ -48,32 +46,33 @@ def validate_scene(scene: Dict[str, np.ndarray]) -> bool:
         logger.warning(
             "validate_scene: scl shape %s does not match expected %s "
             "(half of rgb %s)",
-            scl.shape, expected_scl_shape, (h_rgb, w_rgb),
+            scl.shape,
+            expected_scl_shape,
+            (h_rgb, w_rgb),
         )
         return False
 
     if rgb.dtype != np.float32:
-        logger.warning(
-            "validate_scene: rgb dtype is %s, expected float32", rgb.dtype
-        )
+        logger.warning("validate_scene: rgb dtype is %s, expected float32", rgb.dtype)
         return False
 
     if scl.dtype != np.uint8:
-        logger.warning(
-            "validate_scene: scl dtype is %s, expected uint8", scl.dtype
-        )
+        logger.warning("validate_scene: scl dtype is %s, expected uint8", scl.dtype)
         return False
 
     finite_frac = float(np.isfinite(rgb).mean())
     if finite_frac < _MIN_FINITE_FRACTION:
         logger.warning(
             "validate_scene: rgb finite fraction %.3f < %.3f",
-            finite_frac, _MIN_FINITE_FRACTION,
+            finite_frac,
+            _MIN_FINITE_FRACTION,
         )
         return False
 
     logger.info(
         "validate OK: rgb=%s  scl=%s  dtype=float32/uint8  finite_frac=%.3f",
-        rgb.shape, scl.shape, finite_frac,
+        rgb.shape,
+        scl.shape,
+        finite_frac,
     )
     return True

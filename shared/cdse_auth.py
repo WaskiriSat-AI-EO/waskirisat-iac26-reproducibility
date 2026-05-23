@@ -22,7 +22,7 @@ _TOKEN_URL = (
     "/auth/realms/CDSE/protocol/openid-connect/token"
 )
 _CLIENT_ID = "cdse-public"
-_TIMEOUT_S  = 30
+_TIMEOUT_S = 30
 
 
 def get_access_token(
@@ -56,9 +56,9 @@ def get_access_token(
         return None
 
     payload = {
-        "client_id":  _CLIENT_ID,
-        "username":   username,
-        "password":   password,
+        "client_id": _CLIENT_ID,
+        "username": username,
+        "password": password,
         "grant_type": "password",
     }
 
@@ -69,7 +69,9 @@ def get_access_token(
         logger.info("CDSE authentication successful.")
         return token
     except requests.HTTPError as exc:
-        logger.error("CDSE authentication HTTP error %s: %s", exc.response.status_code, exc)
+        logger.error(
+            "CDSE authentication HTTP error %s: %s", exc.response.status_code, exc
+        )
     except Exception as exc:
         logger.error("CDSE authentication failed: %s", exc)
 

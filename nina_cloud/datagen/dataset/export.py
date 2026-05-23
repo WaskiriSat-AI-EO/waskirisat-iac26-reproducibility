@@ -79,23 +79,23 @@ def build_image_metadata(
     ]
 
     return {
-        "scene_id":    scene_id,
-        "tile_index":  tile_index,
-        "label":       label,
-        "tile_type":   tile_type,
-        "cloud_frac":  round(cloud_frac, 4),
+        "scene_id": scene_id,
+        "tile_index": tile_index,
+        "label": label,
+        "tile_type": tile_type,
+        "cloud_frac": round(cloud_frac, 4),
         "nodata_frac": round(nodata_frac, 4),
-        "profile":     profile,
-        "origin_row":  origin_row,
-        "origin_col":  origin_col,
-        "tile_width":  config.TILE_WIDTH_PX,
+        "profile": profile,
+        "origin_row": origin_row,
+        "origin_col": origin_col,
+        "tile_width": config.TILE_WIDTH_PX,
         "tile_height": config.TILE_HEIGHT_PX,
-        "s2_gsd_m":    config.S2_GSD_M,
+        "s2_gsd_m": config.S2_GSD_M,
         "pag7936_gsd_m": config.PAG7936_GSD_M,
-        "split":       split,
-        "seed":        seed,
+        "split": split,
+        "seed": seed,
         "script_version": config.SCRIPT_VERSION,
-        "provenance":  provenance,
+        "provenance": provenance,
     }
 
 

@@ -50,10 +50,10 @@ def build_balanced_dataset(
     if seed is None:
         seed = config.DEFAULT_SEED
 
-    fire    = [r for r in records if r["label"] == 1]
-    nofire  = [r for r in records if r["label"] == 0]
+    fire = [r for r in records if r["label"] == 1]
+    nofire = [r for r in records if r["label"] == 0]
 
-    n_fire   = len(fire)
+    n_fire = len(fire)
     n_nofire = len(nofire)
 
     if n_fire == 0:
@@ -77,8 +77,11 @@ def build_balanced_dataset(
     logger.info(
         "  balance: fire=%d  nofire_orig=%d  nofire_target=%d  "
         "nofire_removed=%d  achieved_fire_frac=%.3f",
-        n_fire, n_nofire, n_nofire_target,
-        n_nofire - len(nofire_selected), achieved,
+        n_fire,
+        n_nofire,
+        n_nofire_target,
+        n_nofire - len(nofire_selected),
+        achieved,
     )
 
     combined = fire + nofire_selected
