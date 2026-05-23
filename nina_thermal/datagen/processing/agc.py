@@ -5,7 +5,6 @@ from typing import Tuple, Optional, List
 
 import numpy as np
 
-from nina_thermal.datagen import config
 
 logger = logging.getLogger(__name__)
 

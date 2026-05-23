@@ -1,7 +1,6 @@
 """Tests for simulation/noise.py."""
 
 import numpy as np
-import pytest
 
 from nina_cloud.datagen.simulation.noise import (
     add_read_noise,

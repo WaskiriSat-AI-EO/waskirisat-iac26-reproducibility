@@ -8,7 +8,6 @@ the archive, and optionally deletes the ZIP afterwards.
 import logging
 import zipfile
 from pathlib import Path
-from typing import Optional
 
 import requests
 from tqdm import tqdm

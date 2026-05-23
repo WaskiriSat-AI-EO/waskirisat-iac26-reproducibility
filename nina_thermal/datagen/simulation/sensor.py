@@ -16,7 +16,7 @@ Order of operations is physically motivated and must not be changed:
    amplifier artifact; it occurs after the optical path.
 """
 
-from typing import Dict, Optional
+from typing import Dict
 
 import numpy as np
 

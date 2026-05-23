@@ -3,7 +3,6 @@
 import pytest
 
 from nina_thermal.datagen.labeling.split import granule_level_split
-from nina_thermal.datagen import config
 
 
 def _make_granules(n_high_fire: int, n_low_fire: int, seed: int = 0) -> dict:

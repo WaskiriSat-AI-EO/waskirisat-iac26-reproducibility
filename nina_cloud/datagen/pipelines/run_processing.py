@@ -64,7 +64,7 @@ def main(argv: List[str] = None) -> int:
     logger.info("Processing %d scenes", len(scene_ids))
 
     tile_records = []
-    n_cloud = n_clear = n_ambig = n_nodata_rejected = 0
+    n_cloud = n_clear = n_ambig = 0
     scenes_fully_ambiguous: set = set()
     scenes_with_tiles: set = set()
 

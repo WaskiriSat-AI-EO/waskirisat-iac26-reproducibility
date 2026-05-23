@@ -426,7 +426,7 @@ class TestPipelineIntegrity:
     def test_split_disjoint(self, pipeline_output):
         dataset_dir, _ = pipeline_output
         with open(dataset_dir / "label_manifest.json") as fh:
-            records = json.load(fh)
+            json.load(fh)
         with open(dataset_dir / "split_manifest.json") as fh:
             sm = json.load(fh)
         # Every record's granule_id must map to exactly one split

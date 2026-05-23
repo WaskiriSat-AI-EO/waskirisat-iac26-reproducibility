@@ -1,9 +1,7 @@
 """Tests for processing/spatial.py."""
 
 import numpy as np
-import pytest
 
-from nina_cloud.datagen import config
 from nina_cloud.datagen.processing.spatial import (
     tile_scene_to_patches,
     upsample_scl_to_rgb_scale,

@@ -79,7 +79,7 @@ def scene_level_split(
     # Cloud fraction: use only definitive labels (0 or 1; skip -1)
     cloud_fracs: Dict[str, float] = {}
     for sid, labels in scene_ids_with_labels.items():
-        definitive = [l for l in labels if l in (0, 1)]
+        definitive = [lbl for lbl in labels if lbl in (0, 1)]
         cloud_fracs[sid] = (sum(definitive) / len(definitive)) if definitive else 0.0
 
     high_cloud = [
@@ -119,10 +119,10 @@ def scene_level_split(
     for split_name, sids in splits.items():
         n_tiles = sum(len(scene_ids_with_labels[s]) for s in sids)
         cloud_count = sum(
-            sum(1 for l in scene_ids_with_labels[s] if l == 1) for s in sids
+            sum(1 for lbl in scene_ids_with_labels[s] if lbl == 1) for s in sids
         )
         definitive_count = sum(
-            sum(1 for l in scene_ids_with_labels[s] if l in (0, 1)) for s in sids
+            sum(1 for lbl in scene_ids_with_labels[s] if lbl in (0, 1)) for s in sids
         )
         frac = (cloud_count / definitive_count) if definitive_count else 0.0
         logger.info(

@@ -5,7 +5,6 @@ import pytest
 
 from nina_thermal.datagen.simulation.noise import (
     calculate_thermal_noise_sigma,
-    add_thermal_noise,
     generate_lepton_fpn,
     apply_fpn,
 )

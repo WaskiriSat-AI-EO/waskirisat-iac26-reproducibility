@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from nina_thermal.datagen import config
 from nina_thermal.datagen.processing.radiometry import bt_to_radiance, radiance_to_bt
 

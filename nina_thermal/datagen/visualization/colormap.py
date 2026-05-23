@@ -49,7 +49,6 @@ def apply_colormap(
         )
 
     import matplotlib.cm as cm  # type: ignore
-    import matplotlib.colors as mcolors  # type: ignore
 
     # "grayscale" is not a standard matplotlib name; map it.
     mpl_name = "gray" if colormap_name == "grayscale" else colormap_name

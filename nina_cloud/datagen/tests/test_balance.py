@@ -1,6 +1,5 @@
 """Tests for dataset/balance.py."""
 
-import pytest
 
 from nina_cloud.datagen.dataset.balance import build_balanced_dataset
 

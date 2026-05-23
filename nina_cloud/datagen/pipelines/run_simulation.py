@@ -12,14 +12,13 @@ import argparse
 import json
 import logging
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
 
 import numpy as np
 
 from shared.pipeline_logging import configure_logging, log_run_footer
-from shared.manifest import expected_scene_ids, assert_chain, load_records
+from shared.manifest import expected_scene_ids, assert_chain
 from shared.seeding import derive_seed
 
 from nina_cloud.datagen import config
@@ -29,7 +28,6 @@ from nina_cloud.datagen.dataset.export import (
     save_tile_image,
     save_tile_metadata,
 )
-from nina_cloud.datagen.labeling.cloud_label import classify_tile_type
 from nina_cloud.datagen.simulation.noise import generate_pag7936_fpn
 from nina_cloud.datagen.simulation.sensor import simulate_pag7936
 from nina_cloud.datagen.validation.metrics import compute_entropy, compute_snr_laplacian

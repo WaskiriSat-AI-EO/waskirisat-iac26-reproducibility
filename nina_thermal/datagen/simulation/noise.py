@@ -9,7 +9,7 @@ Models the two dominant noise sources in a VOx microbolometer:
   factory NUC.  Applied after the optical path (post-uint8 cast).
 """
 
-from typing import Dict, Optional
+from typing import Dict
 
 import numpy as np
 

@@ -123,7 +123,7 @@ def _print_summary(report: dict) -> None:
     # Labels
     ld = report.get("label_distribution", {})
     print(f"\n{sep}")
-    print(f"  Label distribution")
+    print("  Label distribution")
     print(sep)
     print(f"  {'Fire patches':<30} {ld.get('fire', 0):>8}")
     print(f"  {'No-fire patches':<30} {ld.get('no_fire', 0):>8}")
@@ -133,7 +133,7 @@ def _print_summary(report: dict) -> None:
     # Surface types
     st = report.get("surface_types", {})
     print(f"\n{sep}")
-    print(f"  Surface types")
+    print("  Surface types")
     print(sep)
     for key in ("fire", "warm_surface", "nominal"):
         print(f"  {key:<30} {st.get(key, 0):>8}")
@@ -153,7 +153,7 @@ def _print_summary(report: dict) -> None:
     geo = report.get("geographic_coverage", {})
     if geo.get("lat_min") is not None:
         print(f"\n{sep}")
-        print(f"  Geographic coverage")
+        print("  Geographic coverage")
         print(sep)
         print(
             f"  Lat {geo.get('lat_min', '?'):.2f} – {geo.get('lat_max', '?'):.2f}"
@@ -168,7 +168,7 @@ def _print_summary(report: dict) -> None:
     # Processing parameters
     pp = report.get("processing_parameters", {})
     print(f"\n{sep}")
-    print(f"  Processing parameters")
+    print("  Processing parameters")
     print(sep)
     print(f"  {'AGG factor':<30} {pp.get('agg_factor', '?'):>8}")
     print(f"  {'Synthetic GSD [m]':<30} {pp.get('synthetic_gsd_m', '?'):>8.0f}")

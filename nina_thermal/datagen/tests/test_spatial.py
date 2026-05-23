@@ -1,7 +1,6 @@
 """Tests for processing/spatial.py — Section 8 of CLAUDE_CODE_BRIEF.md."""
 
 import numpy as np
-import pytest
 
 from nina_thermal.datagen import config
 from nina_thermal.datagen.processing.spatial import (

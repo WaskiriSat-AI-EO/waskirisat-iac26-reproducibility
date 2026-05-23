@@ -17,7 +17,6 @@ Order of operations is physically motivated and must not be changed:
 6. **JPEG compression** — on-board compression step; final output artefact.
 """
 
-import io
 from typing import Dict, Optional
 
 import cv2

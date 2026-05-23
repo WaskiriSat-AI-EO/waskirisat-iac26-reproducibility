@@ -6,7 +6,6 @@ import pytest
 from nina_thermal.datagen.processing.agc import (
     apply_agc,
     agc_to_uint8,
-    compute_global_percentiles,
 )
 from nina_thermal.datagen import config
 

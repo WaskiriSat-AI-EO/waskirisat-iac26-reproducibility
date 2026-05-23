@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from nina_thermal.datagen import config
 from nina_thermal.datagen.processing.spectral import apply_broadband_correction
 

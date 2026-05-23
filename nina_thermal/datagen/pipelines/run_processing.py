@@ -140,7 +140,6 @@ def main(argv=None) -> int:
     logger.info("Found %d granule(s).", len(f2_files))
 
     all_patch_records: List[dict] = []
-    total_rejected = 0
 
     for f2_file in f2_files:
         prefix = f2_file.stem[: -len("_F2_BT")]

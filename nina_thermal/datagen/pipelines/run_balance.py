@@ -113,9 +113,6 @@ def main(argv=None) -> int:
     with open(manifest_path, encoding="utf-8") as fh:
         label_records: List[Dict] = json.load(fh)
 
-    # Index records by patch key for fast lookup
-    records_by_patch: Dict[str, Dict] = {r["patch"]: r for r in label_records}
-
     # ── Balance each split independently ─────────────────────────────────────
     all_retained: List[Dict] = []
     excluded_patches: Set[str] = set()

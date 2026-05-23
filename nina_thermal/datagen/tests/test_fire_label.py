@@ -1,7 +1,6 @@
 """Tests for labeling/fire_label.py — Section 8 of CLAUDE_CODE_BRIEF.md."""
 
 import numpy as np
-import pytest
 
 from nina_thermal.datagen.labeling.fire_label import (
     compute_patch_label,
