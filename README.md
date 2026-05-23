@@ -1,6 +1,6 @@
 # WaskiriSat — AI Payload Development
 
-> **Bolivia's first university-developed CubeSat** — autonomous wildfire detection and image quality control from a 525 km sun-synchronous orbit.
+> **Bolivia's first CubeSat** — autonomous wildfire detection and image quality control from a 525 km LEO orbit.
 
 [![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/badge/License-MIT-22c55e)](LICENSE)
