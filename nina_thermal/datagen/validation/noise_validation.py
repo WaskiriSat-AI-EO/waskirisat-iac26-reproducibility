@@ -10,7 +10,6 @@ from typing import Dict
 import numpy as np
 
 
-
 def validate_noise_floor(
     simulated_flat_image: np.ndarray,
     expected_netd_mk: float,

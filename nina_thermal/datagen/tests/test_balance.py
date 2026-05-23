@@ -1,6 +1,5 @@
 """Tests for dataset/balance.py — Section 8 of CLAUDE_CODE_BRIEF.md."""
 
-
 from nina_thermal.datagen.dataset.balance import build_balanced_dataset
 from nina_thermal.datagen import config
 
