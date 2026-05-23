@@ -110,6 +110,7 @@ def simulate_pag7936(
         bgr = cv2.cvtColor(img_u8, cv2.COLOR_RGB2BGR)
         _, encoded = cv2.imencode(".jpg", bgr, encode_param)
         bgr_decoded = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+        assert bgr_decoded is not None
         img_u8 = cv2.cvtColor(bgr_decoded, cv2.COLOR_BGR2RGB)
 
     return img_u8

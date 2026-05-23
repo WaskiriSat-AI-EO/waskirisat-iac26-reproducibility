@@ -14,6 +14,8 @@ Applied FIRST in the degradation chain — optical averaging acts on the
 incoming scene radiance/reflectance before any electronic noise or ADC step.
 """
 
+from typing import Optional
+
 import numpy as np
 
 from nina_cloud.datagen import config
@@ -22,7 +24,7 @@ from shared.optics import apply_psf_blur
 
 def apply_pag7936_psf(
     rgb_float: np.ndarray,
-    sigma_px: float = None,
+    sigma_px: Optional[float] = None,
 ) -> np.ndarray:
     """Apply Gaussian PSF blur simulating the PAG7936 optics at S2 10m scale.
 

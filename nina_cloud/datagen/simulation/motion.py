@@ -64,7 +64,7 @@ def motion_blur_kernel(length_px: float, angle_deg: float = 0.0) -> np.ndarray:
         import cv2
 
         M = cv2.getRotationMatrix2D((centre, centre), angle_deg, 1.0)
-        kernel = cv2.warpAffine(kernel, M, (size, size))
+        kernel = cv2.warpAffine(kernel, M, (size, size)).astype(np.float32)
 
     total = kernel.sum()
     if total > 0:

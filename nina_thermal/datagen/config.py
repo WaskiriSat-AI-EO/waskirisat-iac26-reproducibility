@@ -1,3 +1,5 @@
+from typing import Any, Dict
+
 # ── Physical constants ────────────────────────────────────────────────────
 H_PLANCK = 6.626e-34  # Planck constant [J·s]
 C_LIGHT = 3.0e8  # Speed of light [m/s]
@@ -67,7 +69,7 @@ AGC_QUANTIZATION_K = FIXED_TEMP_RANGE_K / 255.0  # ~0.392 K/step
 # Profile B: 2× NETD, moderate — approximates mid-FFC-cycle state
 # Profile C: 4× NETD, heavy — approximates pre-FFC / SAA transit worst case
 # The FFC temporal framing is documented in the paper methodology section
-DEGRADATION_PROFILES = {
+DEGRADATION_PROFILES: Dict[str, Dict[str, Any]] = {
     "A": {
         "thermal_noise_factor": 1.0,
         "optical_blur_sigma_px": 0.5,

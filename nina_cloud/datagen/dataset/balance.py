@@ -6,7 +6,7 @@ undersampled to reach the target cloud ratio (default 50/50).
 """
 
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
 
@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 def build_balanced_dataset(
     records: List[Dict],
-    cloud_ratio: float = None,
-    seed: int = None,
+    cloud_ratio: Optional[float] = None,
+    seed: Optional[int] = None,
 ) -> List[Dict]:
     """Undersample clear records to approximate *cloud_ratio*.
 

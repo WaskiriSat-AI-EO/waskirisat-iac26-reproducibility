@@ -12,7 +12,7 @@ import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from shared.pipeline_logging import configure_logging, log_run_footer
 
@@ -23,7 +23,7 @@ from nina_cloud.datagen.ingestion.load_scene import load_s2_scene
 logger = logging.getLogger(__name__)
 
 
-def main(argv: List[str] = None) -> int:
+def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="nina_cloud stage 2: extract S2 bands from .SAFE to .npy"
     )

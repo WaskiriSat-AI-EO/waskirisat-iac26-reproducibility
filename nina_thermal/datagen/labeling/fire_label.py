@@ -1,6 +1,7 @@
 """Fire labeling functions for thermal patch classification."""
 
 import logging
+from typing import Optional
 
 import numpy as np
 
@@ -12,9 +13,9 @@ logger = logging.getLogger(__name__)
 def compute_patch_label(
     f2_bt_patch: np.ndarray,
     delta_t_patch: np.ndarray,
-    fire_delta_t_threshold_k: float = None,
-    fire_f2_abs_threshold_k: float = None,
-    min_fire_fraction: float = None,
+    fire_delta_t_threshold_k: Optional[float] = None,
+    fire_f2_abs_threshold_k: Optional[float] = None,
+    min_fire_fraction: Optional[float] = None,
 ) -> int:
     """Return 1 if the patch contains enough fire pixels, else 0.
 

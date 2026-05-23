@@ -26,7 +26,7 @@ def build_dataset_report(
     Returns:
         The summary dict (also written to disk).
     """
-    splits = {"train": [], "val": [], "test": []}
+    splits: Dict[str, List[Dict]] = {"train": [], "val": [], "test": []}
     for rec in label_manifest:
         s = rec.get("split")
         if s in splits:
@@ -38,7 +38,7 @@ def build_dataset_report(
         n_clear = sum(1 for r in recs if r["label"] == 0)
         scenes = len({r["scene_id"] for r in recs})
         cloud_fracs = [r["cloud_frac"] for r in recs]
-        profiles = {}
+        profiles: Dict[str, int] = {}
         for r in recs:
             p = r.get("profile", "?")
             profiles[p] = profiles.get(p, 0) + 1
@@ -53,7 +53,10 @@ def build_dataset_report(
             "profiles": profiles,
         }
 
-    summary = {
+    splits_report: Dict[str, Any] = {
+        split_name: split_stats(recs) for split_name, recs in splits.items()
+    }
+    summary: Dict[str, Any] = {
         "script_version": config.SCRIPT_VERSION,
         "sensor": "PAG7936",
         "gsd_m": config.PAG7936_GSD_M,
@@ -66,9 +69,7 @@ def build_dataset_report(
         },
         "target_cloud_ratio": config.CLOUD_RATIO,
         "total_images": len(label_manifest),
-        "splits": {
-            split_name: split_stats(recs) for split_name, recs in splits.items()
-        },
+        "splits": splits_report,
     }
 
     output_path = Path(output_path)
@@ -79,6 +80,6 @@ def build_dataset_report(
     logger.info(
         "dataset report: total=%d  splits=%s",
         len(label_manifest),
-        {k: v["n_total"] for k, v in summary["splits"].items()},
+        {k: v["n_total"] for k, v in splits_report.items()},
     )
     return summary

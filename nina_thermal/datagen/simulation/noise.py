@@ -9,7 +9,7 @@ Models the two dominant noise sources in a VOx microbolometer:
   factory NUC.  Applied after the optical path (post-uint8 cast).
 """
 
-from typing import Dict
+from typing import Dict, Optional
 
 import numpy as np
 
@@ -17,8 +17,8 @@ from nina_thermal.datagen import config
 
 
 def calculate_thermal_noise_sigma(
-    netd_mk: float = None,
-    agc_range_k: float = None,
+    netd_mk: Optional[float] = None,
+    agc_range_k: Optional[float] = None,
 ) -> float:
     """Convert NETD to noise sigma in normalised [0, 1] BT space.
 
@@ -70,7 +70,7 @@ def add_thermal_noise(
 
 
 def generate_lepton_fpn(
-    resolution: tuple = None,
+    resolution: Optional[tuple] = None,
     column_strength: float = 0.0,
     pixel_strength: float = 0.0,
     seed: int = 42,

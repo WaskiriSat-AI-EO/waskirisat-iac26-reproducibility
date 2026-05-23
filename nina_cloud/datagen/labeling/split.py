@@ -8,7 +8,7 @@ spatial autocorrelation.
 
 import logging
 import math
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
 
@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 
 def scene_level_split(
     scene_ids_with_labels: Dict[str, List[int]],
-    train_frac: float = None,
-    val_frac: float = None,
-    test_frac: float = None,
-    seed: int = None,
+    train_frac: Optional[float] = None,
+    val_frac: Optional[float] = None,
+    test_frac: Optional[float] = None,
+    seed: Optional[int] = None,
 ) -> Dict[str, List[str]]:
     """Assign scenes to train / val / test splits with stratification.
 

@@ -146,6 +146,8 @@ def log_run_footer(start_time: datetime, exit_code: int = 0) -> int:
     for handler in logging.getLogger().handlers:
         if isinstance(handler, logging.FileHandler):
             try:
+                if handler.stream is None:
+                    break
                 handler.stream.write(
                     f"\n{_SEPARATOR}\n"
                     f"  FINISHED: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC\n"

@@ -14,7 +14,7 @@ import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 
@@ -32,7 +32,7 @@ from nina_cloud.datagen.processing.spatial import tile_scene_to_patches
 logger = logging.getLogger(__name__)
 
 
-def main(argv: List[str] = None) -> int:
+def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="nina_cloud stage 3: tile scenes and assign cloud labels"
     )

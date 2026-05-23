@@ -5,7 +5,7 @@ granule-level splitting.  Fire patches are never removed.
 """
 
 import logging
-from typing import List, Dict
+from typing import Dict, List, Optional
 
 import numpy as np
 
@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 
 def build_balanced_dataset(
     records: List[Dict],
-    fire_ratio: float = None,
-    seed: int = None,
+    fire_ratio: Optional[float] = None,
+    seed: Optional[int] = None,
 ) -> List[Dict]:
     """Undersample no-fire records to approximate *fire_ratio*.
 

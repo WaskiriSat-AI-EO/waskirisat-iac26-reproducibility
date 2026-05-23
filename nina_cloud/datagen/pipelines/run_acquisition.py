@@ -14,7 +14,7 @@ import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from shared.cdse_auth import get_access_token
 from shared.cdse_download import download_and_extract
@@ -42,7 +42,7 @@ def _load_roi_wkt(roi_path: str) -> str:
         return f"POLYGON(({pts}))"
 
 
-def main(argv: List[str] = None) -> int:
+def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="nina_cloud stage 1: acquire Sentinel-2 L2A scenes from CDSE"
     )
@@ -119,7 +119,7 @@ def main(argv: List[str] = None) -> int:
                 logger.info("Already downloaded: %s", name)
                 status = "skipped"
             else:
-                ok = download_and_extract(access_token, pid, name, str(output_dir))
+                ok = download_and_extract(access_token, pid, name, output_dir)
                 status = "downloaded" if ok else "failed"
             manifest_records.append(
                 {
