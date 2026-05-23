@@ -3,7 +3,7 @@
 > **Bolivia's first CubeSat** — autonomous wildfire detection and image quality control from a 525 km LEO orbit.
 
 [![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)](https://python.org)
-[![License](https://img.shields.io/badge/License-MIT-22c55e)](LICENSE)
+[![License](https://img.shields.io/badge/License-BSD%203--Clause-22c55e)](LICENSE)
 [![Tests](https://img.shields.io/badge/Tests-148%20passing-22c55e?logo=pytest&logoColor=white)](nina_thermal/datagen/tests/)
 [![Orbit](https://img.shields.io/badge/Orbit-SSO%20525%20km-6366f1)](https://en.wikipedia.org/wiki/Sun-synchronous_orbit)
 [![Institution](https://img.shields.io/badge/UCB%20San%20Pablo-BIRDS%20%2F%20KyuTech-0ea5e9)](https://www.ucb.edu.bo)
