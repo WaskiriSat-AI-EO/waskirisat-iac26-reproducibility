@@ -68,7 +68,9 @@ CLOUD_LABEL_LOW_THRESH = 0.30  # cloud_frac < 0.30 → label = 0 (clear)
 
 # ── Acquisition cloud cover search bounds ────────────────────────────────────
 ACQUISITION_CLEAR_MAX_PCT = 30  # CDSE cloudCover ≤ 30 → "clear" acquisition pass
-ACQUISITION_CLOUDY_MIN_PCT = 60  # CDSE cloudCover ≥ 60 → "cloudy" acquisition pass
+ACQUISITION_CLOUDY_MIN_PCT = (
+    60  # CDSE cloudCover ≥ 60 → "cloudy" acquisition pass (note: 60, not 70)
+)
 
 # ── Degradation profiles (CMOS dark-current / noise envelope) ─────────────────
 # A: nominal (cool sensor, low radiation dose)
@@ -139,12 +141,25 @@ SCL_CLASS_COLORS = {
     11: (255, 255, 255),  # snow/ice
 }
 
+# ── Profile policy ────────────────────────────────────────────────────────────
+# At MobileNetV2 training resolution (224×224) noise differences between
+# profiles are averaged out by downsampling (~20 source pixels → 1 output px).
+# Generating all three profiles for every tile would triple storage for no
+# measurable training gain.
+#
+# Policy (enforced by run_simulation.py via scene_registry.split_for):
+#   train / val  →  profile B only   (saves ~50 % storage)
+#   test         →  profiles A, B, C (cross-degradation robustness eval)
+TRAIN_PROFILES: list[str] = ["B"]
+TEST_PROFILES: list[str] = list(DEGRADATION_PROFILES.keys())  # ["A", "B", "C"]
+
 # ── Pipeline defaults (overridable via CLI) ───────────────────────────────────
 DEFAULT_DATA_ROOT = "./data/cloud"
 DIR_RAW = "01_raw"
 DIR_EXTRACTED = "02_extracted"
 DIR_TILES = "03_tiles"
 DIR_DATASET = "04_dataset"
+REGISTRY_FILENAME = "scene_registry.json"
 DEFAULT_START_DATE = "20230601"
 DEFAULT_END_DATE = "20230831"
 DEFAULT_SEED = 42

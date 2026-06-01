@@ -1,7 +1,13 @@
-"""Pipeline stage 5: Scene-level stratified train/val/test split.
+"""Pipeline stage 5: Stamp train/val/test splits from the scene registry.
 
-Reads label_manifest.json, groups tiles by scene, performs stratified
-split at the scene level, and writes split assignments back to the manifest.
+Reads label_manifest.json, assigns each record a split via the scene
+registry (deterministic hash — no reshuffle across runs or operators),
+and writes the split assignments back to the manifest and to each
+per-image metadata JSON.
+
+If the registry file is absent (first run or registry not yet adopted)
+every scene falls back to the deterministic ``assign_split`` hash with a
+warning — no crash, no data corruption.
 """
 
 import argparse
@@ -12,19 +18,35 @@ from pathlib import Path
 from typing import List, Optional
 
 from shared.pipeline_logging import configure_logging, log_run_footer
+from shared.scene_registry import load_registry
 
 from nina_cloud.datagen import config
-from nina_cloud.datagen.labeling.split import scene_level_split
+from nina_cloud.datagen.labeling.split import assign_splits_from_registry
 
 logger = logging.getLogger(__name__)
 
 
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
-        description="nina_cloud stage 5: scene-level train/val/test split"
+        description="nina_cloud stage 5: stamp train/val/test splits from registry"
     )
     parser.add_argument("--dataset_dir", required=True, help="04_dataset/ directory")
-    parser.add_argument("--seed", type=int, default=config.DEFAULT_SEED)
+    parser.add_argument(
+        "--registry",
+        default=None,
+        help=(
+            "Path to scene_registry.json.  "
+            "Defaults to <dataset_dir>/../../scene_registry.json "
+            f"(i.e. data/cloud/{config.REGISTRY_FILENAME})."
+        ),
+    )
+    # --seed is accepted but ignored; split is deterministic from scene_id.
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=config.DEFAULT_SEED,
+        help="(deprecated — split no longer uses RNG; kept for CLI compatibility)",
+    )
     parser.add_argument("--log_dir", default="data/logs")
     args = parser.parse_args(argv)
 
@@ -38,28 +60,25 @@ def main(argv: Optional[List[str]] = None) -> int:
         logger.error("label_manifest.json not found in %s", dataset_dir)
         return log_run_footer(start_time, 1)
 
+    # Resolve registry path
+    if args.registry is not None:
+        registry_path = Path(args.registry)
+    else:
+        registry_path = dataset_dir.parent / config.REGISTRY_FILENAME
+
+    registry = load_registry(registry_path)
+    if not registry:
+        logger.warning(
+            "Registry not found at %s — all scenes use deterministic assign_split fallback",
+            registry_path,
+        )
+    else:
+        logger.info("Loaded registry: %d scenes from %s", len(registry), registry_path)
+
     with open(manifest_path) as f:
         records = json.load(f)
 
-    # Build scene → labels mapping (use unique scene_id, not per-profile)
-    scene_labels: dict = {}
-    for rec in records:
-        sid = rec["scene_id"]
-        if sid not in scene_labels:
-            scene_labels[sid] = []
-        # Only count each tile once (skip duplicate profiles)
-        if rec["profile"] == list(config.DEGRADATION_PROFILES.keys())[0]:
-            scene_labels[sid].append(rec["label"])
-
-    splits = scene_level_split(scene_labels, seed=args.seed)
-
-    scene_to_split = {}
-    for split_name, scene_ids in splits.items():
-        for sid in scene_ids:
-            scene_to_split[sid] = split_name
-
-    for rec in records:
-        rec["split"] = scene_to_split.get(rec["scene_id"], "unassigned")
+    assign_splits_from_registry(records, registry)
 
     # Also update per-image metadata JSON files
     metadata_dir = dataset_dir / "metadata"

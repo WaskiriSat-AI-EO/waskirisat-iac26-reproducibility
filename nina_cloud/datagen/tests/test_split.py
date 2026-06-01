@@ -1,84 +1,185 @@
-"""Tests for labeling/split.py."""
+"""Tests for registry-based split assignment.
 
-import pytest
+Covers both the pure hash function (assign_split) and the manifest-stamping
+helper (assign_splits_from_registry), including the stability guarantee that
+is the primary reason for switching from the old stratified split.
+"""
 
-from nina_cloud.datagen.labeling.split import scene_level_split
-
-
-def _make_scenes(n_cloud_scenes: int, n_clear_scenes: int, tiles_per_scene: int = 10):
-    """Build a synthetic scene → labels dict."""
-    data = {}
-    for i in range(n_cloud_scenes):
-        data[f"cloud_scene_{i:03d}"] = [1] * tiles_per_scene
-    for i in range(n_clear_scenes):
-        data[f"clear_scene_{i:03d}"] = [0] * tiles_per_scene
-    return data
+from shared.scene_registry import assign_split, register_scene, split_for
+from nina_cloud.datagen.labeling.split import assign_splits_from_registry
 
 
-class TestSceneLevelSplit:
-    def test_all_scenes_assigned_exactly_once(self):
-        data = _make_scenes(20, 20)
-        splits = scene_level_split(data, seed=42)
-        all_assigned = splits["train"] + splits["val"] + splits["test"]
-        assert set(all_assigned) == set(data.keys())
-        assert len(all_assigned) == len(data)
+# ── assign_split (pure hash) ──────────────────────────────────────────────────
 
-    def test_no_scene_in_multiple_splits(self):
-        data = _make_scenes(30, 30)
-        splits = scene_level_split(data, seed=42)
-        train_set = set(splits["train"])
-        val_set = set(splits["val"])
-        test_set = set(splits["test"])
-        assert train_set.isdisjoint(val_set)
-        assert train_set.isdisjoint(test_set)
-        assert val_set.isdisjoint(test_set)
 
-    def test_fractions_sum_error_raises(self):
-        data = _make_scenes(10, 10)
-        with pytest.raises(ValueError, match="sum to 1.0"):
-            scene_level_split(data, train_frac=0.6, val_frac=0.2, test_frac=0.3)
+class TestAssignSplit:
+    def test_returns_valid_split(self):
+        """Every scene_id maps to one of the three valid split names."""
+        for i in range(200):
+            result = assign_split(f"S2A_MSIL2A_20230601T120000_{i:04d}")
+            assert result in ("train", "val", "test"), f"Unexpected split: {result!r}"
 
-    def test_deterministic_with_same_seed(self):
-        data = _make_scenes(20, 20)
-        s1 = scene_level_split(data, seed=7)
-        s2 = scene_level_split(data, seed=7)
-        assert s1["train"] == s2["train"]
-        assert s1["val"] == s2["val"]
-        assert s1["test"] == s2["test"]
+    def test_deterministic(self):
+        """Same scene_id always maps to the same split — no RNG involved."""
+        scene_id = "S2A_MSIL2A_20230601T120000_T19LGJ_R001_20230601T123456"
+        results = {assign_split(scene_id) for _ in range(10)}
+        assert len(results) == 1, "assign_split is not deterministic"
 
-    def test_different_seeds_give_different_splits(self):
-        data = _make_scenes(40, 40)
-        s1 = scene_level_split(data, seed=1)
-        s2 = scene_level_split(data, seed=2)
-        assert s1["train"] != s2["train"]
+    def test_process_independent(self):
+        """Result is independent of call order (no accumulated state)."""
+        scenes = [f"SCENE_{i:04d}" for i in range(50)]
+        forward = [assign_split(s) for s in scenes]
+        backward = [assign_split(s) for s in reversed(scenes)]
+        assert forward == list(reversed(backward))
 
-    def test_both_cloud_tiers_represented_in_each_split(self):
-        """High-cloud and low-cloud scenes must appear in all three splits."""
-        data = _make_scenes(n_cloud_scenes=30, n_clear_scenes=30)
-        splits = scene_level_split(data, seed=42)
-        for split_name, sids in splits.items():
-            has_cloud = any(s.startswith("cloud") for s in sids)
-            has_clear = any(s.startswith("clear") for s in sids)
-            assert has_cloud, f"{split_name} has no high-cloud scenes"
-            assert has_clear, f"{split_name} has no low-cloud scenes"
+    def test_approximate_70_15_15_distribution(self):
+        """With 1000 scenes the empirical distribution should be near 70/15/15."""
+        scenes = [f"S2X_MSIL2A_2023{i:06d}" for i in range(1000)]
+        counts = {"train": 0, "val": 0, "test": 0}
+        for s in scenes:
+            counts[assign_split(s)] += 1
+        assert 650 <= counts["train"] <= 750, f"train={counts['train']} not near 700"
+        assert 100 <= counts["val"] <= 200, f"val={counts['val']} not near 150"
+        assert 100 <= counts["test"] <= 200, f"test={counts['test']} not near 150"
 
-    def test_ambiguous_tiles_do_not_affect_stratification(self):
-        """Ambiguous labels (-1) must be ignored when computing cloud fraction."""
-        data = {
-            "scene_A": [1, 1, -1, -1],  # 2 cloud, 2 ambiguous → cloud frac = 1.0
-            "scene_B": [0, 0, -1, -1],  # 2 clear, 2 ambiguous → cloud frac = 0.0
-        }
-        # Should not raise and should still assign both scenes
-        splits = scene_level_split(
-            data, train_frac=0.5, val_frac=0.25, test_frac=0.25, seed=0
+    def test_custom_cut_points(self):
+        """Custom train_cut / val_cut are respected."""
+        # 50/25/25 split
+        scenes = [f"SCENE_{i:05d}" for i in range(1000)]
+        counts = {"train": 0, "val": 0, "test": 0}
+        for s in scenes:
+            counts[assign_split(s, train_cut=50, val_cut=75)] += 1
+        assert 450 <= counts["train"] <= 550
+        assert 200 <= counts["val"] <= 300
+        assert 200 <= counts["test"] <= 300
+
+    def test_stable_when_dataset_grows(self):
+        """Adding new scenes never changes the split of existing scenes."""
+        initial = [f"SCENE_{i:04d}" for i in range(20)]
+        initial_splits = {s: assign_split(s) for s in initial}
+
+        additional = [f"SCENE_{i:04d}" for i in range(20, 100)]
+        for s in additional:
+            assign_split(s)  # simulate growing the dataset
+
+        # Original scenes must still map to the same split
+        for s, expected in initial_splits.items():
+            assert assign_split(s) == expected, (
+                f"Split for {s} changed from {expected!r} to {assign_split(s)!r} "
+                "after adding more scenes — hash is not stable"
+            )
+
+
+# ── split_for (registry read-through) ────────────────────────────────────────
+
+
+class TestSplitFor:
+    def test_returns_registry_value(self):
+        registry: dict = {}
+        register_scene(registry, "SCENE_001", cloud_mode="clear", operator="test")
+        recorded = registry["SCENE_001"]["split"]
+        assert split_for(registry, "SCENE_001") == recorded
+
+    def test_fallback_when_not_registered(self):
+        """Scenes absent from the registry fall back to assign_split — no crash."""
+        registry: dict = {}
+        result = split_for(registry, "UNREGISTERED_SCENE")
+        assert result in ("train", "val", "test")
+        # Result must equal what assign_split would return directly
+        assert result == assign_split("UNREGISTERED_SCENE")
+
+    def test_write_once_split(self):
+        """Calling register_scene twice never changes the split field."""
+        registry: dict = {}
+        register_scene(registry, "SCENE_X", cloud_mode="clear", operator="alice")
+        first_split = registry["SCENE_X"]["split"]
+
+        # Second call (different operator, different cloud_mode) — split unchanged
+        register_scene(registry, "SCENE_X", cloud_mode="cloudy", operator="bob")
+        assert (
+            registry["SCENE_X"]["split"] == first_split
+        ), "register_scene must never overwrite an existing split"
+
+
+# ── assign_splits_from_registry ───────────────────────────────────────────────
+
+
+class TestAssignSplitsFromRegistry:
+    def _make_records(self, scene_ids):
+        records = []
+        for sid in scene_ids:
+            records.append({"scene_id": sid, "label": 0, "profile": "B", "split": ""})
+        return records
+
+    def test_all_records_get_valid_split(self):
+        registry: dict = {}
+        scene_ids = [f"SCENE_{i:03d}" for i in range(30)]
+        for sid in scene_ids:
+            register_scene(registry, sid, cloud_mode="clear", operator="test")
+        records = self._make_records(scene_ids)
+        assign_splits_from_registry(records, registry)
+        for rec in records:
+            assert rec["split"] in (
+                "train",
+                "val",
+                "test",
+            ), f"Invalid split {rec['split']!r} for {rec['scene_id']}"
+
+    def test_scene_level_consistency(self):
+        """All records for the same scene_id get the same split."""
+        registry: dict = {}
+        scene_ids = [f"SCENE_{i:03d}" for i in range(10)]
+        for sid in scene_ids:
+            register_scene(registry, sid, cloud_mode="clear", operator="test")
+
+        # 3 records per scene (3 profiles)
+        records = []
+        for sid in scene_ids:
+            for profile in ("A", "B", "C"):
+                records.append(
+                    {"scene_id": sid, "label": 0, "profile": profile, "split": ""}
+                )
+
+        assign_splits_from_registry(records, registry)
+
+        scene_splits: dict = {}
+        for rec in records:
+            sid = rec["scene_id"]
+            if sid in scene_splits:
+                assert (
+                    scene_splits[sid] == rec["split"]
+                ), f"Scene {sid} has inconsistent splits across profiles"
+            scene_splits[sid] = rec["split"]
+
+    def test_stable_across_incremental_runs(self):
+        """Splits assigned in run 1 are unchanged after run 2 adds more scenes."""
+        registry: dict = {}
+        initial_ids = [f"SCENE_{i:03d}" for i in range(20)]
+        for sid in initial_ids:
+            register_scene(registry, sid, cloud_mode="clear", operator="test")
+
+        records_run1 = self._make_records(initial_ids)
+        assign_splits_from_registry(records_run1, registry)
+        splits_run1 = {rec["scene_id"]: rec["split"] for rec in records_run1}
+
+        # Add more scenes (simulating a second operator run)
+        for i in range(20, 50):
+            register_scene(
+                registry, f"SCENE_{i:03d}", cloud_mode="cloudy", operator="op2"
+            )
+
+        records_run2 = self._make_records(initial_ids)
+        assign_splits_from_registry(records_run2, registry)
+        splits_run2 = {rec["scene_id"]: rec["split"] for rec in records_run2}
+
+        assert splits_run1 == splits_run2, (
+            "Split assignments changed after adding more scenes — "
+            "hash-based split must be stable"
         )
-        all_assigned = splits["train"] + splits["val"] + splits["test"]
-        assert set(all_assigned) == {"scene_A", "scene_B"}
 
-    def test_approximate_split_sizes(self):
-        """With 100 scenes the split sizes should be near 70 / 15 / 15."""
-        data = _make_scenes(50, 50)
-        splits = scene_level_split(data, seed=0)
-        assert 65 <= len(splits["train"]) <= 75
-        assert 10 <= len(splits["val"]) <= 20
-        assert 10 <= len(splits["test"]) <= 20
+    def test_empty_registry_falls_back_gracefully(self):
+        """An empty registry triggers assign_split fallback without crashing."""
+        records = self._make_records([f"SCENE_{i:03d}" for i in range(10)])
+        assign_splits_from_registry(records, {})
+        for rec in records:
+            assert rec["split"] in ("train", "val", "test")

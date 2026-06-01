@@ -1,10 +1,18 @@
 """Pipeline stage 1: Acquire Sentinel-2 L2A scenes from CDSE.
 
-Searches for both clear-sky (cloudCover ≤ 30%) and cloudy (cloudCover ≥ 70%)
+Searches for both clear-sky (cloudCover ≤ 30%) and cloudy (cloudCover ≥ 60%)
 scenes to ensure balanced label representation in the downstream dataset.
 
-Outputs: 01_raw/ directory with downloaded .SAFE directories and
-         acquisition_manifest.json.
+Scene deduplication for multi-operator / incremental runs
+---------------------------------------------------------
+Before downloading, the scene registry is checked.  Scenes already
+registered by another operator are skipped — ``dvc pull`` the registry
+first so you have the latest state.  After a successful download (or if the
+.SAFE directory already exists locally) the scene is registered with a
+deterministic split assignment (train / val / test) that never changes.
+
+Outputs: 01_raw/ directory with downloaded .SAFE directories,
+         acquisition_manifest.json, and updated scene_registry.json.
 """
 
 import argparse
@@ -19,6 +27,13 @@ from typing import List, Optional
 from shared.cdse_auth import get_access_token
 from shared.cdse_download import download_and_extract
 from shared.pipeline_logging import configure_logging, log_run_footer
+from shared.scene_registry import (
+    is_registered,
+    load_registry,
+    operator_name,
+    register_scene,
+    save_registry,
+)
 
 from nina_cloud.datagen import config
 from nina_cloud.datagen.acquisition.cdse_search import search_s2_products
@@ -63,6 +78,23 @@ def main(argv: Optional[List[str]] = None) -> int:
         help="Max products per cloud mode (default: 50)",
     )
     parser.add_argument(
+        "--registry",
+        default=None,
+        help=(
+            "Path to scene_registry.json.  "
+            "Defaults to <output_dir>/../scene_registry.json "
+            f"(i.e. data/cloud/{config.REGISTRY_FILENAME})."
+        ),
+    )
+    parser.add_argument(
+        "--operator",
+        default=None,
+        help=(
+            "Operator identifier recorded in the registry.  "
+            "Defaults to $NINA_OPERATOR or the OS login name."
+        ),
+    )
+    parser.add_argument(
         "--log_dir", default="data/logs", help="Directory for log files"
     )
     args = parser.parse_args(argv)
@@ -76,6 +108,21 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Resolve registry path and operator
+    registry_path = (
+        Path(args.registry)
+        if args.registry
+        else output_dir.parent / config.REGISTRY_FILENAME
+    )
+    op = args.operator or operator_name()
+    registry = load_registry(registry_path)
+    logger.info(
+        "Registry: %d scenes loaded from %s  operator=%s",
+        len(registry),
+        registry_path,
+        op,
+    )
 
     username = os.environ.get("CDSE_USER")
     password = os.environ.get("CDSE_PASSWORD")
@@ -113,14 +160,40 @@ def main(argv: Optional[List[str]] = None) -> int:
 
         for product in products:
             pid = product["Id"]
-            name = product["Name"]
+            name = product["Name"]  # scene_id == product Name
+
+            # Multi-operator dedup: skip if another operator already registered this.
+            if is_registered(registry, name):
+                logger.info(
+                    "Skipped (registered by %s): %s", registry[name]["operator"], name
+                )
+                status = "skipped_registered"
+                manifest_records.append(
+                    {
+                        "product_id": pid,
+                        "product_name": name,
+                        "cloud_mode": mode,
+                        "status": status,
+                    }
+                )
+                continue
+
             safe_path = output_dir / f"{name}.SAFE"
             if safe_path.exists():
-                logger.info("Already downloaded: %s", name)
+                # SAFE dir present but not registered (pre-registry run).
+                logger.info("Already downloaded (catch-up register): %s", name)
                 status = "skipped"
+                register_scene(
+                    registry, name, cloud_mode=mode, operator=op, status="acquired"
+                )
             else:
                 ok = download_and_extract(access_token, pid, name, output_dir)
                 status = "downloaded" if ok else "failed"
+                if ok:
+                    register_scene(
+                        registry, name, cloud_mode=mode, operator=op, status="acquired"
+                    )
+
             manifest_records.append(
                 {
                     "product_id": pid,
@@ -129,6 +202,11 @@ def main(argv: Optional[List[str]] = None) -> int:
                     "status": status,
                 }
             )
+
+    # Persist registry after all downloads so a partial run doesn't mark
+    # scenes as acquired before their .SAFE dirs are complete.
+    save_registry(registry_path, registry)
+    logger.info("Registry saved: %d scenes  path=%s", len(registry), registry_path)
 
     manifest_path = output_dir / "acquisition_manifest.json"
     with open(manifest_path, "w") as f:

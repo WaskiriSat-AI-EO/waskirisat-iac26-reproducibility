@@ -27,4 +27,5 @@ requests==2.32.5
 sentinelsat==1.2.1
 tqdm==4.67.1
 urllib3==2.5.0
+dvc[gdrive]>=3.0
 pytest==9.0.2

@@ -1,136 +1,86 @@
-"""Scene-level train/val/test splitting with cloud-fraction stratification.
+"""Registry-based train/val/test split assignment.
 
-CRITICAL: splits are always at the S2 scene level. Tiles from the same
+CRITICAL: splits are always at the S2 scene level.  Tiles from the same
 scene share atmospheric conditions, sun angle, and cloud patterns.
 Tile-level splitting would produce optimistic validation metrics due to
 spatial autocorrelation.
+
+Split assignment uses a deterministic hash of the scene_id
+(``shared.scene_registry.assign_split``) — the same scene always maps to
+the same split regardless of run order, dataset size, or which operator
+runs the pipeline.  Splits are stored in the scene registry at acquisition
+time and read back here; scenes not yet in the registry fall back to
+``assign_split`` automatically.
 """
 
 import logging
-import math
-from typing import Dict, List, Optional
+from typing import Any, Dict, List
 
-import numpy as np
-
-from nina_cloud.datagen import config
+from shared.scene_registry import Registry, split_for
 
 logger = logging.getLogger(__name__)
 
 
-def scene_level_split(
-    scene_ids_with_labels: Dict[str, List[int]],
-    train_frac: Optional[float] = None,
-    val_frac: Optional[float] = None,
-    test_frac: Optional[float] = None,
-    seed: Optional[int] = None,
-) -> Dict[str, List[str]]:
-    """Assign scenes to train / val / test splits with stratification.
+def assign_splits_from_registry(
+    records: List[Dict[str, Any]],
+    registry: Registry,
+) -> List[Dict[str, Any]]:
+    """Stamp each record with its split assignment from *registry*.
 
-    Scenes are stratified into two cloud-coverage tiers before shuffling:
+    Reads the split from the scene registry for every record's
+    ``scene_id``.  Scenes absent from the registry fall back to
+    ``assign_split`` (deterministic hash) with a logged warning.
 
-    * **high-cloud** — scene cloud fraction > ``HIGH_CLOUD_SCENE_THRESH``
-    * **low-cloud**  — everything else
-
-    Each tier is shuffled independently with the seeded RNG and then
-    distributed proportionally across the three splits. This guarantees
-    that every split contains scenes from both tiers (provided there
-    are enough scenes in each tier).
+    The function mutates *records* in place and also returns the list for
+    chaining convenience.
 
     Args:
-        scene_ids_with_labels: Dict mapping ``scene_id`` (str) →
-            list of integer labels (0 or 1) for all tiles in that scene.
-            Ambiguous tiles (label -1) are excluded from the cloud-fraction
-            computation but their scenes are still assigned to a split.
-        train_frac: Fraction of scenes for training.
-            Defaults to ``config.TRAIN_FRAC`` (0.70).
-        val_frac: Fraction of scenes for validation.
-            Defaults to ``config.VAL_FRAC`` (0.15).
-        test_frac: Fraction of scenes for test.
-            Defaults to ``config.TEST_FRAC`` (0.15).
-        seed: RNG seed for reproducibility.
-            Defaults to ``config.DEFAULT_SEED``.
+        records: List of manifest record dicts, each containing at minimum
+            ``"scene_id"`` (str) and ``"label"`` (int 0/1/-1).
+        registry: Loaded scene registry (from
+            ``shared.scene_registry.load_registry``).  May be an empty
+            dict for pipelines that have not yet adopted the registry.
 
     Returns:
-        ``{"train": [...], "val": [...], "test": [...]}`` where each
-        value is a list of scene ID strings.  The union of the three
-        lists equals the full set of input scene IDs, and the lists are
-        pairwise disjoint (no scene appears in more than one split).
-
-    Raises:
-        ValueError: If the fractions do not sum to approximately 1.0.
+        The same *records* list with every record's ``"split"`` field
+        populated (one of ``"train"``, ``"val"``, ``"test"``).
     """
-    if train_frac is None:
-        train_frac = config.TRAIN_FRAC
-    if val_frac is None:
-        val_frac = config.VAL_FRAC
-    if test_frac is None:
-        test_frac = config.TEST_FRAC
-    if seed is None:
-        seed = config.DEFAULT_SEED
+    scene_splits: Dict[str, str] = {}
 
-    total_frac = train_frac + val_frac + test_frac
-    if not math.isclose(total_frac, 1.0, abs_tol=1e-6):
-        raise ValueError(f"Fractions must sum to 1.0, got {total_frac:.6f}")
+    for rec in records:
+        sid = rec["scene_id"]
+        if sid not in scene_splits:
+            scene_splits[sid] = split_for(registry, sid)
+        rec["split"] = scene_splits[sid]
 
-    rng = np.random.default_rng(seed)
+    # Diagnostic summary — mirrors the logging that existed in the old
+    # scene_level_split so operators can spot distribution drift.
+    split_stats: Dict[str, Dict[str, Any]] = {
+        s: {"scenes": set(), "tiles": 0, "cloud": 0, "definitive": 0}
+        for s in ("train", "val", "test")
+    }
+    for rec in records:
+        sp = rec["split"]
+        if sp not in split_stats:
+            continue
+        st = split_stats[sp]
+        st["scenes"].add(rec["scene_id"])
+        st["tiles"] += 1
+        lbl = rec.get("label", -1)
+        if lbl == 1:
+            st["cloud"] += 1
+            st["definitive"] += 1
+        elif lbl == 0:
+            st["definitive"] += 1
 
-    scene_ids = list(scene_ids_with_labels.keys())
-
-    # Cloud fraction: use only definitive labels (0 or 1; skip -1)
-    cloud_fracs: Dict[str, float] = {}
-    for sid, labels in scene_ids_with_labels.items():
-        definitive = [lbl for lbl in labels if lbl in (0, 1)]
-        cloud_fracs[sid] = (sum(definitive) / len(definitive)) if definitive else 0.0
-
-    high_cloud = [
-        s for s in scene_ids if cloud_fracs[s] > config.HIGH_CLOUD_SCENE_THRESH
-    ]
-    low_cloud = [
-        s for s in scene_ids if cloud_fracs[s] <= config.HIGH_CLOUD_SCENE_THRESH
-    ]
-
-    logger.info(
-        "stratification: high_cloud=%d (cloud_frac>%.2f)  low_cloud=%d  total=%d",
-        len(high_cloud),
-        config.HIGH_CLOUD_SCENE_THRESH,
-        len(low_cloud),
-        len(scene_ids),
-    )
-
-    rng.shuffle(high_cloud)
-    rng.shuffle(low_cloud)
-
-    splits: Dict[str, List[str]] = {"train": [], "val": [], "test": []}
-
-    for tier, tier_name in zip((high_cloud, low_cloud), ("high_cloud", "low_cloud")):
-        n = len(tier)
-        n_train = round(n * train_frac)
-        n_val = round(n * val_frac)
-        n_test = n - n_train - n_val
-
-        splits["train"].extend(tier[:n_train])
-        splits["val"].extend(tier[n_train : n_train + n_val])
-        splits["test"].extend(tier[n_train + n_val : n_train + n_val + n_test])
-
+    for sp, st in split_stats.items():
+        frac = (st["cloud"] / st["definitive"]) if st["definitive"] else 0.0
         logger.info(
-            "  %s → train=%d  val=%d  test=%d", tier_name, n_train, n_val, n_test
-        )
-
-    for split_name, sids in splits.items():
-        n_tiles = sum(len(scene_ids_with_labels[s]) for s in sids)
-        cloud_count = sum(
-            sum(1 for lbl in scene_ids_with_labels[s] if lbl == 1) for s in sids
-        )
-        definitive_count = sum(
-            sum(1 for lbl in scene_ids_with_labels[s] if lbl in (0, 1)) for s in sids
-        )
-        frac = (cloud_count / definitive_count) if definitive_count else 0.0
-        logger.info(
-            "  [%s] scenes=%d  tiles=%d  cloud_frac=%.3f",
-            split_name,
-            len(sids),
-            n_tiles,
+            "[%s] scenes=%d  tiles=%d  cloud_frac=%.3f",
+            sp,
+            len(st["scenes"]),
+            st["tiles"],
             frac,
         )
 
-    return splits
+    return records

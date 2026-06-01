@@ -1,8 +1,11 @@
-"""Pipeline stage 6: Balance dataset to 50/50 cloud:clear per split.
+"""Pipeline stage 6: Balance the train split to 50/50 cloud:clear.
 
-Reads label_manifest.json (with split assignments from run_split.py),
-applies undersampling independently within each split, and writes a new
-balanced_manifest.json.
+Reads label_manifest.json (with split assignments from run_split.py) and
+applies clear-sky undersampling **only to the train split**.  Val and test
+pass through with their natural class distribution so evaluation metrics
+reflect real deployment conditions.
+
+Writes balanced_manifest.json containing all three splits.
 """
 
 import argparse
@@ -23,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
-        description="nina_cloud stage 6: balance dataset to 50/50 cloud:clear"
+        description="nina_cloud stage 6: balance train split to 50/50 cloud:clear"
     )
     parser.add_argument("--dataset_dir", required=True, help="04_dataset/ directory")
     parser.add_argument("--seed", type=int, default=config.DEFAULT_SEED)
@@ -43,25 +46,39 @@ def main(argv: Optional[List[str]] = None) -> int:
     with open(manifest_path) as f:
         records = json.load(f)
 
-    balanced_all = []
-    for split_name in ("train", "val", "test"):
+    balanced_all: List[dict] = []
+
+    # Train: undersample clear patches to reach CLOUD_RATIO (50/50).
+    train_records = [r for r in records if r.get("split") == "train"]
+    balanced_train = build_balanced_dataset(
+        train_records,
+        cloud_ratio=config.CLOUD_RATIO,
+        seed=args.seed,
+    )
+    n_cloud = sum(1 for r in balanced_train if r["label"] == 1)
+    n_clear = sum(1 for r in balanced_train if r["label"] == 0)
+    logger.info(
+        "[train] before=%d  after=%d  cloud=%d  clear=%d  (balanced)",
+        len(train_records),
+        len(balanced_train),
+        n_cloud,
+        n_clear,
+    )
+    balanced_all.extend(balanced_train)
+
+    # Val and test: pass through unmodified (natural class distribution).
+    for split_name in ("val", "test"):
         split_records = [r for r in records if r.get("split") == split_name]
-        balanced_split = build_balanced_dataset(
-            split_records,
-            cloud_ratio=config.CLOUD_RATIO,
-            seed=args.seed,
-        )
-        n_cloud = sum(1 for r in balanced_split if r["label"] == 1)
-        n_clear = sum(1 for r in balanced_split if r["label"] == 0)
+        n_s_cloud = sum(1 for r in split_records if r["label"] == 1)
+        n_s_clear = sum(1 for r in split_records if r["label"] == 0)
         logger.info(
-            "[%s] before=%d  after=%d  cloud=%d  clear=%d",
+            "[%s] n=%d  cloud=%d  clear=%d  (natural distribution, not balanced)",
             split_name,
             len(split_records),
-            len(balanced_split),
-            n_cloud,
-            n_clear,
+            n_s_cloud,
+            n_s_clear,
         )
-        balanced_all.extend(balanced_split)
+        balanced_all.extend(split_records)
 
     balanced_path = dataset_dir / "balanced_manifest.json"
     with open(balanced_path, "w") as f:
@@ -70,6 +87,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                 "stage": "run_balance",
                 "generated_at": datetime.now(timezone.utc).isoformat(),
                 "total": len(balanced_all),
+                "balanced_splits": ["train"],
+                "natural_splits": ["val", "test"],
                 "records": balanced_all,
             },
             f,

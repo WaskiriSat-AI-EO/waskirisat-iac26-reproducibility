@@ -4,6 +4,12 @@ For each tile × profile, applies the full degradation chain (PSF blur →
 motion blur → shot/read noise → uint8 → FPN → JPEG) and saves the result
 as a PNG plus per-image metadata JSON.
 
+Profile selection policy (applied when ``--profiles`` is NOT passed):
+  - train / val scenes → profile B only     (saves ~50 % storage)
+  - test scenes        → profiles A, B, C   (cross-degradation robustness)
+
+Pass ``--profiles A,B,C`` to override this policy for all scenes.
+
 Outputs: 04_dataset/images/, 04_dataset/metadata/,
          simulation_manifest.json, label_manifest.json.
 """
@@ -19,6 +25,7 @@ import numpy as np
 
 from shared.pipeline_logging import configure_logging, log_run_footer
 from shared.manifest import expected_scene_ids, assert_chain
+from shared.scene_registry import load_registry, split_for
 from shared.seeding import derive_seed
 
 from nina_cloud.datagen import config
@@ -35,6 +42,19 @@ from nina_cloud.datagen.validation.metrics import compute_entropy, compute_snr_l
 logger = logging.getLogger(__name__)
 
 
+def _profiles_for_scene(scene_id: str, registry: dict) -> List[str]:
+    """Return the degradation profiles to generate for *scene_id*.
+
+    Policy (config.TRAIN_PROFILES / config.TEST_PROFILES):
+      train / val  →  ["B"]
+      test         →  ["A", "B", "C"]
+    """
+    split = split_for(registry, scene_id)
+    if split == "test":
+        return config.TEST_PROFILES
+    return config.TRAIN_PROFILES
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="nina_cloud stage 4: simulate PAG7936 images from tiles"
@@ -42,7 +62,23 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--input_dir", required=True, help="03_tiles/ directory")
     parser.add_argument("--output_dir", required=True, help="04_dataset/ directory")
     parser.add_argument(
-        "--profiles", default="B", help="Degradation profiles (comma-separated)"
+        "--profiles",
+        default=None,
+        help=(
+            "Override degradation profiles for ALL scenes (comma-separated, "
+            "e.g. 'A,B,C').  When omitted, profiles are selected per scene "
+            "from the registry: train/val → B, test → A,B,C."
+        ),
+    )
+    parser.add_argument(
+        "--registry",
+        default=None,
+        help=(
+            "Path to scene_registry.json.  "
+            "Defaults to <input_dir>/../../scene_registry.json "
+            f"(i.e. data/cloud/{config.REGISTRY_FILENAME}).  "
+            "Only needed when --profiles is not passed."
+        ),
     )
     parser.add_argument("--seed", type=int, default=config.DEFAULT_SEED)
     parser.add_argument(
@@ -62,8 +98,29 @@ def main(argv: Optional[List[str]] = None) -> int:
     images_dir.mkdir(parents=True, exist_ok=True)
     metadata_dir.mkdir(parents=True, exist_ok=True)
 
-    profiles = [p.strip() for p in args.profiles.split(",")]
-    logger.info("Profiles: %s", profiles)
+    # Resolve profile override vs per-scene policy
+    profile_override: Optional[List[str]] = None
+    if args.profiles is not None:
+        profile_override = [p.strip() for p in args.profiles.split(",")]
+        logger.info("Profile override: %s (applied to all scenes)", profile_override)
+    else:
+        # Per-scene selection — load registry
+        if args.registry is not None:
+            registry_path = Path(args.registry)
+        else:
+            registry_path = input_dir.parent / config.REGISTRY_FILENAME
+        registry = load_registry(registry_path)
+        if not registry:
+            logger.warning(
+                "Registry not found at %s — all scenes will use train policy (%s)",
+                registry_path,
+                config.TRAIN_PROFILES,
+            )
+        else:
+            logger.info(
+                "Loaded registry: %d scenes — using per-scene profile policy",
+                len(registry),
+            )
 
     tiles_manifest_path = input_dir / "tiles_manifest.json"
     if not tiles_manifest_path.exists():
@@ -74,10 +131,28 @@ def main(argv: Optional[List[str]] = None) -> int:
         tiles_manifest = json.load(f)
 
     tile_records = tiles_manifest["tiles"]
-    logger.info("Simulating %d tiles × %d profiles", len(tile_records), len(profiles))
+
+    # Compute per-scene profiles upfront for logging
+    if profile_override is not None:
+        scene_profiles = {rec["scene_id"]: profile_override for rec in tile_records}
+    else:
+        seen: dict = {}
+        for rec in tile_records:
+            sid = rec["scene_id"]
+            if sid not in seen:
+                seen[sid] = _profiles_for_scene(sid, registry)
+        scene_profiles = seen
+
+    unique_profile_sets = {tuple(v) for v in scene_profiles.values()}
+    logger.info(
+        "Simulating %d tiles across %d scenes; profile sets in use: %s",
+        len(tile_records),
+        len(scene_profiles),
+        sorted(unique_profile_sets),
+    )
 
     label_manifest = []
-    upstream_ids = expected_scene_ids(tile_records)  # no status field in tiles manifest
+    upstream_ids = expected_scene_ids(tile_records)
 
     for meta in tile_records:
         scene_id = meta["scene_id"]
@@ -92,6 +167,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             continue
 
         rgb_float = np.load(rgb_path).astype(np.float32)
+        profiles = scene_profiles[scene_id]
 
         for profile in profiles:
             prof_cfg = config.DEGRADATION_PROFILES[profile]
@@ -151,9 +227,9 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     save_label_manifest(label_manifest, output_dir / "label_manifest.json")
     logger.info(
-        "Simulation complete: %d images  profiles=%s",
+        "Simulation complete: %d images  profile_sets=%s",
         len(label_manifest),
-        profiles,
+        sorted(unique_profile_sets),
     )
     return log_run_footer(start_time, 0)
 

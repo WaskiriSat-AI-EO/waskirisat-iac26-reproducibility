@@ -192,6 +192,80 @@ python -m nina_cloud.datagen.pipelines.run_report       --dataset_dir data/cloud
 
 ---
 
+## Incremental & Multi-Operator Dataset Accumulation
+
+The NINA Cloud dataset is built incrementally across many runs, potentially by
+multiple operators.  The pipeline is designed to be safe to run repeatedly
+without data corruption or split instability.
+
+### How it works
+
+**Split assignment is deterministic and permanent.**
+Each scene is assigned `train / val / test` via a hash of its scene ID the
+first time it is acquired.  Adding more scenes or re-running the pipeline never
+moves a scene to a different split.  The mapping is stored in
+`data/cloud/scene_registry.json`.
+
+**Profile policy saves ~50 % storage.**
+Simulation generates profile B only for train/val scenes (the profile used for
+training).  Test scenes get all three profiles (A, B, C) for cross-degradation
+robustness evaluation.  Pass `--profiles A,B,C` to override for all scenes.
+
+**Balancing is train-only.**
+`run_balance` undersamples clear patches in the train split to reach 50/50
+cloud:clear.  Val and test keep their natural class distribution so evaluation
+metrics reflect real deployment conditions.
+
+### Dataset size target
+
+| | Unique tiles | Images (×profiles) |
+|---|---|---|
+| Minimum viable | ~1,000 | ~1,300 |
+| Recommended | ~3,000–5,000 | ~4,000–6,500 |
+| Diminishing returns beyond | ~10,000 | ~13,000 |
+
+Acquire ~60–80 S2 scenes (mixed clear/cloudy) to reach the recommended target.
+
+### Operator workflow (with DVC + Google Drive)
+
+**First-time setup** (one operator, once):
+
+```bash
+# Configure the shared remote (requires your Google Drive folder ID)
+dvc remote add -d gdrive gdrive://<your-gdrive-folder-id>
+dvc remote modify gdrive gdrive_acknowledge_abuse true
+git add .dvc/config && git commit -m "ci: configure DVC Google Drive remote"
+git push
+```
+
+**Each acquisition run** (any operator):
+
+```bash
+git pull                          # get latest code
+dvc pull                          # sync registry + dataset from Drive
+export CDSE_USER=...
+export CDSE_PASSWORD=...
+export NINA_OPERATOR=yourname     # recorded in registry for provenance
+
+python -m nina_cloud.datagen.pipelines.run_acquisition \
+    --roi nina_thermal/resources/bo_nina_roi_simplified.geojson \
+    --start 20230601 --end 20230930 \
+    --output_dir data/cloud/01_raw
+
+# ... run extraction, processing, simulation, split, balance, report ...
+
+dvc add data/cloud/scene_registry.json data/cloud/04_dataset
+dvc push                          # upload to Google Drive
+git add data/cloud/scene_registry.json.dvc data/cloud/04_dataset.dvc
+git commit -m "data: add N new scenes (operator: yourname)"
+git push
+```
+
+Scenes already in the registry are automatically skipped — no duplicates,
+no split corruption.
+
+---
+
 ## Tests
 
 ```bash

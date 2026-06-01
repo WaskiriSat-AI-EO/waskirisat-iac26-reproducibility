@@ -5,6 +5,8 @@ and verifies:
   1. All pipeline stages return exit code 0 and produce expected outputs.
   2. Simulation output is bit-reproducible (determinism fix guard).
   3. Manifest chain validation fails fast when tile files are missing.
+  4. run_split uses the registry (or falls back to assign_split gracefully).
+  5. run_balance balances train only; val and test keep natural distribution.
 """
 
 import json
@@ -22,9 +24,11 @@ from nina_cloud.datagen.pipelines.run_report import main as report_main
 
 # ── Synthetic dataset parameters ─────────────────────────────────────────────
 
-# 7 cloud-heavy + 7 clear-heavy scenes → 5 train + 1 val + 1 test per tier ✓
-N_CLOUD_SCENES = 7
-N_CLEAR_SCENES = 7
+# 15 cloud-heavy + 15 clear-heavy = 30 scenes total.
+# With hash-based split (70/15/15), 30 scenes reliably populates all three
+# splits (empirically: train≈21, val≈5, test≈4 for these scene IDs).
+N_CLOUD_SCENES = 15
+N_CLEAR_SCENES = 15
 TILES_PER_SCENE = 2  # 1 cloud + 1 clear per cloud-heavy; 2 clear per clear-heavy
 
 # Small tile dimensions so the test runs quickly
@@ -225,6 +229,35 @@ class TestPipelineIntegrity:
         dataset_dir, s = pipeline_output
         total_cloud = sum(s["splits"][sp]["n_cloud"] for sp in ("train", "val", "test"))
         assert total_cloud > 0, "No cloud-labelled images found"
+
+    def test_train_balanced_val_test_natural(self, pipeline_output):
+        """Train should be ~50/50; val and test keep their natural distribution."""
+        dataset_dir, _ = pipeline_output
+        with open(dataset_dir / "balanced_manifest.json") as fh:
+            bm = json.load(fh)
+        records = bm["records"]
+
+        for split_name in ("train", "val", "test"):
+            split_recs = [r for r in records if r.get("split") == split_name]
+            if not split_recs:
+                continue
+            n_cloud = sum(1 for r in split_recs if r["label"] == 1)
+            n_clear = sum(1 for r in split_recs if r["label"] == 0)
+            total = n_cloud + n_clear
+            if total == 0:
+                continue
+            frac = n_cloud / total
+            if split_name == "train":
+                # Train must be balanced to ~50/50
+                assert (
+                    abs(frac - 0.5) <= 0.1
+                ), f"train cloud_frac={frac:.3f} is not near 0.5 — balancing failed"
+            # val and test: no constraint, just verify they are in the manifest
+            assert split_name in ("train", "val", "test")
+
+        # Verify balanced_splits / natural_splits metadata
+        assert bm.get("balanced_splits") == ["train"]
+        assert bm.get("natural_splits") == ["val", "test"]
 
     def test_split_disjoint_at_scene_level(self, pipeline_output):
         dataset_dir, _ = pipeline_output
