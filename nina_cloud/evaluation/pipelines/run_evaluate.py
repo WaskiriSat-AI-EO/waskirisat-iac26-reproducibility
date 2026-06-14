@@ -1,17 +1,24 @@
-"""Evaluation pipeline: load checkpoint, evaluate on test split, write report.
+"""Evaluation pipeline: load checkpoint, evaluate on a split, write report.
 
 Reads ``balanced_manifest.json`` from the dataset directory, filters to the
-test split, runs inference with the trained MobileNetV2 checkpoint, and writes
-``evaluation_summary.json`` with overall and per-degradation-profile metrics.
+requested split, runs inference with the trained MobileNetV2 checkpoint, and
+writes ``evaluation_summary.json``.
+
+Threshold resolution order
+--------------------------
+1. ``--threshold`` CLI flag (explicit override).
+2. ``selected_threshold`` in ``<dataset_dir>/training_report.json`` (written by
+   the updated ``train_cloud.py`` after a val-set threshold sweep).
+3. 0.5 with a warning (legacy fallback when training_report.json is absent).
 
 Usage::
 
     python -m nina_cloud.evaluation.pipelines.run_evaluate \\
         --dataset_dir data/cloud/04_dataset
 
-    # With optional PNG figures (confusion matrix + ROC curves):
+    # Use val split while test partition is not yet available:
     python -m nina_cloud.evaluation.pipelines.run_evaluate \\
-        --dataset_dir data/cloud/04_dataset --figures
+        --dataset_dir data/cloud/04_dataset --split val --figures
 """
 
 import argparse
@@ -41,7 +48,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         Exit code: 0 on success, 1 on error.
     """
     parser = argparse.ArgumentParser(
-        description="nina_cloud evaluation: evaluate trained model on test split"
+        description="nina_cloud evaluation: evaluate trained model on a split"
     )
     parser.add_argument("--dataset_dir", required=True, help="04_dataset/ directory")
     parser.add_argument(
@@ -51,6 +58,26 @@ def main(argv: Optional[List[str]] = None) -> int:
             "Checkpoint filename or absolute path. "
             "If a bare filename, resolved relative to --dataset_dir. "
             "(default: mobilenetv2_cloud_best.pt)"
+        ),
+    )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=None,
+        help=(
+            "Decision threshold (sigmoid score >= threshold → cloud).  "
+            "When omitted, loaded from training_report.json in --dataset_dir; "
+            "falls back to 0.5 with a warning if the report is absent."
+        ),
+    )
+    parser.add_argument(
+        "--beta",
+        type=float,
+        default=None,
+        help=(
+            "F-beta weighting (beta=sqrt(pos_weight) for coherence with the "
+            "weighted loss).  When omitted, loaded from training_report.json; "
+            "defaults to 2.0 if the report is absent."
         ),
     )
     parser.add_argument(
@@ -68,7 +95,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument(
         "--figures",
         action="store_true",
-        help="Save confusion-matrix and ROC-curve PNG figures",
+        help="Save confusion-matrix, ROC-curve, and PR-curve PNG figures",
     )
     parser.add_argument("--log_dir", default="data/logs")
     parser.add_argument("--seed", type=int, default=config.DEFAULT_SEED)
@@ -98,7 +125,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     if not checkpoint_path.exists():
         logger.error("Checkpoint not found: %s", checkpoint_path)
         logger.error(
-            "Train the model first: python nina_cloud/training/train_cloud.py "
+            "Train the model first: python -m nina_cloud.training.train_cloud "
             "--dataset_dir %s",
             dataset_dir,
         )
@@ -106,6 +133,21 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info("Device: %s", device)
+
+    # Resolve beta: CLI > training_report.json > default 2.0
+    beta = args.beta
+    if beta is None:
+        report_path = dataset_dir / "training_report.json"
+        if report_path.exists():
+            with open(report_path) as f:
+                tr = json.load(f)
+            reported_beta = tr.get("hyperparameters", {}).get("beta")
+            if reported_beta is not None:
+                beta = float(reported_beta)
+                logger.info("Beta loaded from training_report.json: %.3f", beta)
+    if beta is None:
+        beta = 2.0
+        logger.info("Beta defaulting to %.1f", beta)
 
     output_path = dataset_dir / "evaluation_summary.json"
 
@@ -118,27 +160,45 @@ def main(argv: Optional[List[str]] = None) -> int:
             device=device,
             batch_size=args.batch_size,
             split=args.split,
+            threshold=args.threshold,
+            beta=beta,
+            eval_prevalences=config.EVAL_PREVALENCES,
         )
     except ValueError as exc:
         logger.error("Evaluation failed: %s", exc)
         return log_run_footer(start_time, 1)
 
-    overall = report["overall"]
+    # ── Log headline metrics from the nominal (profile-B) block ───────────────
+    nominal = report["nominal"]
     logger.info(
-        "Overall — n=%d  accuracy=%.3f  f1=%.3f  roc_auc=%s",
-        overall["n"],
-        overall["accuracy"],
-        overall["f1"],
-        f"{overall['roc_auc']:.3f}" if overall["roc_auc"] is not None else "N/A",
+        "Nominal (profile B) — n=%d  recall=%.3f  specificity=%.3f  "
+        "roc_auc=%s  avg_precision=%s",
+        nominal["n"],
+        nominal["recall"],
+        nominal["specificity"],
+        f"{nominal['roc_auc']:.3f}" if nominal["roc_auc"] is not None else "N/A",
+        f"{nominal['average_precision']:.3f}"
+        if nominal["average_precision"] is not None
+        else "N/A",
     )
+    if report.get("degenerate_eval"):
+        logger.warning(
+            "Degenerate eval flag set — specificity and precision are unreliable. "
+            "See evaluation_summary.json for details."
+        )
+
     for profile, m in sorted(report["by_profile"].items()):
         logger.info(
-            "  profile %s — n=%d  accuracy=%.3f  f1=%.3f  roc_auc=%s",
+            "  profile %s — n=%d  recall=%.3f  specificity=%.3f  roc_auc=%s  "
+            "avg_precision=%s",
             profile,
             m["n"],
-            m["accuracy"],
-            m["f1"],
+            m["recall"],
+            m["specificity"],
             f"{m['roc_auc']:.3f}" if m["roc_auc"] is not None else "N/A",
+            f"{m['average_precision']:.3f}"
+            if m["average_precision"] is not None
+            else "N/A",
         )
 
     if args.figures:

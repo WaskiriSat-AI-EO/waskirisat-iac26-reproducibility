@@ -153,6 +153,18 @@ SCL_CLASS_COLORS = {
 TRAIN_PROFILES: list[str] = ["B"]
 TEST_PROFILES: list[str] = list(DEGRADATION_PROFILES.keys())  # ["A", "B", "C"]
 
+# ── Evaluation guards and operational parameters ─────────────────────────────
+# Minimum number of clear samples required in the evaluated split for
+# specificity and precision estimates to be meaningful.  Below this count
+# the evaluator flags ``degenerate_eval=True`` and emits a warning.
+MIN_CLEAR_FOR_EVAL: int = 20
+
+# Cloud prevalences (π) used for Bayes-projected precision reporting.
+# precision(π) = π·TPR / (π·TPR + (1-π)·FPR)
+# 0.30 ≈ lower-prevalence scenario (clear acquisition pass target);
+# 0.50 ≈ balanced assumption (conservative / worst-case bandwidth estimate).
+EVAL_PREVALENCES: list[float] = [0.30, 0.50]
+
 # ── Pipeline defaults (overridable via CLI) ───────────────────────────────────
 DEFAULT_DATA_ROOT = "./data/cloud"
 DIR_RAW = "01_raw"
