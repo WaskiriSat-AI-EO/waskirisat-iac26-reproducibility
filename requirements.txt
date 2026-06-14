@@ -30,3 +30,9 @@ tqdm==4.67.1
 urllib3==2.5.0
 dvc[gdrive]>=3.0
 pytest==9.0.2
+# ── ML / Quantization (nina_cloud training + quantization pipeline) ────────────
+torch>=2.12.0
+torchvision>=0.27.0
+# QAT → int8 TFLite for STM32N6 Neural-ART NPU (OpenMV N6)
+ai-edge-torch>=0.3.0
+ai-edge-litert>=1.0.0
