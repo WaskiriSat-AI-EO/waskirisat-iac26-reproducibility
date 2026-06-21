@@ -298,19 +298,29 @@ MAX_NAN_FRACTION         = 0.15        # max masked px fraction to accept patch
 HIGH_FIRE_GRANULE_THRESH = 0.05        # fire fraction tier for stratified split
 
 # ── Fire labeling thresholds ──────────────────────────────────────────────
-# NOTE: FIRE_DELTA_T_THRESHOLD_K is effectively disabled (float("-inf"))
-# because F2 (10.85 µm) and S8 (11.45 µm) are BOTH LWIR channels.
-# Their BT difference is physically bounded to ~0–3 K for any surface,
-# including fire pixels. A delta_T discriminant is only meaningful for
-# MIR/TIR channel pairs (e.g. 3.7 µm vs 11 µm). Since WaskiriSat Lepton
-# is a broadband LWIR sensor (8–14 µm) with no MWIR channel, fire detection
-# relies solely on the absolute F2_BT threshold below.
-# min_fire_fraction: minimum fraction of fire pixels for patch label = 1
-# Allows subpixel fires at 3563 m GSD to produce positive labels
+# Positive fire labels are derived SOLELY from NASA FIRMS active-fire
+# detections (VIIRS 375 m / MODIS 1 km).  The BT-threshold mask is retained
+# only as a per-granule QA cross-check — it is NEVER used to set label = 1.
+#
+# FIRE_DELTA_T_THRESHOLD_K is disabled (float("-inf")) because F2 (10.85 µm)
+# and S8 (11.45 µm) are BOTH LWIR channels; their BT difference is bounded
+# to ~0–3 K for any surface and provides no fire discrimination without a
+# MWIR channel (3.7 µm).  The Lepton 3.5 is LWIR-only (8–14 µm).
+#
+# FIRE_F2_ABS_THRESHOLD_K = 310 K: retained as QA cross-check threshold
+# (quantifies warm-surface false positives vs FIRMS), not as a label source.
+#
+# FIRMS quality gates (two applied in rasterise_firms_to_slstr):
+#   1. Confidence: VIIRS string OR MODIS numeric (0–100, MODIS C6/6.1 spec:
+#      low 0–29, nominal 30–79, high 80–100 per Giglio et al.).
+#   2. FRP floor: FIRMS_MIN_FRP_MW = 10.0 MW — ensures fires are energetic
+#      enough to produce a detectable LWIR anomaly at the 3563 m Lepton GSD.
 FIRE_DELTA_T_THRESHOLD_K = float("-inf")  # disabled — F2/S8 both LWIR
-FIRE_F2_ABS_THRESHOLD_K  = 310.0          # absolute F2_BT floor [K] — matches MODIS/VIIRS 11µm standard
+FIRE_F2_ABS_THRESHOLD_K  = 310.0          # QA cross-check only — NOT a label source
 MIN_FIRE_FRACTION        = 0.0005         # 0.05% of patch pixels
-WARM_SURFACE_THRESH_K    = 310.0          # threshold for warm_surface label
+WARM_SURFACE_THRESH_K    = 310.0          # threshold for warm_surface label (reporting)
+FIRMS_MIN_CONFIDENCE     = "nominal"      # minimum FIRMS confidence tier
+FIRMS_MIN_FRP_MW         = 10.0           # minimum Fire Radiative Power [MW]
 
 # ── Visualization ─────────────────────────────────────────────────────────
 # For STEM communication and paper figures ONLY

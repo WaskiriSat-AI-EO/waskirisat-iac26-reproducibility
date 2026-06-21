@@ -12,6 +12,9 @@ logger = logging.getLogger(__name__)
 
 _CONFIDENCE_RANK = {"low": 0, "nominal": 1, "high": 2}
 _REQUIRED_COLS = {"latitude", "longitude", "acq_date", "confidence"}
+# Optional columns loaded when present — frp for the FRP detectability filter,
+# acq_time reserved for future sub-day temporal filtering.
+_OPTIONAL_COLS = {"acq_time", "frp"}
 
 
 def load_firms_csv(csv_path: Path):
@@ -25,7 +28,7 @@ def load_firms_csv(csv_path: Path):
     try:
         df = pd.read_csv(
             csv_path,
-            usecols=lambda c: c in (_REQUIRED_COLS | {"acq_time"}),
+            usecols=lambda c: c in (_REQUIRED_COLS | _OPTIONAL_COLS),
         )
     except Exception as exc:
         logger.error("Failed to read FIRMS CSV %s: %s", csv_path, exc)
@@ -50,16 +53,20 @@ def rasterise_firms_to_slstr(
     tolerance_km: float = 1.5,
     time_window_days: int = 0,
     min_confidence: str = "nominal",
+    min_frp_mw: float = 0.0,
 ) -> np.ndarray:
     """Return a bool (H, W) fire mask by snapping FIRMS points to the SLSTR 1 km grid.
 
-    Only detections within ±time_window_days of sensing_date and at or above
-    min_confidence are used.  Points farther than tolerance_km from any grid
-    cell centre are dropped.
+    Only detections within ±time_window_days of sensing_date, at or above
+    min_confidence, and (when the ``frp`` column is present) with FRP ≥
+    min_frp_mw are used.  Points farther than tolerance_km from any grid cell
+    centre are dropped.
 
     Args:
         firms_df: pandas DataFrame with at minimum columns ``latitude``,
-            ``longitude``, ``acq_date``, and ``confidence``.
+            ``longitude``, ``acq_date``, and ``confidence``.  The optional
+            ``frp`` column (Fire Radiative Power, MW) enables the detectability
+            filter via ``min_frp_mw``.
         lat_grid: float32 (H, W) latitude array for the SLSTR granule.
         lon_grid: float32 (H, W) longitude array for the SLSTR granule.
         sensing_date: ISO date string ``YYYY-MM-DD`` of the SLSTR overpass.
@@ -73,9 +80,18 @@ def rasterise_firms_to_slstr(
         min_confidence: Minimum confidence tier to accept.  One of
             ``"low"``, ``"nominal"`` (default), or ``"high"``.
             Handles both VIIRS string confidence (``"low"``/``"nominal"``/
-            ``"high"``) and MODIS numeric confidence (0–100 integer) —
-            MODIS values are mapped to tiers as 0–32 → low, 33–65 → nominal,
-            66–100 → high.
+            ``"high"``) and MODIS numeric confidence (0–100 integer).
+            MODIS values are mapped per the MODIS Collection 6/6.1 active-fire
+            product specification (Giglio et al.):
+            0–29 → low, 30–79 → nominal, 80–100 → high.
+        min_frp_mw: Minimum Fire Radiative Power [MW] for a detection to be
+            accepted.  Default 0.0 (no FRP filter).  When set to a positive
+            value (e.g. ``config.FIRMS_MIN_FRP_MW = 10.0``), detections below
+            this floor are dropped — they are too weak to produce a detectable
+            LWIR thermal anomaly at the 3563 m Lepton GSD and would introduce
+            contradictory (unlearnable) positive labels.  Requires the ``frp``
+            column to be present; if absent, a warning is logged and the filter
+            is skipped.
     """
     try:
         import pandas as pd  # type: ignore
@@ -86,14 +102,15 @@ def rasterise_firms_to_slstr(
 
     fire_mask = np.zeros(lat_grid.shape, dtype=bool)
 
-    # Confidence filter — support both VIIRS string and MODIS numeric confidence
+    # Confidence filter — support both VIIRS string and MODIS numeric confidence.
+    # MODIS Collection 6/6.1 breakpoints per Giglio et al. active-fire product
+    # user's guide: 0–29 → low, 30–79 → nominal, 80–100 → high.
     min_rank = _CONFIDENCE_RANK.get(min_confidence.lower(), 1)
     conf_col = firms_df["confidence"]
     if pd.api.types.is_numeric_dtype(conf_col):
-        # MODIS: numeric 0–100 → string tier mapping
         str_conf = pd.cut(
             conf_col,
-            bins=[-1, 32, 65, 100],
+            bins=[-1, 29, 79, 100],
             labels=["low", "nominal", "high"],
         )
         conf_rank = str_conf.map(_CONFIDENCE_RANK)
@@ -103,6 +120,29 @@ def rasterise_firms_to_slstr(
     if df.empty:
         logger.debug("No FIRMS detections at or above confidence='%s'.", min_confidence)
         return fire_mask
+
+    # FRP detectability filter — drop detections too weak to produce a thermal
+    # anomaly detectable by the Lepton at 3563 m GSD.
+    if min_frp_mw > 0.0:
+        if "frp" in df.columns:
+            n_before = len(df)
+            df = df[df["frp"] >= min_frp_mw]
+            n_dropped = n_before - len(df)
+            if n_dropped:
+                logger.debug(
+                    "FRP filter (>= %.1f MW): dropped %d/%d detections.",
+                    min_frp_mw,
+                    n_dropped,
+                    n_before,
+                )
+            if df.empty:
+                logger.debug("All detections dropped by FRP filter.")
+                return fire_mask
+        else:
+            logger.warning(
+                "min_frp_mw=%.1f requested but 'frp' column absent — filter skipped.",
+                min_frp_mw,
+            )
 
     # Date filter — default same-day only (time_window_days=0)
     center = date.fromisoformat(sensing_date)
@@ -156,6 +196,7 @@ def load_firms_for_granule(
     lon_grid: np.ndarray,
     sensing_date: str,
     time_window_days: int = 0,
+    min_frp_mw: float = 0.0,
 ) -> Optional[np.ndarray]:
     """Find all FIRMS CSVs in firms_dir that overlap sensing_date and rasterise.
 
@@ -169,6 +210,8 @@ def load_firms_for_granule(
             introduced fire detections from the day before/after the overpass,
             creating false-positive labels for fires that had started or ended
             by the time of the SLSTR overpass.
+        min_frp_mw: Minimum Fire Radiative Power [MW].  Forwarded to
+            :func:`rasterise_firms_to_slstr`.  Default 0.0 = no filter.
 
     Returns:
         A bool (H, W) fire mask, or None if no matching detections were found.
@@ -209,5 +252,10 @@ def load_firms_for_granule(
     )
 
     return rasterise_firms_to_slstr(
-        merged, lat_grid, lon_grid, sensing_date, time_window_days=time_window_days
+        merged,
+        lat_grid,
+        lon_grid,
+        sensing_date,
+        time_window_days=time_window_days,
+        min_frp_mw=min_frp_mw,
     )
