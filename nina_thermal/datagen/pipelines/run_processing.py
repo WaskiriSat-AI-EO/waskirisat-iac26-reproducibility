@@ -1,4 +1,4 @@
-"""Pipeline Pass 1: load → spectral correction → aggregate → tile patches.
+"""Pipeline Pass 1: load → aggregate → tile patches → spectral correction.
 
 Usage::
 
@@ -9,9 +9,14 @@ Usage::
 For each granule found via ``.npy`` files in ``input_dir``:
 
 1. :func:`load_slstr_granule` — fast ``.npy`` path or NetCDF fallback
-2. :func:`apply_broadband_correction` on ``F2_BT``
-3. :func:`aggregate_bt_to_lepton_gsd` — radiance-consistent spatial averaging
-4. :func:`tile_granule_to_lepton_patches` — with NaN handling and rejection
+2. :func:`aggregate_bt_to_lepton_gsd` — radiance-consistent spatial averaging
+3. :func:`tile_granule_to_lepton_patches` — with NaN handling and rejection
+4. :func:`apply_broadband_correction` on each 4 km BT patch (post-aggregation)
+
+The spectral correction is applied AFTER spatial aggregation so that it
+operates on the Lepton-equivalent 4 km signal.  Applying it before
+aggregation would correct individual 1 km SLSTR pixels, which is not what
+the Lepton sensor physically integrates over its footprint.
 
 Each valid patch is saved as::
 
@@ -173,9 +178,6 @@ def main(argv=None) -> int:
         lat = granule["lat"]
         lon = granule["lon"]
 
-        # ── Spectral correction ───────────────────────────────────────────
-        f2_bt_corrected = apply_broadband_correction(f2_bt).astype(np.float32)
-
         # ── Fire labels at 1 km (before aggregation) ─────────────────────
         # Thresholds in config are calibrated for 1 km SLSTR pixels.
         # After 4×4 aggregation, fire signals dilute to ~1/16 of their 1 km
@@ -230,25 +232,37 @@ def main(argv=None) -> int:
             )
 
         # ── Tile into patches (aggregation is done inside) ───────────────
+        # BT is passed uncorrected here; the broadband spectral correction is
+        # applied AFTER aggregation (per patch) so that it operates on the
+        # Lepton-equivalent 4 km signal rather than individual 1 km SLSTR
+        # pixels. This is the physically correct order: the Lepton sensor
+        # integrates broadband radiance over its whole footprint; the spectral
+        # correction models its SRF difference from SLSTR's narrowband response
+        # for that spatially-integrated signal.
+        #
         # delta_T and fire_frac use simple nanmean (not Planck-domain)
         # because they are not absolute radiances.
         extra_in = {"delta_T": delta_T, "fire_frac": fire_px_1km}
         if roi_mask_1km is not None:
             extra_in["roi_frac"] = roi_mask_1km
 
-        patches, extra = tile_granule_to_lepton_patches(
-            f2_bt_corrected,
+        patches_raw, grid_positions, extra = tile_granule_to_lepton_patches(
+            f2_bt,  # uncorrected — broadband correction applied per-patch below
             stride_fraction=0.5,
             extra_arrays=extra_in,
         )
+
+        # Apply broadband spectral correction to each aggregated patch.
+        patches = [apply_broadband_correction(p).astype(np.float32) for p in patches_raw]
+
         delta_t_patches = extra["delta_T"]
         fire_frac_patches = extra["fire_frac"]
         roi_frac_patches = extra.get("roi_frac")
 
         # Aggregate lat/lon once for centroid computation
         agg = config.SLSTR_AGG_FACTOR
-        h_crop = (f2_bt_corrected.shape[0] // agg) * agg
-        w_crop = (f2_bt_corrected.shape[1] // agg) * agg
+        h_crop = (f2_bt.shape[0] // agg) * agg
+        w_crop = (f2_bt.shape[1] // agg) * agg
         lat_agg = (
             lat[:h_crop, :w_crop]
             .reshape(h_crop // agg, agg, w_crop // agg, agg)
@@ -263,10 +277,6 @@ def main(argv=None) -> int:
         )
 
         w_px, h_px = config.LEPTON_RESOLUTION  # (160, 120)
-        # stride_fraction=0.5 matches the tile_granule_to_lepton_patches call above
-        stride_x = max(1, int(w_px * 0.5))
-        stride_y = max(1, int(h_px * 0.5))
-        n_cols = max(1, (lat_agg.shape[1] - w_px) // stride_x + 1)
         n_roi_rejected = 0
 
         for patch_idx, patch in enumerate(patches):
@@ -277,12 +287,11 @@ def main(argv=None) -> int:
                     n_roi_rejected += 1
                     continue
 
-            row = patch_idx // n_cols
-            col = patch_idx % n_cols
-
-            # Centroid from aggregated coordinate arrays.
-            # Origin uses stride (not full patch size) because patches overlap 50%.
-            r0, c0 = row * stride_y, col * stride_x
+            # Use the recorded grid position (top-left of patch in aggregated
+            # array) rather than reconstructing from list-index arithmetic.
+            # List-index arithmetic breaks when NaN-rejected patches leave holes
+            # in the grid — grid_positions is always aligned with the patch list.
+            r0, c0 = grid_positions[patch_idx]
             r1, c1 = r0 + h_px, c0 + w_px
 
             lat_patch = (

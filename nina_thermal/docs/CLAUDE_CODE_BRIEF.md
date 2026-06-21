@@ -298,13 +298,19 @@ MAX_NAN_FRACTION         = 0.15        # max masked px fraction to accept patch
 HIGH_FIRE_GRANULE_THRESH = 0.05        # fire fraction tier for stratified split
 
 # ── Fire labeling thresholds ──────────────────────────────────────────────
-# Dual criterion: pixel must satisfy BOTH to count as fire
+# NOTE: FIRE_DELTA_T_THRESHOLD_K is effectively disabled (float("-inf"))
+# because F2 (10.85 µm) and S8 (11.45 µm) are BOTH LWIR channels.
+# Their BT difference is physically bounded to ~0–3 K for any surface,
+# including fire pixels. A delta_T discriminant is only meaningful for
+# MIR/TIR channel pairs (e.g. 3.7 µm vs 11 µm). Since WaskiriSat Lepton
+# is a broadband LWIR sensor (8–14 µm) with no MWIR channel, fire detection
+# relies solely on the absolute F2_BT threshold below.
 # min_fire_fraction: minimum fraction of fire pixels for patch label = 1
 # Allows subpixel fires at 3563 m GSD to produce positive labels
-FIRE_DELTA_T_THRESHOLD_K = 8.0         # delta_T = F2_BT - S8_BT [K]
-FIRE_F2_ABS_THRESHOLD_K  = 320.0       # absolute F2_BT floor [K]
-MIN_FIRE_FRACTION        = 0.005       # 0.5% of patch pixels
-WARM_SURFACE_THRESH_K    = 310.0       # threshold for warm_surface label
+FIRE_DELTA_T_THRESHOLD_K = float("-inf")  # disabled — F2/S8 both LWIR
+FIRE_F2_ABS_THRESHOLD_K  = 310.0          # absolute F2_BT floor [K] — matches MODIS/VIIRS 11µm standard
+MIN_FIRE_FRACTION        = 0.0005         # 0.05% of patch pixels
+WARM_SURFACE_THRESH_K    = 310.0          # threshold for warm_surface label
 
 # ── Visualization ─────────────────────────────────────────────────────────
 # For STEM communication and paper figures ONLY
@@ -386,18 +392,27 @@ Algorithm:
 
 Defaults: agg_factor=SLSTR_AGG_FACTOR, wavelength_m=SLSTR_F2_WAVELENGTH_M
 
-**`tile_granule_to_lepton_patches(bt_array, agg_factor=None, lepton_w=None, lepton_h=None, max_nan_fraction=None) -> List[np.ndarray]`**
+**`tile_granule_to_lepton_patches(bt_array, agg_factor=None, lepton_w=None, lepton_h=None, max_nan_fraction=None, stride_fraction=0.5, extra_arrays=None) -> Tuple`**
 
 Algorithm:
 1. Call aggregate_bt_to_lepton_gsd() first
-2. Tile the aggregated array into (lepton_h, lepton_w) patches
-   with stride = full patch size (no overlap)
-3. For each patch:
+2. Aggregate any extra_arrays (e.g. delta_T, fire_frac) with simple nanmean
+   (not Planck-domain — appropriate for quantities that are not absolute radiances)
+3. Tile the aggregated array into (lepton_h, lepton_w) patches
+   with stride_fraction=0.5 (50% overlap in each axis by default)
+   Note: 50% overlap produces 4× more patches than non-overlapping tiling and
+   increases training set diversity. Within-split patch pairs share up to 75%
+   of pixels, introducing within-split spatial correlation; this is bounded and
+   acceptable because granule-level splits already prevent cross-split leakage.
+4. For each patch:
    a. Compute nan_fraction = np.isnan(patch).mean()
-   b. Reject if nan_fraction > max_nan_fraction
-   c. If nan_fraction > 0 (but <= threshold):
-      fill NaN with patch nanmedian
-4. Return list of float32 patches
+   b. Reject if nan_fraction > max_nan_fraction; record grid position
+   c. If nan_fraction > 0 (but <= threshold): fill NaN with patch nanmedian
+5. Return (patches, grid_positions) or (patches, grid_positions, extra_patches)
+   grid_positions: list of (row_start, col_start) offsets in the aggregated
+   array for each ACCEPTED patch. Must be used for centroid computation —
+   do NOT reconstruct positions from list-index arithmetic, which breaks
+   whenever NaN-rejected patches create holes in the grid.
 
 Defaults from config: lepton_w=LEPTON_RESOLUTION[0]=160,
 lepton_h=LEPTON_RESOLUTION[1]=120, max_nan_fraction=MAX_NAN_FRACTION

@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -83,9 +83,19 @@ def tile_granule_to_lepton_patches(
             ``bt_array``; extra arrays follow the same mask.
 
     Returns:
-        If ``extra_arrays`` is None: list of float32 BT patches.
-        If ``extra_arrays`` is provided: tuple ``(bt_patches, extra_patches)``
-        where ``extra_patches`` is a dict ``{name: list_of_patches}``.
+        If ``extra_arrays`` is None:
+            ``(bt_patches, grid_positions)`` where ``bt_patches`` is a list of
+            float32 BT patches and ``grid_positions`` is a list of
+            ``(row_start, col_start)`` tuples giving each accepted patch's
+            top-left pixel offset in the *aggregated* array.
+        If ``extra_arrays`` is provided:
+            ``(bt_patches, grid_positions, extra_patches)`` where
+            ``extra_patches`` is a dict ``{name: list_of_patches}``.
+
+    Note:
+        ``grid_positions`` must be used for centroid computation rather than
+        reconstructing positions from the list index, because NaN-rejected
+        patches create holes in the grid that break index-to-position mapping.
     """
     if lepton_w is None:
         lepton_w = config.LEPTON_RESOLUTION[0]
@@ -119,6 +129,7 @@ def tile_granule_to_lepton_patches(
                 ).astype(np.float32)
 
     patches: List = []
+    grid_positions: List[Tuple[int, int]] = []
     extra_patches: dict = {name: [] for name in agg_extras}
 
     stride_y = max(1, int(lepton_h * stride_fraction))
@@ -145,6 +156,10 @@ def tile_granule_to_lepton_patches(
                 n_nan_filled += 1
 
             patches.append(patch.astype(np.float32))
+            # Record the top-left pixel offset in the aggregated array so
+            # callers can compute centroids without relying on list-index
+            # arithmetic (which breaks when rejected patches create grid holes).
+            grid_positions.append((row_start, col_start))
 
             # Co-tile extras for the same accepted window
             for name, agg_extra in agg_extras.items():
@@ -168,5 +183,5 @@ def tile_granule_to_lepton_patches(
     )
 
     if extra_arrays is not None:
-        return patches, extra_patches
-    return patches
+        return patches, grid_positions, extra_patches
+    return patches, grid_positions

@@ -106,7 +106,7 @@ FIRE_RATIO = 0.20  # fire fraction = 1/(1+4)
 TRAIN_FRAC = 0.70
 VAL_FRAC = 0.15
 TEST_FRAC = 0.15
-MAX_NAN_FRACTION = 0.70  # max masked px fraction to accept patch
+MAX_NAN_FRACTION = 0.15  # max masked px fraction to accept patch
 HIGH_FIRE_GRANULE_THRESH = 0.05  # fire fraction tier for stratified split
 
 # ── Fire labeling thresholds ──────────────────────────────────────────────

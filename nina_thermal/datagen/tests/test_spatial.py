@@ -112,7 +112,7 @@ class TestTileGranuleToLeptonPatches:
     def test_patches_have_correct_shape(self):
         H, W = 2400, 1500
         bt = np.full((H, W), 295.0, dtype=np.float32)
-        patches = tile_granule_to_lepton_patches(
+        patches, _ = tile_granule_to_lepton_patches(
             bt, agg_factor=4, lepton_h=120, lepton_w=160
         )
         for p in patches:
@@ -120,7 +120,7 @@ class TestTileGranuleToLeptonPatches:
 
     def test_patches_are_float32(self):
         bt = np.full((480, 640), 295.0, dtype=np.float64)
-        patches = tile_granule_to_lepton_patches(
+        patches, _ = tile_granule_to_lepton_patches(
             bt, agg_factor=4, lepton_h=120, lepton_w=160
         )
         for p in patches:
@@ -133,20 +133,22 @@ class TestTileGranuleToLeptonPatches:
         # Make more than 15% of pixels NaN in the aggregated array
         # Set rows 0-18 (19 of 120) as NaN in source → >15% of patch
         bt[:76, :] = np.nan  # 76 SLSTR rows → 19 agg rows out of 120 = 15.8%
-        patches = tile_granule_to_lepton_patches(
+        patches, grid_pos = tile_granule_to_lepton_patches(
             bt, agg_factor=4, lepton_h=120, lepton_w=160, max_nan_fraction=0.15
         )
         assert len(patches) == 0, "Patch with NaN fraction > 0.15 should be rejected"
+        assert len(grid_pos) == 0
 
     def test_nan_patch_filled_below_threshold(self):
         """Patches with NaN fraction <= max_nan_fraction must be kept and filled."""
         bt = np.full((480, 640), 300.0, dtype=np.float32)
         # Set 4 SLSTR rows → 1 agg row of NaN out of 120 = 0.83% < 15%
         bt[:4, :] = np.nan
-        patches = tile_granule_to_lepton_patches(
+        patches, grid_pos = tile_granule_to_lepton_patches(
             bt, agg_factor=4, lepton_h=120, lepton_w=160, max_nan_fraction=0.15
         )
         assert len(patches) == 1
+        assert len(grid_pos) == 1
         assert not np.isnan(
             patches[0]
         ).any(), "NaN pixels below threshold should be filled"
@@ -154,7 +156,39 @@ class TestTileGranuleToLeptonPatches:
     def test_no_patches_when_array_too_small(self):
         """An array smaller than one patch after aggregation yields no patches."""
         bt = np.full((4, 4), 295.0, dtype=np.float32)
-        patches = tile_granule_to_lepton_patches(
+        patches, grid_pos = tile_granule_to_lepton_patches(
             bt, agg_factor=4, lepton_h=120, lepton_w=160
         )
         assert len(patches) == 0
+        assert len(grid_pos) == 0
+
+    def test_grid_positions_aligned_when_patches_rejected(self):
+        """grid_positions must stay aligned with patches when early patches are rejected.
+
+        Build a 2×1 grid (two patches stacked vertically, stride = full height).
+        Make the first patch all-NaN so it is rejected.  The second patch is
+        valid; its recorded grid position must be (lepton_h, 0), not (0, 0).
+        """
+        lepton_h, lepton_w = 120, 160
+        agg_factor = 4
+        # Source array: 2 × lepton_h aggregated rows → 2*agg_factor*lepton_h source rows
+        H = 2 * agg_factor * lepton_h  # 960
+        W = agg_factor * lepton_w      # 640
+        bt = np.full((H, W), 300.0, dtype=np.float32)
+        # Make the first lepton_h aggregated rows all-NaN → first patch rejected
+        bt[: agg_factor * lepton_h, :] = np.nan  # first 480 source rows
+
+        patches, grid_pos = tile_granule_to_lepton_patches(
+            bt,
+            agg_factor=agg_factor,
+            lepton_h=lepton_h,
+            lepton_w=lepton_w,
+            max_nan_fraction=0.15,
+            stride_fraction=1.0,  # no overlap — clean 2×1 grid
+        )
+        assert len(patches) == 1, "Only the second patch should be accepted"
+        assert len(grid_pos) == 1
+        # The accepted patch is at the second row of the aggregated array
+        assert grid_pos[0] == (lepton_h, 0), (
+            f"Expected grid position ({lepton_h}, 0), got {grid_pos[0]}"
+        )
