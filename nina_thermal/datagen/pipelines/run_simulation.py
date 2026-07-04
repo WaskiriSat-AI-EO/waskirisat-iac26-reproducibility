@@ -5,23 +5,47 @@ Usage::
     python -m nina_thermal.pipelines.run_simulation \\
         --input_dir  data/03_patches \\
         --output_dir data/04_dataset \\
-        --profiles   A,B,C \\
-        --agc_modes  fixed,global \\
         --seed       42
+
+Per-split profile / AGC policy (enforced automatically when ``--profiles`` /
+``--agc_modes`` are omitted):
+
+    split   profiles   AGC modes
+    ------  ---------  ------------------
+    train   B only     fixed, global
+    val     B only     fixed
+    test    A, B, C    fixed
+
+Rationale:
+- Profiles A/B/C are fixed-seed deterministic noise variants of the same BT
+  patch.  Training on all three duplicates spatial content with memorisable
+  noise patterns — not genuine augmentation.  A & C belong in the test split
+  where they quantify cross-degradation robustness for the IAC paper table.
+- ``global`` AGC is a train-only contrast augmentation.  ``fixed`` is the
+  confirmed flight inference configuration and the only AGC mode val/test may
+  use, ensuring reported metrics correspond to real deployment.
+
+Pass ``--profiles A,B,C --agc_modes fixed,global`` to override the policy for
+all splits (useful for debugging / ad-hoc full generation).
+
+This stage also writes ``split_manifest.json`` (the split authority) by running
+the same ``granule_level_split`` used by ``run_split``.  ``run_split`` is then
+idempotent: if ``split_manifest.json`` already exists, it reuses it.
 
 For each patch record in ``patches_manifest.json``:
 
-1. Load the BT patch ``.npy`` (and delta-T patch if present).
-2. :func:`compute_patch_label` and :func:`classify_patch_surface_type`.
-3. For each AGC mode × degradation profile:
+1. Determine the patch's split (train / val / test) from the granule-level split
+   computed in the pre-pass.
+2. Apply the per-split profile / AGC policy (or CLI override).
+3. For each selected AGC mode × profile:
 
    a. :func:`apply_agc` to normalise BT.
    b. :func:`simulate_lepton` to apply the full degradation chain.
    c. Save grayscale PNG to ``images/`` and JSON metadata to ``metadata/``.
    d. Optionally save false-colour PNG to ``viz/`` (requires ``--validation``).
 
-Writes ``label_manifest.json`` and ``simulation_manifest.json`` to
-``output_dir``.
+Writes ``label_manifest.json``, ``simulation_manifest.json``, and
+``split_manifest.json`` to ``output_dir``.
 """
 
 import argparse
@@ -30,7 +54,7 @@ import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -44,6 +68,7 @@ from nina_thermal.datagen.labeling.fire_label import (
     classify_patch_surface_type,
     compute_patch_label,
 )
+from nina_thermal.datagen.labeling.split import granule_level_split
 from nina_thermal.datagen.processing.agc import apply_agc, compute_global_percentiles
 from nina_thermal.datagen.simulation.noise import generate_lepton_fpn
 from nina_thermal.datagen.simulation.sensor import simulate_lepton
@@ -55,11 +80,27 @@ logger = logging.getLogger(__name__)
 SKIP_NAMES = {
     "label_manifest.json",
     "simulation_manifest.json",
+    "split_manifest.json",
     "dataset_summary.json",
 }
 
 # Deterministic profile -> FPN seed offset (avoids hash() randomness)
 _PROFILE_SEED_OFFSET = {"A": 0, "B": 1, "C": 2}
+
+
+def _policy_for_split(split: str) -> Tuple[List[str], List[str]]:
+    """Return (profiles, agc_modes) for *split* per the IAC paper methodology.
+
+    Policy:
+        train → profile B,      AGC {fixed, global}
+        val   → profile B,      AGC {fixed}
+        test  → profiles A,B,C, AGC {fixed}
+    """
+    if split == "test":
+        return config.TEST_PROFILES, config.EVAL_AGC_MODES
+    if split == "val":
+        return config.TRAIN_PROFILES, config.EVAL_AGC_MODES
+    return config.TRAIN_PROFILES, config.TRAIN_AGC_MODES  # train
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -85,13 +126,23 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--profiles",
-        default="A,B,C",
-        help="Comma-separated degradation profile keys.",
+        default=None,
+        metavar="PROFILES",
+        help=(
+            "Override degradation profiles for ALL splits (comma-separated, "
+            "e.g. 'A,B,C').  When omitted, the per-split policy is used: "
+            "train/val → B, test → A,B,C."
+        ),
     )
     p.add_argument(
         "--agc_modes",
-        default="fixed,global",
-        help="Comma-separated AGC modes: fixed, global, auto.",
+        default=None,
+        metavar="AGC_MODES",
+        help=(
+            "Override AGC modes for ALL splits (comma-separated, e.g. "
+            "'fixed,global').  When omitted, the per-split policy is used: "
+            "train → fixed,global; val/test → fixed."
+        ),
     )
     p.add_argument(
         "--seed",
@@ -130,20 +181,39 @@ def main(argv=None) -> int:
     _, start_time = configure_logging("run_simulation", log_dir, argv=sys.argv[1:])
     input_dir = Path(args.input_dir)
     output_dir = Path(args.output_dir)
-
-    profiles = [p.strip() for p in args.profiles.split(",")]
-    agc_modes = [m.strip() for m in args.agc_modes.split(",")]
     seed = args.seed
 
-    # ── Validate profiles ─────────────────────────────────────────────────────
-    for prof in profiles:
-        if prof not in config.DEGRADATION_PROFILES:
-            logger.error(
-                "Unknown profile '%s'. Valid: %s",
-                prof,
-                list(config.DEGRADATION_PROFILES),
-            )
-            return log_run_footer(start_time, exit_code=1)
+    # ── CLI override vs per-split policy ─────────────────────────────────────
+    profile_override: Optional[List[str]] = None
+    agc_override: Optional[List[str]] = None
+
+    if args.profiles is not None:
+        profile_override = [p.strip() for p in args.profiles.split(",")]
+        for prof in profile_override:
+            if prof not in config.DEGRADATION_PROFILES:
+                logger.error(
+                    "Unknown profile '%s'. Valid: %s",
+                    prof,
+                    list(config.DEGRADATION_PROFILES),
+                )
+                return log_run_footer(start_time, exit_code=1)
+        logger.info(
+            "Profile override: %s (applied to all splits — per-split policy disabled)",
+            profile_override,
+        )
+
+    if args.agc_modes is not None:
+        agc_override = [m.strip() for m in args.agc_modes.split(",")]
+        logger.info(
+            "AGC mode override: %s (applied to all splits — per-split policy disabled)",
+            agc_override,
+        )
+
+    if profile_override is None and agc_override is None:
+        logger.info(
+            "Per-split policy active: "
+            "train→(B, fixed+global)  val→(B, fixed)  test→(A,B,C, fixed)"
+        )
 
     # ── Output directories ────────────────────────────────────────────────────
     img_dir = output_dir / "images"
@@ -168,28 +238,89 @@ def main(argv=None) -> int:
         return log_run_footer(start_time, exit_code=1)
     logger.info("Loaded %d patch records from manifest.", len(patch_records))
 
-    # ── Load all BT patches for global percentile computation ─────────────────
-    all_bt_patches: List[np.ndarray] = []
+    # ── Granule-level split (run_simulation is the split authority) ───────────
+    # Build granule → labels from the manifest (labels were set by run_processing
+    # from FIRMS data and are already present in patches_manifest.json).
+    granule_labels: Dict[str, List[int]] = {}
     for rec in patch_records:
-        p = input_dir / rec["patch_file"]
-        if p.exists():
-            all_bt_patches.append(np.load(p))
+        gid = rec["granule_id"]
+        granule_labels.setdefault(gid, []).append(int(rec.get("label", 0)))
 
-    # ── Compute global AGC percentiles ────────────────────────────────────────
+    splits = granule_level_split(granule_labels, seed=seed)
+    granule_to_split: Dict[str, str] = {
+        gid: split_name
+        for split_name, gids in splits.items()
+        for gid in gids
+    }
+
+    # Log per-split summary
+    for split_name, gids in splits.items():
+        patch_labels_split = [lbl for gid in gids for lbl in granule_labels[gid]]
+        n = len(patch_labels_split)
+        fire_frac = sum(patch_labels_split) / n if n else 0.0
+        logger.info(
+            "  %s: %d granules / %d patches / fire_frac=%.3f",
+            split_name, len(gids), n, fire_frac,
+        )
+
+    # Write split_manifest.json (authority consumed by run_split)
+    split_manifest = {
+        "created_utc": datetime.now(timezone.utc).isoformat(),
+        "script_version": config.SCRIPT_VERSION,
+        "seed": seed,
+        "train": splits["train"],
+        "val": splits["val"],
+        "test": splits["test"],
+    }
+    split_manifest_path = output_dir / "split_manifest.json"
+    with open(split_manifest_path, "w", encoding="utf-8") as fh:
+        json.dump(split_manifest, fh, indent=2)
+    logger.info(
+        "Wrote split_manifest.json: train=%d, val=%d, test=%d granules.",
+        len(splits["train"]), len(splits["val"]), len(splits["test"]),
+    )
+
+    # ── Global AGC percentiles from TRAIN patches only ────────────────────────
+    # 'global' AGC is a train-only augmentation; deriving its bounds from train
+    # data avoids leaking test BT statistics into a training-time transform.
+    train_granules = set(splits["train"])
+    train_patches = [
+        np.load(input_dir / rec["patch_file"])
+        for rec in patch_records
+        if rec["granule_id"] in train_granules
+        and (input_dir / rec["patch_file"]).exists()
+    ]
+
     global_t_low: Optional[float] = None
     global_t_high: Optional[float] = None
-    if "global" in agc_modes and all_bt_patches:
+
+    # Determine if global AGC will be used at all under the effective policy
+    uses_global = (agc_override is not None and "global" in agc_override) or (
+        agc_override is None and "global" in config.TRAIN_AGC_MODES
+    )
+    if uses_global and train_patches:
         logger.info(
-            "Computing global BT percentiles across %d patches …", len(all_bt_patches)
+            "Computing global BT percentiles from %d train patch(es) …",
+            len(train_patches),
         )
         global_t_low, global_t_high = compute_global_percentiles(
-            all_bt_patches, seed=seed
+            train_patches, seed=seed
         )
-        logger.info("  Global AGC bounds: %.2f K – %.2f K", global_t_low, global_t_high)
+        logger.info(
+            "  Global AGC bounds (train): %.2f K – %.2f K",
+            global_t_low,
+            global_t_high,
+        )
 
-    # ── Generate FPN maps per profile (deterministic) ─────────────────────────
+    # ── Pre-compute all profiles that appear across any split ─────────────────
+    all_profiles: List[str] = (
+        profile_override
+        if profile_override is not None
+        else list(config.DEGRADATION_PROFILES.keys())  # union of A, B, C
+    )
+
     fpn_maps: Dict[str, Dict] = {}
-    for prof in profiles:
+    for prof in all_profiles:
         prof_cfg = config.DEGRADATION_PROFILES[prof]
         fpn_maps[prof] = generate_lepton_fpn(
             column_strength=prof_cfg["fpn_column_strength"],
@@ -204,6 +335,9 @@ def main(argv=None) -> int:
     sim_records: List[Dict] = []
     n_fire = 0
     n_nofire = 0
+
+    # Per-split image counts for the manifest summary
+    split_image_counts: Dict[str, int] = {"train": 0, "val": 0, "test": 0}
 
     n_total_patches = len(patch_records)
     for patch_num, rec in enumerate(patch_records, 1):
@@ -238,11 +372,6 @@ def main(argv=None) -> int:
             )
 
         # ── Label ─────────────────────────────────────────────────────────────
-        # Prefer the pre-computed label stored in the manifest by run_processing.
-        # That label was derived from 1km SLSTR pixels before 4×4 aggregation,
-        # where fire signals are 16× stronger and thresholds are meaningful.
-        # Fall back to post-aggregation detection only for old manifests that
-        # pre-date this change.
         stored_label = rec.get("label", None)
         if stored_label is not None:
             label = int(stored_label)
@@ -268,6 +397,20 @@ def main(argv=None) -> int:
         else:
             n_nofire += 1
 
+        # ── Resolve split and effective policy ────────────────────────────────
+        split = granule_to_split.get(granule_id, "train")
+
+        if profile_override is not None and agc_override is not None:
+            profiles_eff, agc_modes_eff = profile_override, agc_override
+        elif profile_override is not None:
+            _, agc_modes_eff = _policy_for_split(split)
+            profiles_eff = profile_override
+        elif agc_override is not None:
+            profiles_eff, _ = _policy_for_split(split)
+            agc_modes_eff = agc_override
+        else:
+            profiles_eff, agc_modes_eff = _policy_for_split(split)
+
         base_key = f"{granule_id}_p{patch_index:04d}"
 
         # One label-manifest entry per physical patch (independent of config)
@@ -277,12 +420,12 @@ def main(argv=None) -> int:
                 "label": label,
                 "granule_id": granule_id,
                 "surface_type": surface_type,
-                "split": "",  # populated by run_split
+                "split": split,  # populated here — run_split will reuse this
             }
         )
 
         # ── Simulate per AGC mode × profile ───────────────────────────────────
-        for agc_mode in agc_modes:
+        for agc_mode in agc_modes_eff:
             if agc_mode == "fixed":
                 t_min = config.FIXED_TEMP_MIN_K
                 t_max = config.FIXED_TEMP_MAX_K
@@ -300,12 +443,12 @@ def main(argv=None) -> int:
                 t_min = float(np.percentile(finite, 2.0))
                 t_max = float(np.percentile(finite, 98.0))
                 if t_max <= t_min:
-                    t_max = t_min + 1.0  # avoid zero-range
+                    t_max = t_min + 1.0
 
             agc_range_k = t_max - t_min
             bt_normalized = apply_agc(bt_patch, t_min, t_max)
 
-            for prof in profiles:
+            for prof in profiles_eff:
                 img_name = f"{base_key}_{agc_mode}_{prof}"
                 img_path = img_dir / f"{img_name}.png"
                 meta_path = meta_dir / f"{img_name}.json"
@@ -336,7 +479,7 @@ def main(argv=None) -> int:
                     nan_fraction=nan_frac,
                     centroid_lat=centroid_lat,
                     centroid_lon=centroid_lon,
-                    split="",  # populated by run_split
+                    split=split,
                     seed=seed,
                 )
                 save_patch_metadata(meta, meta_path)
@@ -359,26 +502,39 @@ def main(argv=None) -> int:
                         "agc_mode": agc_mode,
                         "profile": prof,
                         "label": label,
+                        "split": split,
                     }
                 )
+                split_image_counts[split] = split_image_counts.get(split, 0) + 1
 
     # ── Save label manifest ───────────────────────────────────────────────────
     save_label_manifest(label_records, output_dir / "label_manifest.json")
     logger.info("Wrote label_manifest.json (%d patch records).", len(label_records))
 
     # ── Write simulation manifest ─────────────────────────────────────────────
+    policy_description = (
+        {
+            "train": {"profiles": config.TRAIN_PROFILES, "agc_modes": config.TRAIN_AGC_MODES},
+            "val":   {"profiles": config.TRAIN_PROFILES, "agc_modes": config.EVAL_AGC_MODES},
+            "test":  {"profiles": config.TEST_PROFILES,  "agc_modes": config.EVAL_AGC_MODES},
+        }
+        if (profile_override is None and agc_override is None)
+        else "override"
+    )
     sim_manifest = {
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "script_version": config.SCRIPT_VERSION,
         "args": {
             "input_dir": str(args.input_dir),
             "output_dir": str(args.output_dir),
-            "profiles": profiles,
-            "agc_modes": agc_modes,
+            "profiles": profile_override or "per-split-policy",
+            "agc_modes": agc_override or "per-split-policy",
+            "policy": policy_description,
             "seed": seed,
         },
         "total_patches": len(label_records),
         "total_images": len(sim_records),
+        "images_by_split": split_image_counts,
         "fire_patches": n_fire,
         "nofire_patches": n_nofire,
         "images": sim_records,
@@ -388,11 +544,14 @@ def main(argv=None) -> int:
         json.dump(sim_manifest, fh, indent=2)
 
     logger.info(
-        "Simulation complete: %d patches × %d config(s) = %d images "
-        "(fire=%d, nofire=%d). Manifest → %s",
+        "Simulation complete: %d patches → %d images "
+        "(train=%d, val=%d, test=%d | fire_patches=%d, nofire_patches=%d). "
+        "Manifest → %s",
         len(label_records),
-        len(profiles) * len(agc_modes),
         len(sim_records),
+        split_image_counts.get("train", 0),
+        split_image_counts.get("val", 0),
+        split_image_counts.get("test", 0),
         n_fire,
         n_nofire,
         sim_path,

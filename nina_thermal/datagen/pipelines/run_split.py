@@ -102,8 +102,35 @@ def main(argv=None) -> int:
 
     logger.info("Found %d unique granules.", len(granule_labels))
 
-    # ── Perform granule-level split ───────────────────────────────────────────
-    splits = granule_level_split(granule_labels, seed=args.seed)
+    # ── Perform (or reuse) granule-level split ────────────────────────────────
+    # run_simulation is the split authority and writes split_manifest.json
+    # before run_split is called.  When that file exists, reuse it verbatim to
+    # guarantee the split stamped into metadata matches the policy already baked
+    # into which images were generated.  Fall back to recomputing if absent
+    # (backward compatibility with older dataset directories).
+    existing_split_path = dataset_dir / "split_manifest.json"
+    if existing_split_path.exists():
+        with open(existing_split_path, encoding="utf-8") as fh:
+            existing = json.load(fh)
+        splits = {
+            "train": existing.get("train", []),
+            "val": existing.get("val", []),
+            "test": existing.get("test", []),
+        }
+        logger.info(
+            "Reusing split_manifest.json written by run_simulation "
+            "(train=%d, val=%d, test=%d granules).",
+            len(splits["train"]),
+            len(splits["val"]),
+            len(splits["test"]),
+        )
+    else:
+        splits = granule_level_split(granule_labels, seed=args.seed)
+        logger.info(
+            "split_manifest.json not found — computed split from scratch "
+            "(seed=%d).",
+            args.seed,
+        )
 
     # Log per-split summary (granule count, patch count, fire fraction)
     for split_name, gids in splits.items():
