@@ -177,9 +177,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         nominal["recall"],
         nominal["specificity"],
         f"{nominal['roc_auc']:.3f}" if nominal["roc_auc"] is not None else "N/A",
-        f"{nominal['average_precision']:.3f}"
-        if nominal["average_precision"] is not None
-        else "N/A",
+        (
+            f"{nominal['average_precision']:.3f}"
+            if nominal["average_precision"] is not None
+            else "N/A"
+        ),
     )
     if report.get("degenerate_eval"):
         logger.warning(
@@ -196,9 +198,11 @@ def main(argv: Optional[List[str]] = None) -> int:
             m["recall"],
             m["specificity"],
             f"{m['roc_auc']:.3f}" if m["roc_auc"] is not None else "N/A",
-            f"{m['average_precision']:.3f}"
-            if m["average_precision"] is not None
-            else "N/A",
+            (
+                f"{m['average_precision']:.3f}"
+                if m["average_precision"] is not None
+                else "N/A"
+            ),
         )
 
     if args.figures:

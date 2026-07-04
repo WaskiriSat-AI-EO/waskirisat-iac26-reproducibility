@@ -265,7 +265,9 @@ def load_firms_for_granule(
 
     if not frames:
         logger.debug(
-            "No FIRMS detections in date window %s ± %dd.", sensing_date, time_window_days
+            "No FIRMS detections in date window %s ± %dd.",
+            sensing_date,
+            time_window_days,
         )
         return None
 

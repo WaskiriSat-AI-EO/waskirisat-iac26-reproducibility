@@ -302,7 +302,7 @@ def main(argv=None) -> int:
         # fraction (QA metric) for paper analysis.
         extra_in = {
             "delta_T": delta_T,
-            "fire_frac": fire_px_1km,                        # FIRMS label source
+            "fire_frac": fire_px_1km,  # FIRMS label source
             "bt_fire_frac": bt_fire_mask.astype(np.float32),  # QA cross-check
         }
         if roi_mask_1km is not None:
@@ -421,8 +421,8 @@ def main(argv=None) -> int:
                     "bt_min": bt_min,
                     "bt_max": bt_max,
                     "label": label,
-                    "fire_fraction": fire_fraction,         # FIRMS-based (label source)
-                    "bt_fire_fraction": bt_fire_fraction,   # BT-threshold (QA only)
+                    "fire_fraction": fire_fraction,  # FIRMS-based (label source)
+                    "bt_fire_fraction": bt_fire_fraction,  # BT-threshold (QA only)
                 }
             )
 
