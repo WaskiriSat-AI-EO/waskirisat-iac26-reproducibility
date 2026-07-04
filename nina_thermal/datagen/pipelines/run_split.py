@@ -106,29 +106,52 @@ def main(argv=None) -> int:
     # run_simulation is the split authority and writes split_manifest.json
     # before run_split is called.  When that file exists, reuse it verbatim to
     # guarantee the split stamped into metadata matches the policy already baked
-    # into which images were generated.  Fall back to recomputing if absent
-    # (backward compatibility with older dataset directories).
+    # into which images were generated.  Fall back to recomputing if absent, or
+    # if it's stale relative to the current label_manifest.json (its granule
+    # set no longer matches — e.g. granules were added/removed since it was
+    # written), rather than silently mislabelling new granules as "train" or
+    # crashing on granules that no longer exist (backward compatibility with
+    # older dataset directories is handled by the same fallback).
     existing_split_path = dataset_dir / "split_manifest.json"
+    splits = None
     if existing_split_path.exists():
         with open(existing_split_path, encoding="utf-8") as fh:
             existing = json.load(fh)
-        splits = {
+        candidate_splits = {
             "train": existing.get("train", []),
             "val": existing.get("val", []),
             "test": existing.get("test", []),
         }
-        logger.info(
-            "Reusing split_manifest.json written by run_simulation "
-            "(train=%d, val=%d, test=%d granules).",
-            len(splits["train"]),
-            len(splits["val"]),
-            len(splits["test"]),
-        )
-    else:
+        split_granules = {
+            gid for gids in candidate_splits.values() for gid in gids
+        }
+        current_granules = set(granule_labels)
+        if split_granules == current_granules:
+            splits = candidate_splits
+            logger.info(
+                "Reusing split_manifest.json written by run_simulation "
+                "(train=%d, val=%d, test=%d granules).",
+                len(splits["train"]),
+                len(splits["val"]),
+                len(splits["test"]),
+            )
+        else:
+            logger.warning(
+                "split_manifest.json is stale — its granule set (%d) does not "
+                "match label_manifest.json's current granule set (%d; "
+                "missing=%d, extra=%d).  Recomputing the split from scratch "
+                "instead of trusting it.",
+                len(split_granules),
+                len(current_granules),
+                len(current_granules - split_granules),
+                len(split_granules - current_granules),
+            )
+
+    if splits is None:
         splits = granule_level_split(granule_labels, seed=args.seed)
         logger.info(
-            "split_manifest.json not found — computed split from scratch "
-            "(seed=%d).",
+            "split_manifest.json not found or stale — computed split from "
+            "scratch (seed=%d).",
             args.seed,
         )
 
