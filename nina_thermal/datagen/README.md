@@ -183,12 +183,35 @@ For each granule:
 python -m nina_thermal.pipelines.run_simulation \
   --input_dir data/thermal/03_patches \
   --output_dir data/thermal/04_dataset \
-  --profiles A,B,C \
-  --agc_modes fixed,global \
   --seed 42
 ```
 
-For each patch × AGC mode × degradation profile:
+This stage is the **split authority**: it computes the granule-level train/val/test
+split itself (writing `split_manifest.json`) *before* generating images, so it can
+apply a per-split degradation-profile / AGC policy instead of generating every
+profile × AGC combination for every patch regardless of split:
+
+| Split | Profiles | AGC modes |
+|-------|----------|-----------|
+| train | B only | `fixed`, `global` |
+| val | B only | `fixed` |
+| test | A, B, C | `fixed` |
+
+> **Why per-split?** Profiles A/B/C are fixed-seed deterministic noise variants of
+> the *same* underlying patch, not stochastic augmentation — training on all three
+> teaches the model to memorize specific noise patterns rather than generalize, and
+> destroys their value as a held-out cross-degradation robustness measure. `fixed`
+> AGC is the confirmed flight inference configuration, so val/test metrics are
+> restricted to it; `global` is a train-only contrast augmentation, and its
+> percentiles are computed from **train patches only** to avoid leaking test BT
+> statistics into a training-time transform.
+
+Pass `--profiles A,B,C --agc_modes fixed,global` to override the policy uniformly
+across all splits (debugging / ad-hoc full generation) — this is not the
+recommended default and reintroduces the profile/AGC leakage the per-split policy
+avoids.
+
+For each patch × (effective) AGC mode × degradation profile:
 1. Labels the physical patch (fire/no-fire, surface type)
 2. Applies AGC normalization → [0, 1]
 3. Simulates the Lepton degradation chain:
@@ -211,13 +234,13 @@ For each patch × AGC mode × degradation profile:
 | Mode | t_min / t_max | Notes |
 |------|---|---|
 | `fixed` | 258.15 K / 358.15 K | Flight configuration (matches planned inference) |
-| `global` | 2nd–98th percentile across all patches | Dataset-wide normalization |
+| `global` | 2nd–98th percentile across train patches only | Train-only contrast augmentation |
 | `auto` | 2nd–98th percentile per patch | Per-image normalization |
 
 **Outputs:**
 - `data/04_dataset/images/{granule}_p{idx}_{agc}_{profile}.png` — grayscale uint8
 - `data/04_dataset/metadata/{granule}_p{idx}_{agc}_{profile}.json` — full provenance chain
-- `data/04_dataset/label_manifest.json`, `simulation_manifest.json`
+- `data/04_dataset/label_manifest.json`, `simulation_manifest.json`, `split_manifest.json`
 
 ---
 
@@ -230,6 +253,13 @@ python -m nina_thermal.pipelines.run_split \
 ```
 
 Splits at **granule level** (never patch level) using stratified sampling: high-fire granules (>5% fire patches) and low-fire granules are each independently shuffled and distributed proportionally into 70/15/15 train/val/test.
+
+Stage 4 already wrote `split_manifest.json` (it's the split authority). This stage
+reuses it verbatim when its granule set still matches `label_manifest.json`,
+guaranteeing the split stamped into metadata matches the policy already baked into
+which images were generated. If the manifest is missing, or stale (granules were
+added/removed since it was written), the split is recomputed from scratch instead
+of silently trusting a mismatched file.
 
 > **Why granule-level?** Patches from the same granule share atmospheric conditions, sun angle, and surface state. Patch-level splitting would create validation metrics that are artificially optimistic.
 
