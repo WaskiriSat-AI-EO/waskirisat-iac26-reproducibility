@@ -1,4 +1,4 @@
-"""Pipeline Pass 1: load → spectral correction → aggregate → tile patches.
+"""Pipeline Pass 1: load → aggregate → tile patches → spectral correction.
 
 Usage::
 
@@ -9,9 +9,14 @@ Usage::
 For each granule found via ``.npy`` files in ``input_dir``:
 
 1. :func:`load_slstr_granule` — fast ``.npy`` path or NetCDF fallback
-2. :func:`apply_broadband_correction` on ``F2_BT``
-3. :func:`aggregate_bt_to_lepton_gsd` — radiance-consistent spatial averaging
-4. :func:`tile_granule_to_lepton_patches` — with NaN handling and rejection
+2. :func:`aggregate_bt_to_lepton_gsd` — radiance-consistent spatial averaging
+3. :func:`tile_granule_to_lepton_patches` — with NaN handling and rejection
+4. :func:`apply_broadband_correction` on each 4 km BT patch (post-aggregation)
+
+The spectral correction is applied AFTER spatial aggregation so that it
+operates on the Lepton-equivalent 4 km signal.  Applying it before
+aggregation would correct individual 1 km SLSTR pixels, which is not what
+the Lepton sensor physically integrates over its footprint.
 
 Each valid patch is saved as::
 
@@ -19,6 +24,14 @@ Each valid patch is saved as::
 
 Writes ``patches_manifest.json`` to ``output_dir`` with one record per
 valid patch.
+
+**Fire-label provenance:** positive fire labels are derived SOLELY from NASA
+FIRMS active-fire detections supplied via ``--firms_dir``.  The single-band
+BT threshold (10.85 µm LWIR) cannot discriminate fire from warm bare rock or
+sand on the FLIR Lepton 3.5 (broadband 8–14 µm, no MWIR channel); it is
+therefore retained only as a per-granule QA cross-check metric — it is NEVER
+used to assign label = 1.  If ``--firms_dir`` is not provided, all patches
+receive label 0 and a warning is emitted at startup.
 """
 
 import argparse
@@ -93,9 +106,34 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         metavar="DIR",
         help=(
-            "Optional directory containing FIRMS active-fire CSV files. "
-            "When provided, FIRMS detections are OR-combined with the BT-based "
-            "fire mask for improved recall."
+            "Directory containing FIRMS active-fire CSV files (VIIRS 375 m or "
+            "MODIS 1 km NRT/standard products).  FIRMS is the SOLE authoritative "
+            "source for positive fire labels.  If omitted, all patches receive "
+            "label 0 and a warning is logged."
+        ),
+    )
+    p.add_argument(
+        "--firms_min_frp",
+        type=float,
+        default=config.FIRMS_MIN_FRP_MW,
+        metavar="MW",
+        help=(
+            "Minimum Fire Radiative Power [MW] for a FIRMS detection to be "
+            "accepted as a positive label.  Detections below this floor are "
+            "too weak to produce a detectable LWIR thermal anomaly at the "
+            f"{config.NINA_LEPTON_GSD_M:.0f} m Lepton GSD and would introduce "
+            "contradictory (unlearnable) training samples.  "
+            f"Default: {config.FIRMS_MIN_FRP_MW} MW."
+        ),
+    )
+    p.add_argument(
+        "--firms_min_confidence",
+        choices=["low", "nominal", "high"],
+        default=config.FIRMS_MIN_CONFIDENCE,
+        help=(
+            "Minimum FIRMS confidence tier for a detection to be accepted as "
+            "a positive label.  "
+            f"Default: {config.FIRMS_MIN_CONFIDENCE!r}."
         ),
     )
     return p
@@ -116,6 +154,14 @@ def main(argv=None) -> int:
     input_dir = Path(args.input_dir)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Warn loudly when FIRMS is absent — without it all labels are 0.
+    if not args.firms_dir:
+        logger.warning(
+            "--firms_dir not provided.  FIRMS is the sole authoritative source "
+            "for positive fire labels.  All patches in this run will receive "
+            "label = 0.  Supply --firms_dir to produce a labelled dataset."
+        )
 
     # Load ROI polygon once — used to reject patches outside the study area
     roi_polygon = None
@@ -173,53 +219,64 @@ def main(argv=None) -> int:
         lat = granule["lat"]
         lon = granule["lon"]
 
-        # ── Spectral correction ───────────────────────────────────────────
-        f2_bt_corrected = apply_broadband_correction(f2_bt).astype(np.float32)
-
-        # ── Fire labels at 1 km (before aggregation) ─────────────────────
-        # Thresholds in config are calibrated for 1 km SLSTR pixels.
-        # After 4×4 aggregation, fire signals dilute to ~1/16 of their 1 km
-        # magnitude, making post-aggregation detection unreliable.
-        # Strategy: build a binary fire-pixel mask at 1 km, aggregate it
-        # alongside BT (nanmean → fire fraction per 4 km pixel), then label
-        # each patch from the aggregated fire fraction.
+        # ── FIRMS fire mask at 1 km (authoritative label source) ─────────
+        # FIRMS (VIIRS 375 m / MODIS 1 km) is the SOLE source of positive
+        # fire labels.  The binary mask is built at native SLSTR 1 km resolution
+        # here, before 4×4 aggregation; after aggregation it becomes a fire
+        # fraction per 4 km pixel (via nanmean), and a patch is labeled 1 when
+        # that fraction exceeds MIN_FIRE_FRACTION.
+        #
+        # The BT-threshold mask is computed in parallel as a QA cross-check
+        # only — it is never used to set label = 1.  Its values are logged and
+        # written to the manifest so the paper can quantify the warm-surface
+        # false-positive rate of the deprecated single-band algorithm.
         delta_T = granule["delta_T"]
+
+        # QA cross-check: BT anomaly mask (NOT a label source).
         bt_fire_mask = (
             (f2_bt > config.FIRE_F2_ABS_THRESHOLD_K)
             & (delta_T > config.FIRE_DELTA_T_THRESHOLD_K)
             & np.isfinite(f2_bt)
             & np.isfinite(delta_T)
         )
-        n_bt_fire = int(bt_fire_mask.sum())
 
-        firms_fire_mask = np.zeros_like(bt_fire_mask)
+        firms_fire_mask = np.zeros(f2_bt.shape, dtype=bool)
         if args.firms_dir:
             sensing_date = extract_sensing_date(granule_id)
             if sensing_date:
                 firms_result = load_firms_for_granule(
-                    Path(args.firms_dir), lat, lon, sensing_date
+                    Path(args.firms_dir),
+                    lat,
+                    lon,
+                    sensing_date,
+                    min_confidence=args.firms_min_confidence,
+                    min_frp_mw=args.firms_min_frp,
                 )
                 if firms_result is not None:
                     firms_fire_mask = firms_result
-                    logger.info(
-                        "  %s: FIRMS fire pixels = %d",
-                        granule_id,
-                        int(firms_fire_mask.sum()),
-                    )
             else:
                 logger.warning(
                     "  %s: could not parse sensing date — FIRMS skipped.", granule_id
                 )
 
-        fire_px_1km = (bt_fire_mask | firms_fire_mask).astype(np.float32)
-        n_fire_1km = int(fire_px_1km.sum())
+        # FIRMS is the label source — BT mask is QA only.
+        fire_px_1km = firms_fire_mask.astype(np.float32)
+
+        # QA cross-check metrics logged per granule and written to manifest.
+        n_firms = int(firms_fire_mask.sum())
+        n_bt_only = int((bt_fire_mask & ~firms_fire_mask).sum())
+        n_firms_only = int((firms_fire_mask & ~bt_fire_mask).sum())
+        n_agreement = int((bt_fire_mask & firms_fire_mask).sum())
         logger.info(
-            "  %s: fire pixels at 1 km = %d (BT-only=%d) / %d (%.4f%%)",
+            "  %s: fire px (FIRMS)=%d  BT-only=%d  FIRMS-only=%d  agreement=%d"
+            "  / %d total (%.4f%% labeled fire)",
             granule_id,
-            n_fire_1km,
-            n_bt_fire,
+            n_firms,
+            n_bt_only,
+            n_firms_only,
+            n_agreement,
             fire_px_1km.size,
-            100.0 * n_fire_1km / fire_px_1km.size,
+            100.0 * n_firms / fire_px_1km.size,
         )
 
         # ── ROI pixel mask at 1 km (co-tiled to get per-patch ROI coverage) ─
@@ -230,25 +287,53 @@ def main(argv=None) -> int:
             )
 
         # ── Tile into patches (aggregation is done inside) ───────────────
-        # delta_T and fire_frac use simple nanmean (not Planck-domain)
-        # because they are not absolute radiances.
-        extra_in = {"delta_T": delta_T, "fire_frac": fire_px_1km}
+        # BT is passed uncorrected here; the broadband spectral correction is
+        # applied AFTER aggregation (per patch) so that it operates on the
+        # Lepton-equivalent 4 km signal rather than individual 1 km SLSTR
+        # pixels. This is the physically correct order: the Lepton sensor
+        # integrates broadband radiance over its whole footprint; the spectral
+        # correction models its SRF difference from SLSTR's narrowband response
+        # for that spatially-integrated signal.
+        #
+        # delta_T, fire_frac, and bt_fire_frac use simple nanmean (not
+        # Planck-domain) because they are not absolute radiances.
+        # bt_fire_frac is the BT-threshold QA cross-check; it is co-tiled so
+        # each patch record can carry both FIRMS fraction (label source) and BT
+        # fraction (QA metric) for paper analysis.
+        extra_in = {
+            "delta_T": delta_T,
+            "fire_frac": fire_px_1km,                        # FIRMS label source
+            "bt_fire_frac": bt_fire_mask.astype(np.float32),  # QA cross-check
+        }
         if roi_mask_1km is not None:
             extra_in["roi_frac"] = roi_mask_1km
 
-        patches, extra = tile_granule_to_lepton_patches(
-            f2_bt_corrected,
+        patches_raw, grid_positions, extra = tile_granule_to_lepton_patches(
+            f2_bt,  # uncorrected — broadband correction applied per-patch below
             stride_fraction=0.5,
             extra_arrays=extra_in,
         )
+
+        # Apply broadband spectral correction to all aggregated patches at once.
+        # apply_broadband_correction is purely elementwise (no cross-pixel
+        # dependency), so one vectorized call over the stacked patches is
+        # equivalent to — and much cheaper than — one call per patch.
+        if patches_raw:
+            patches = list(
+                apply_broadband_correction(np.stack(patches_raw)).astype(np.float32)
+            )
+        else:
+            patches = []
+
         delta_t_patches = extra["delta_T"]
         fire_frac_patches = extra["fire_frac"]
+        bt_fire_frac_patches = extra["bt_fire_frac"]
         roi_frac_patches = extra.get("roi_frac")
 
         # Aggregate lat/lon once for centroid computation
         agg = config.SLSTR_AGG_FACTOR
-        h_crop = (f2_bt_corrected.shape[0] // agg) * agg
-        w_crop = (f2_bt_corrected.shape[1] // agg) * agg
+        h_crop = (f2_bt.shape[0] // agg) * agg
+        w_crop = (f2_bt.shape[1] // agg) * agg
         lat_agg = (
             lat[:h_crop, :w_crop]
             .reshape(h_crop // agg, agg, w_crop // agg, agg)
@@ -263,10 +348,6 @@ def main(argv=None) -> int:
         )
 
         w_px, h_px = config.LEPTON_RESOLUTION  # (160, 120)
-        # stride_fraction=0.5 matches the tile_granule_to_lepton_patches call above
-        stride_x = max(1, int(w_px * 0.5))
-        stride_y = max(1, int(h_px * 0.5))
-        n_cols = max(1, (lat_agg.shape[1] - w_px) // stride_x + 1)
         n_roi_rejected = 0
 
         for patch_idx, patch in enumerate(patches):
@@ -277,12 +358,11 @@ def main(argv=None) -> int:
                     n_roi_rejected += 1
                     continue
 
-            row = patch_idx // n_cols
-            col = patch_idx % n_cols
-
-            # Centroid from aggregated coordinate arrays.
-            # Origin uses stride (not full patch size) because patches overlap 50%.
-            r0, c0 = row * stride_y, col * stride_x
+            # Use the recorded grid position (top-left of patch in aggregated
+            # array) rather than reconstructing from list-index arithmetic.
+            # List-index arithmetic breaks when NaN-rejected patches leave holes
+            # in the grid — grid_positions is always aligned with the patch list.
+            r0, c0 = grid_positions[patch_idx]
             r1, c1 = r0 + h_px, c0 + w_px
 
             lat_patch = (
@@ -308,11 +388,19 @@ def main(argv=None) -> int:
             bt_min = float(finite.min()) if finite.size else float("nan")
             bt_max = float(finite.max()) if finite.size else float("nan")
 
-            # ── Fire label from 1km mask (aggregated to patch) ────────────
+            # ── Fire label from FIRMS 1 km mask (aggregated to patch) ────
+            # fire_fraction: FIRMS-based — the authoritative label source.
+            # bt_fire_fraction: BT-threshold-based — QA cross-check only,
+            #   never used to set label = 1.  Enables the paper to quantify
+            #   the warm-surface false-positive rate of the deprecated algorithm.
             fire_frac_patch = fire_frac_patches[patch_idx]
             finite_frac = fire_frac_patch[np.isfinite(fire_frac_patch)]
             fire_fraction = float(finite_frac.mean()) if finite_frac.size else 0.0
             label = 1 if fire_fraction >= config.MIN_FIRE_FRACTION else 0
+
+            bt_frac_patch = bt_fire_frac_patches[patch_idx]
+            bt_finite = bt_frac_patch[np.isfinite(bt_frac_patch)]
+            bt_fire_fraction = float(bt_finite.mean()) if bt_finite.size else 0.0
 
             # Save BT patch and co-tiled delta_T patch
             patch_filename = f"{granule_id}_p{patch_idx:04d}_bt.npy"
@@ -333,7 +421,8 @@ def main(argv=None) -> int:
                     "bt_min": bt_min,
                     "bt_max": bt_max,
                     "label": label,
-                    "fire_fraction": fire_fraction,
+                    "fire_fraction": fire_fraction,         # FIRMS-based (label source)
+                    "bt_fire_fraction": bt_fire_fraction,   # BT-threshold (QA only)
                 }
             )
 

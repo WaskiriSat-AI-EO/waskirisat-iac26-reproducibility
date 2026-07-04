@@ -106,28 +106,43 @@ FIRE_RATIO = 0.20  # fire fraction = 1/(1+4)
 TRAIN_FRAC = 0.70
 VAL_FRAC = 0.15
 TEST_FRAC = 0.15
-MAX_NAN_FRACTION = 0.70  # max masked px fraction to accept patch
+MAX_NAN_FRACTION = 0.15  # max masked px fraction to accept patch
 HIGH_FIRE_GRANULE_THRESH = 0.05  # fire fraction tier for stratified split
 
 # ── Fire labeling thresholds ──────────────────────────────────────────────
-# Dual criterion: pixel must satisfy BOTH to count as fire
-# min_fire_fraction: minimum fraction of fire pixels for patch label = 1
-# Allows subpixel fires at 3563 m GSD to produce positive labels
-FIRE_DELTA_T_THRESHOLD_K = float("-inf")  # effectively disabled
+# Positive fire labels are derived SOLELY from NASA FIRMS active-fire
+# detections (VIIRS 375 m / MODIS 1 km).  The BT-threshold mask below is
+# retained only as a QA cross-check to quantify warm-surface false-positive
+# rates relative to FIRMS — it is NEVER used as a label source.
+#
 # NOTE: F2 (10.85 µm) and S8 (11.45 µm) are both LWIR channels.
 # Their BT difference is physically bounded to ~0–3 K for any surface,
 # including fire pixels. A delta_T discriminant is only meaningful for
 # MWIR vs LWIR channel pairs (e.g. 3.7 µm vs 11 µm). Since WaskiriSat
 # Lepton is a broadband LWIR sensor (8–14 µm) with no MWIR channel,
-# fire detection relies solely on the absolute F2_BT threshold below.
+# the BT check alone cannot discriminate fire from warm bare rock/sand.
+FIRE_DELTA_T_THRESHOLD_K = float("-inf")  # disabled — F2/S8 both LWIR
 FIRE_F2_ABS_THRESHOLD_K = (
-    310.0  # absolute F2_BT floor [K] — matches MODIS/VIIRS 11µm standard
+    310.0  # QA cross-check threshold [K] — NOT a label source
 )
 FIRE_EXEMPT_THRESHOLD_K = (
     308.0  # pixels above this are never cloud-masked in extraction
 )
-MIN_FIRE_FRACTION = 0.0005  # 0.5% of patch pixels
-WARM_SURFACE_THRESH_K = 310.0  # threshold for warm_surface label
+MIN_FIRE_FRACTION = 0.0005  # 0.05% of patch pixels — sub-pixel fires at 3563 m GSD
+WARM_SURFACE_THRESH_K = 310.0  # threshold for warm_surface label (reporting only)
+
+# ── FIRMS authoritative-label parameters ──────────────────────────────────
+# FIRMS is the sole positive-label source.  Two quality gates are applied:
+#   1. Confidence tier: VIIRS string ("low"/"nominal"/"high") or MODIS numeric
+#      (0–100, mapped per MODIS C6/6.1 spec: low 0–29, nominal 30–79, high 80–100).
+#   2. Fire Radiative Power floor: ensures each labeled detection is energetic
+#      enough to produce a detectable LWIR thermal anomaly at the 3563 m Lepton
+#      GSD given NETD=50 mK and quantization step ~0.39 K/uint8.
+#      Justification: a 10 MW fire covering ~0.1% of a 3.5 km pixel raises the
+#      pixel BT by ~0.5 K above background — at the 1-sigma detection limit.
+#      Detections below this floor produce contradictory (unlearnable) labels.
+FIRMS_MIN_CONFIDENCE = "nominal"   # minimum FIRMS confidence tier to accept
+FIRMS_MIN_FRP_MW = 10.0            # minimum Fire Radiative Power [MW] to label as fire
 
 # ── Visualization ─────────────────────────────────────────────────────────
 # For STEM communication and paper figures ONLY
