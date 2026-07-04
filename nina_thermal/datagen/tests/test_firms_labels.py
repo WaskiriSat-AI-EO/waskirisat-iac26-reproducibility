@@ -269,6 +269,37 @@ class TestCosineCorrectTolerance:
             "Detection just beyond cosine-corrected lon tolerance should be rejected"
         )
 
+    def test_true_positive_within_ground_tolerance_accepted_at_high_latitude(self):
+        """A detection genuinely within tolerance_km on the ground, offset purely
+        in longitude at high latitude, must be ACCEPTED.
+
+        At lat=60°N, cos(60°)=0.5, so 1° of longitude ≈ 55.5 km. A detection
+        1.0 km east of the grid cell (well within the 1.5 km tolerance) is
+        offset by only ~0.018° of longitude. A naive isotropic degree
+        tolerance (~0.0135°, the latitude-only value) would wrongly reject
+        this point since 0.018 > 0.0135 in raw degree space. Only a proper
+        cosine rescale of the longitude axis correctly accepts it.
+        """
+        lat_60 = np.array([[60.0, 60.0, 60.0]], dtype=np.float32)
+        lon_60 = np.array([[-1.0, 0.0, 1.0]], dtype=np.float32)
+
+        import math
+        tol_km = 1.5
+        cos_lat = math.cos(math.radians(60.0))
+        true_ground_km = 1.0  # within tol_km
+        offset_lon = true_ground_km / (111.0 * cos_lat)  # ~0.018°
+
+        df = _single_point_df(60.0, 0.0 + offset_lon, "high")
+
+        mask = rasterise_firms_to_slstr(
+            df, lat_60, lon_60, _SENSING_DATE,
+            tolerance_km=tol_km, min_confidence="nominal"
+        )
+        assert mask.any(), (
+            "Detection genuinely within tolerance_km on the ground should be "
+            "accepted once longitude is correctly rescaled by cos(lat)"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Date-window filter tests

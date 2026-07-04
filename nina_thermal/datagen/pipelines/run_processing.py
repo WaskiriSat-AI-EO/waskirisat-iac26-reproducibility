@@ -126,6 +126,16 @@ def build_parser() -> argparse.ArgumentParser:
             f"Default: {config.FIRMS_MIN_FRP_MW} MW."
         ),
     )
+    p.add_argument(
+        "--firms_min_confidence",
+        choices=["low", "nominal", "high"],
+        default=config.FIRMS_MIN_CONFIDENCE,
+        help=(
+            "Minimum FIRMS confidence tier for a detection to be accepted as "
+            "a positive label.  "
+            f"Default: {config.FIRMS_MIN_CONFIDENCE!r}."
+        ),
+    )
     return p
 
 
@@ -239,6 +249,7 @@ def main(argv=None) -> int:
                     lat,
                     lon,
                     sensing_date,
+                    min_confidence=args.firms_min_confidence,
                     min_frp_mw=args.firms_min_frp,
                 )
                 if firms_result is not None:
@@ -303,8 +314,16 @@ def main(argv=None) -> int:
             extra_arrays=extra_in,
         )
 
-        # Apply broadband spectral correction to each aggregated patch.
-        patches = [apply_broadband_correction(p).astype(np.float32) for p in patches_raw]
+        # Apply broadband spectral correction to all aggregated patches at once.
+        # apply_broadband_correction is purely elementwise (no cross-pixel
+        # dependency), so one vectorized call over the stacked patches is
+        # equivalent to — and much cheaper than — one call per patch.
+        if patches_raw:
+            patches = list(
+                apply_broadband_correction(np.stack(patches_raw)).astype(np.float32)
+            )
+        else:
+            patches = []
 
         delta_t_patches = extra["delta_T"]
         fire_frac_patches = extra["fire_frac"]

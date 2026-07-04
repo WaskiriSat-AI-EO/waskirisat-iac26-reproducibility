@@ -11,10 +11,39 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 _CONFIDENCE_RANK = {"low": 0, "nominal": 1, "high": 2}
+# VIIRS NRT products use single-letter codes; map to the canonical words used
+# throughout this module so that MODIS and VIIRS frames can be safely merged.
+_VIIRS_SHORT_CONF = {"l": "low", "n": "nominal", "h": "high"}
 _REQUIRED_COLS = {"latitude", "longitude", "acq_date", "confidence"}
 # Optional columns loaded when present — frp for the FRP detectability filter,
 # acq_time reserved for future sub-day temporal filtering.
 _OPTIONAL_COLS = {"acq_time", "frp"}
+
+
+def _normalise_confidence(conf_col):
+    """Return a Series of 'low'/'nominal'/'high' strings from any FIRMS confidence column.
+
+    FIRMS delivers confidence in three formats depending on product:
+    - MODIS C6/C6.1: integer 0–100  (0–29 low, 30–79 nominal, 80–100 high)
+    - VIIRS standard: strings 'low' / 'nominal' / 'high'
+    - VIIRS NRT:      single-letter 'l' / 'n' / 'h'
+
+    Normalising to canonical strings in load_firms_csv means merged frames
+    always have a uniform object column that rasterise_firms_to_slstr can
+    map with a single .map(_CONFIDENCE_RANK) call.
+    """
+    import pandas as pd  # type: ignore
+
+    if pd.api.types.is_numeric_dtype(conf_col):
+        return pd.cut(
+            conf_col,
+            bins=[-1, 29, 79, 100],
+            labels=["low", "nominal", "high"],
+        ).astype(str)
+
+    normalised = conf_col.str.lower().str.strip()
+    normalised = normalised.map(lambda v: _VIIRS_SHORT_CONF.get(v, v))
+    return normalised
 
 
 def load_firms_csv(csv_path: Path):
@@ -42,6 +71,7 @@ def load_firms_csv(csv_path: Path):
         )
         return None
 
+    df["confidence"] = _normalise_confidence(df["confidence"])
     return df
 
 
@@ -94,28 +124,19 @@ def rasterise_firms_to_slstr(
             is skipped.
     """
     try:
-        import pandas as pd  # type: ignore
         from scipy.spatial import KDTree  # type: ignore
     except ImportError:
-        logger.error("scipy and pandas are required for FIRMS rasterisation.")
+        logger.error("scipy is required for FIRMS rasterisation.")
         return np.zeros(lat_grid.shape, dtype=bool)
 
     fire_mask = np.zeros(lat_grid.shape, dtype=bool)
 
-    # Confidence filter — support both VIIRS string and MODIS numeric confidence.
-    # MODIS Collection 6/6.1 breakpoints per Giglio et al. active-fire product
-    # user's guide: 0–29 → low, 30–79 → nominal, 80–100 → high.
+    # Confidence filter. load_firms_csv() already normalises this column to
+    # 'low'/'nominal'/'high', but rasterise_firms_to_slstr() is also called
+    # directly (tests, other callers) with un-normalised frames, so normalise
+    # again here — idempotent on already-normalised input.
     min_rank = _CONFIDENCE_RANK.get(min_confidence.lower(), 1)
-    conf_col = firms_df["confidence"]
-    if pd.api.types.is_numeric_dtype(conf_col):
-        str_conf = pd.cut(
-            conf_col,
-            bins=[-1, 29, 79, 100],
-            labels=["low", "nominal", "high"],
-        )
-        conf_rank = str_conf.map(_CONFIDENCE_RANK)
-    else:
-        conf_rank = conf_col.str.lower().map(_CONFIDENCE_RANK)
+    conf_rank = _normalise_confidence(firms_df["confidence"]).map(_CONFIDENCE_RANK)
     df = firms_df[conf_rank >= min_rank].copy()
     if df.empty:
         logger.debug("No FIRMS detections at or above confidence='%s'.", min_confidence)
@@ -153,23 +174,25 @@ def rasterise_firms_to_slstr(
         return fire_mask
 
     # KD-tree nearest-neighbour snap in degree space.
-    # Use the mean latitude of the scene to compute a cosine-corrected longitude
-    # tolerance so that the snap radius is approximately circular on the ground
-    # rather than ellipsoidal in degree space.  This matters at Bolivia's
-    # latitude (~15°S) where longitude degrees are ~cos(15°) ≈ 0.97× as wide
-    # as latitude degrees; using a single degree tolerance would produce a
-    # ~3 % error in the longitude direction.  We take the more conservative
-    # (tighter) of the two tolerances.
+    # Longitude degrees are narrower than latitude degrees away from the
+    # equator (1° lon ≈ 111*cos(lat) km vs. 1° lat ≈ 111 km) — this matters at
+    # Bolivia's latitude (~15°S, cos(15°) ≈ 0.97).  The KD-tree computes plain
+    # Euclidean distance in degree space, so to get an approximately circular
+    # ground-distance tolerance from a single scalar radius, rescale longitude
+    # into "equivalent latitude-degree" units (lon * cos_lat) before building
+    # the tree, and use the latitude-only tolerance as the isotropic radius in
+    # that rescaled space: ground_dist_lon = Δlon_deg*111*cos_lat =
+    # (Δlon_deg*cos_lat)*111, i.e. the same km-per-degree scale as latitude.
     mean_lat_rad = np.deg2rad(float(np.nanmean(lat_grid)))
     cos_lat = max(float(np.cos(mean_lat_rad)), 1e-6)
-    tol_deg_lat = tolerance_km / 111.0
-    tol_deg_lon = tolerance_km / (111.0 * cos_lat)
-    tol_deg = min(tol_deg_lat, tol_deg_lon)  # conservative (tighter circle)
+    tol_deg = tolerance_km / 111.0
 
     W = lat_grid.shape[1]
-    grid_pts = np.column_stack([lat_grid.ravel(), lon_grid.ravel()])
+    grid_pts = np.column_stack([lat_grid.ravel(), lon_grid.ravel() * cos_lat])
     tree = KDTree(grid_pts)
-    firms_pts = np.column_stack([df["latitude"].values, df["longitude"].values])
+    firms_pts = np.column_stack(
+        [df["latitude"].values, df["longitude"].values * cos_lat]
+    )
 
     dists, idxs = tree.query(firms_pts, distance_upper_bound=tol_deg)
     valid = dists < tol_deg
@@ -196,6 +219,7 @@ def load_firms_for_granule(
     lon_grid: np.ndarray,
     sensing_date: str,
     time_window_days: int = 0,
+    min_confidence: str = "nominal",
     min_frp_mw: float = 0.0,
 ) -> Optional[np.ndarray]:
     """Find all FIRMS CSVs in firms_dir that overlap sensing_date and rasterise.
@@ -210,6 +234,8 @@ def load_firms_for_granule(
             introduced fire detections from the day before/after the overpass,
             creating false-positive labels for fires that had started or ended
             by the time of the SLSTR overpass.
+        min_confidence: Minimum FIRMS confidence tier.  Forwarded to
+            :func:`rasterise_firms_to_slstr`.  Default ``"nominal"``.
         min_frp_mw: Minimum Fire Radiative Power [MW].  Forwarded to
             :func:`rasterise_firms_to_slstr`.  Default 0.0 = no filter.
 
@@ -257,5 +283,6 @@ def load_firms_for_granule(
         lon_grid,
         sensing_date,
         time_window_days=time_window_days,
+        min_confidence=min_confidence,
         min_frp_mw=min_frp_mw,
     )
