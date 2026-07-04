@@ -127,9 +127,7 @@ def main(argv=None) -> int:
             "val": existing.get("val", []),
             "test": existing.get("test", []),
         }
-        split_granules = {
-            gid for gids in candidate_splits.values() for gid in gids
-        }
+        split_granules = {gid for gids in candidate_splits.values() for gid in gids}
         current_granules = set(granule_labels)
         is_disjoint = sum(len(gids) for gids in candidate_splits.values()) == len(
             split_granules

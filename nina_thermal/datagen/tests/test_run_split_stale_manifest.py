@@ -84,8 +84,8 @@ class TestStaleManifestFallback:
 
         with open(dataset_dir / "split_manifest.json", encoding="utf-8") as fh:
             rewritten = json.load(fh)
-        all_granules = set(rewritten["train"]) | set(rewritten["val"]) | set(
-            rewritten["test"]
+        all_granules = (
+            set(rewritten["train"]) | set(rewritten["val"]) | set(rewritten["test"])
         )
         assert all_granules == {"g1", "g2", "g3"}, (
             "g3 must appear in the rewritten split_manifest.json, not just "

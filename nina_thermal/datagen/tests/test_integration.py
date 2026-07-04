@@ -520,9 +520,7 @@ class TestPerSplitDefaultPolicy:
 
     @staticmethod
     def _images_for_split(sim_manifest, split_name):
-        images = [
-            img for img in sim_manifest["images"] if img["split"] == split_name
-        ]
+        images = [img for img in sim_manifest["images"] if img["split"] == split_name]
         assert images, f"No images generated for split={split_name!r}"
         return images
 

@@ -312,7 +312,9 @@ def main(argv=None) -> int:
         json.dump(split_manifest, fh, indent=2)
     logger.info(
         "Wrote split_manifest.json: train=%d, val=%d, test=%d granules.",
-        len(splits["train"]), len(splits["val"]), len(splits["test"]),
+        len(splits["train"]),
+        len(splits["val"]),
+        len(splits["test"]),
     )
 
     # ── Global AGC percentiles from TRAIN patches only ────────────────────────
@@ -531,9 +533,18 @@ def main(argv=None) -> int:
     # ── Write simulation manifest ─────────────────────────────────────────────
     policy_description = (
         {
-            "train": {"profiles": config.TRAIN_PROFILES, "agc_modes": config.TRAIN_AGC_MODES},
-            "val":   {"profiles": config.TRAIN_PROFILES, "agc_modes": config.EVAL_AGC_MODES},
-            "test":  {"profiles": config.TEST_PROFILES,  "agc_modes": config.EVAL_AGC_MODES},
+            "train": {
+                "profiles": config.TRAIN_PROFILES,
+                "agc_modes": config.TRAIN_AGC_MODES,
+            },
+            "val": {
+                "profiles": config.TRAIN_PROFILES,
+                "agc_modes": config.EVAL_AGC_MODES,
+            },
+            "test": {
+                "profiles": config.TEST_PROFILES,
+                "agc_modes": config.EVAL_AGC_MODES,
+            },
         }
         if (profile_override is None and agc_override is None)
         else "override"
