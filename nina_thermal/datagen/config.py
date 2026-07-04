@@ -57,6 +57,7 @@ AMBIENT_REFERENCE_K = 295.0  # reference ambient temperature [K]
 #   100 K range → quantization step 100/255 ≈ 0.39 K/uint8 step
 #   Fire pixels saturate near 1.0 → correct behavior for detection
 FLIGHT_AGC_MODE = "fixed"
+VALID_AGC_MODES: List[str] = ["fixed", "global", "auto"]
 FIXED_TEMP_MIN_C = -15.0
 FIXED_TEMP_MAX_C = 85.0
 FIXED_TEMP_MIN_K = FIXED_TEMP_MIN_C + 273.15  # 258.15 K
@@ -120,6 +121,19 @@ TRAIN_PROFILES: List[str] = ["B"]
 TEST_PROFILES: List[str] = list(DEGRADATION_PROFILES.keys())  # ["A", "B", "C"]
 TRAIN_AGC_MODES: List[str] = ["fixed", "global"]
 EVAL_AGC_MODES: List[str] = ["fixed"]  # val + test
+
+assert set(TRAIN_PROFILES) <= set(DEGRADATION_PROFILES), (
+    "TRAIN_PROFILES must be a subset of DEGRADATION_PROFILES keys"
+)
+assert set(TEST_PROFILES) <= set(DEGRADATION_PROFILES), (
+    "TEST_PROFILES must be a subset of DEGRADATION_PROFILES keys"
+)
+assert set(TRAIN_AGC_MODES) <= set(VALID_AGC_MODES), (
+    "TRAIN_AGC_MODES must be a subset of VALID_AGC_MODES"
+)
+assert set(EVAL_AGC_MODES) <= set(VALID_AGC_MODES), (
+    "EVAL_AGC_MODES must be a subset of VALID_AGC_MODES"
+)
 
 # ── Dataset construction ──────────────────────────────────────────────────
 # Fire ratio 1:4 justified by asymmetric detection cost:

@@ -39,6 +39,24 @@ class TestApplyAgc:
         assert np.all(result == 1.0), f"Expected all ones, got {result}"
 
 
+class TestApplyAgcDegenerateRange:
+    def test_equal_t_min_t_max_does_not_produce_nan_or_inf(self):
+        """A degenerate (zero-width) range must not divide by zero."""
+        bt = np.array([300.0, 305.0, 310.0], dtype=np.float32)
+        result = apply_agc(bt, 305.0, 305.0)
+        assert np.all(np.isfinite(result))
+        assert np.all(result >= 0.0)
+        assert np.all(result <= 1.0)
+
+    def test_inverted_t_min_t_max_does_not_produce_nan_or_inf(self):
+        """A negative-width range (t_max < t_min) must not divide by zero."""
+        bt = np.array([300.0, 305.0, 310.0], dtype=np.float32)
+        result = apply_agc(bt, 310.0, 300.0)
+        assert np.all(np.isfinite(result))
+        assert np.all(result >= 0.0)
+        assert np.all(result <= 1.0)
+
+
 class TestAgcToUint8:
     def test_uint8_cast_is_lossless_at_uint8_precision(self):
         """Round-trip float->uint8->float must be lossless at uint8 precision.

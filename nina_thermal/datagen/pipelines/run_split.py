@@ -30,7 +30,11 @@ from pathlib import Path
 from typing import Dict, List
 
 from nina_thermal.datagen import config
-from nina_thermal.datagen.labeling.split import granule_level_split
+from nina_thermal.datagen.labeling.split import (
+    granule_level_split,
+    invert_splits,
+    log_split_summary,
+)
 from shared.pipeline_logging import configure_logging, log_run_footer
 
 logger = logging.getLogger(__name__)
@@ -114,6 +118,7 @@ def main(argv=None) -> int:
     # older dataset directories is handled by the same fallback).
     existing_split_path = dataset_dir / "split_manifest.json"
     splits = None
+    effective_seed = args.seed
     if existing_split_path.exists():
         with open(existing_split_path, encoding="utf-8") as fh:
             existing = json.load(fh)
@@ -126,14 +131,36 @@ def main(argv=None) -> int:
             gid for gids in candidate_splits.values() for gid in gids
         }
         current_granules = set(granule_labels)
-        if split_granules == current_granules:
+        is_disjoint = sum(len(gids) for gids in candidate_splits.values()) == len(
+            split_granules
+        )
+        if split_granules == current_granules and is_disjoint:
             splits = candidate_splits
+            existing_seed = existing.get("seed")
+            if existing_seed is not None and existing_seed != args.seed:
+                logger.warning(
+                    "split_manifest.json was computed with seed=%s; "
+                    "requested --seed=%s is ignored since the manifest is "
+                    "being reused verbatim.",
+                    existing_seed,
+                    args.seed,
+                )
+                effective_seed = existing_seed
             logger.info(
                 "Reusing split_manifest.json written by run_simulation "
                 "(train=%d, val=%d, test=%d granules).",
                 len(splits["train"]),
                 len(splits["val"]),
                 len(splits["test"]),
+            )
+        elif not is_disjoint:
+            logger.warning(
+                "split_manifest.json is corrupt — a granule appears in more "
+                "than one split (%d entries across splits vs %d unique "
+                "granules).  Recomputing the split from scratch instead of "
+                "trusting it.",
+                sum(len(gids) for gids in candidate_splits.values()),
+                len(split_granules),
             )
         else:
             logger.warning(
@@ -149,6 +176,7 @@ def main(argv=None) -> int:
 
     if splits is None:
         splits = granule_level_split(granule_labels, seed=args.seed)
+        effective_seed = args.seed
         logger.info(
             "split_manifest.json not found or stale — computed split from "
             "scratch (seed=%d).",
@@ -156,24 +184,11 @@ def main(argv=None) -> int:
         )
 
     # Log per-split summary (granule count, patch count, fire fraction)
-    for split_name, gids in splits.items():
-        patch_labels = [lbl for gid in gids for lbl in granule_labels[gid]]
-        n_patches = len(patch_labels)
-        fire_frac = (sum(patch_labels) / n_patches) if n_patches else 0.0
-        logger.info(
-            "  %s: %d granules / %d patches / fire_frac=%.3f",
-            split_name,
-            len(gids),
-            n_patches,
-            fire_frac,
-        )
+    log_split_summary(splits, granule_labels, logger)
     logger.info("  total: %d granules", len(granule_labels))
 
     # Build reverse map: granule_id → split_name
-    granule_to_split: Dict[str, str] = {}
-    for split_name, gids in splits.items():
-        for gid in gids:
-            granule_to_split[gid] = split_name
+    granule_to_split: Dict[str, str] = invert_splits(splits)
 
     # ── Update label manifest with split field ────────────────────────────────
     for rec in label_records:
@@ -205,7 +220,7 @@ def main(argv=None) -> int:
     split_manifest = {
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "script_version": config.SCRIPT_VERSION,
-        "seed": args.seed,
+        "seed": effective_seed,
         "train": splits["train"],
         "val": splits["val"],
         "test": splits["test"],

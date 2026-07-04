@@ -30,9 +30,17 @@ def _write_label_manifest(dataset_dir: Path, granule_ids) -> None:
         json.dump(records, fh)
 
 
-def _write_split_manifest(dataset_dir: Path, train, val, test) -> None:
+def _write_split_manifest(dataset_dir: Path, train, val, test, seed=None) -> None:
+    manifest = {"train": train, "val": val, "test": test}
+    if seed is not None:
+        manifest["seed"] = seed
     with open(dataset_dir / "split_manifest.json", "w", encoding="utf-8") as fh:
-        json.dump({"train": train, "val": val, "test": test}, fh)
+        json.dump(manifest, fh)
+
+
+def _read_split_manifest(dataset_dir: Path) -> dict:
+    with open(dataset_dir / "split_manifest.json", encoding="utf-8") as fh:
+        return json.load(fh)
 
 
 def _read_label_splits(dataset_dir: Path) -> dict:
@@ -108,3 +116,48 @@ class TestStaleManifestFallback:
         splits = _read_label_splits(dataset_dir)
         assert set(splits) == {"g1", "g2", "g3", "g4"}
         assert all(v in ("train", "val", "test") for v in splits.values())
+
+    def test_overlapping_granule_across_splits_is_rejected(self, dataset_dir):
+        """A manifest listing the same granule in two splits must not be
+        trusted just because the union of IDs matches — disjointness is
+        an explicit invariant of granule_level_split and must be re-verified
+        on reuse, not just coverage."""
+        _write_label_manifest(dataset_dir, ["g1", "g2", "g3"])
+        # g1 appears in both train and test — union still equals {g1,g2,g3}
+        _write_split_manifest(
+            dataset_dir, train=["g1", "g2"], val=[], test=["g1", "g3"]
+        )
+
+        rc = split_main(["--dataset_dir", str(dataset_dir), "--seed", "42"])
+        assert rc == 0
+
+        rewritten = _read_split_manifest(dataset_dir)
+        # After recompute, every granule must appear in exactly one split.
+        all_lists = rewritten["train"] + rewritten["val"] + rewritten["test"]
+        assert len(all_lists) == len(set(all_lists)) == 3
+
+
+class TestSeedProvenanceOnReuse:
+    def test_reused_manifest_keeps_its_own_seed(self, dataset_dir):
+        """Reusing a matching split_manifest.json must not overwrite its
+        'seed' field with an unrelated --seed the CLI happened to be called
+        with — that would falsify the reproducibility record."""
+        _write_label_manifest(dataset_dir, ["g1", "g2", "g3"])
+        _write_split_manifest(
+            dataset_dir, train=["g1", "g2"], val=["g3"], test=[], seed=42
+        )
+
+        rc = split_main(["--dataset_dir", str(dataset_dir), "--seed", "999"])
+        assert rc == 0
+
+        rewritten = _read_split_manifest(dataset_dir)
+        assert rewritten["seed"] == 42
+
+    def test_fresh_split_uses_requested_seed(self, dataset_dir):
+        _write_label_manifest(dataset_dir, ["g1", "g2", "g3"])
+        # No existing split_manifest.json — must recompute with args.seed.
+        rc = split_main(["--dataset_dir", str(dataset_dir), "--seed", "123"])
+        assert rc == 0
+
+        rewritten = _read_split_manifest(dataset_dir)
+        assert rewritten["seed"] == 123

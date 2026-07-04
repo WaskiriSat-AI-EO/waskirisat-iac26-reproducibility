@@ -576,3 +576,50 @@ class TestPerSplitDefaultPolicy:
         }
         for img in sim_manifest["images"]:
             assert granule_to_split.get(img["granule_id"]) == img["split"]
+
+
+# ── run_simulation CLI validation (review fixes) ───────────────────────────────
+
+
+class TestRunSimulationArgValidation:
+    """Covers the review fix that closed the asymmetry between --profiles
+    (always validated) and --agc_modes (previously unvalidated, silently
+    falling through to per-patch 'auto' normalization on a typo)."""
+
+    def test_unknown_agc_mode_override_exits_nonzero(self, tmp_path):
+        patches_dir = _build_patches_dir(tmp_path)
+        dataset_dir = tmp_path / "04_dataset"
+
+        rc = sim_main(
+            [
+                "--input_dir",
+                str(patches_dir),
+                "--output_dir",
+                str(dataset_dir),
+                "--agc_modes",
+                "fixed,glbal",  # typo — not a valid AGC mode
+                "--seed",
+                "42",
+            ]
+        )
+        assert rc == 1
+
+    def test_unknown_profile_override_still_exits_nonzero(self, tmp_path):
+        """Pre-existing behaviour (regression guard) — --profiles validation
+        must still reject unknown profile keys the same way."""
+        patches_dir = _build_patches_dir(tmp_path)
+        dataset_dir = tmp_path / "04_dataset"
+
+        rc = sim_main(
+            [
+                "--input_dir",
+                str(patches_dir),
+                "--output_dir",
+                str(dataset_dir),
+                "--profiles",
+                "Z",
+                "--seed",
+                "42",
+            ]
+        )
+        assert rc == 1

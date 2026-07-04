@@ -68,7 +68,11 @@ from nina_thermal.datagen.labeling.fire_label import (
     classify_patch_surface_type,
     compute_patch_label,
 )
-from nina_thermal.datagen.labeling.split import granule_level_split
+from nina_thermal.datagen.labeling.split import (
+    granule_level_split,
+    invert_splits,
+    log_split_summary,
+)
 from nina_thermal.datagen.processing.agc import apply_agc, compute_global_percentiles
 from nina_thermal.datagen.simulation.noise import generate_lepton_fpn
 from nina_thermal.datagen.simulation.sensor import simulate_lepton
@@ -88,8 +92,13 @@ SKIP_NAMES = {
 _PROFILE_SEED_OFFSET = {"A": 0, "B": 1, "C": 2}
 
 
-def _policy_for_split(split: str) -> Tuple[List[str], List[str]]:
-    """Return (profiles, agc_modes) for *split* per the IAC paper methodology.
+def _policy_for_split(
+    split: str,
+    profile_override: Optional[List[str]] = None,
+    agc_override: Optional[List[str]] = None,
+) -> Tuple[List[str], List[str]]:
+    """Return (profiles, agc_modes) for *split* per the IAC paper methodology,
+    or the CLI override values when given (applied uniformly across splits).
 
     Policy:
         train → profile B,      AGC {fixed, global}
@@ -97,10 +106,15 @@ def _policy_for_split(split: str) -> Tuple[List[str], List[str]]:
         test  → profiles A,B,C, AGC {fixed}
     """
     if split == "test":
-        return config.TEST_PROFILES, config.EVAL_AGC_MODES
-    if split == "val":
-        return config.TRAIN_PROFILES, config.EVAL_AGC_MODES
-    return config.TRAIN_PROFILES, config.TRAIN_AGC_MODES  # train
+        base_profiles, base_agc_modes = config.TEST_PROFILES, config.EVAL_AGC_MODES
+    elif split == "val":
+        base_profiles, base_agc_modes = config.TRAIN_PROFILES, config.EVAL_AGC_MODES
+    else:  # train
+        base_profiles, base_agc_modes = config.TRAIN_PROFILES, config.TRAIN_AGC_MODES
+    return (
+        profile_override if profile_override is not None else base_profiles,
+        agc_override if agc_override is not None else base_agc_modes,
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -204,6 +218,14 @@ def main(argv=None) -> int:
 
     if args.agc_modes is not None:
         agc_override = [m.strip() for m in args.agc_modes.split(",")]
+        for mode in agc_override:
+            if mode not in config.VALID_AGC_MODES:
+                logger.error(
+                    "Unknown AGC mode '%s'. Valid: %s",
+                    mode,
+                    config.VALID_AGC_MODES,
+                )
+                return log_run_footer(start_time, exit_code=1)
         logger.info(
             "AGC mode override: %s (applied to all splits — per-split policy disabled)",
             agc_override,
@@ -238,30 +260,43 @@ def main(argv=None) -> int:
         return log_run_footer(start_time, exit_code=1)
     logger.info("Loaded %d patch records from manifest.", len(patch_records))
 
-    # ── Granule-level split (run_simulation is the split authority) ───────────
-    # Build granule → labels from the manifest (labels were set by run_processing
-    # from FIRMS data and are already present in patches_manifest.json).
-    granule_labels: Dict[str, List[int]] = {}
+    # ── Resolve the effective label for every patch, once ──────────────────────
+    # Prefer the pre-computed label stored in the manifest by run_processing.
+    # Fall back to compute_patch_label for records that pre-date it (older
+    # manifests). This is the SAME resolution the per-patch loop below uses —
+    # computed once here so the granule-level split's fire-fraction
+    # stratification is stratified on the same labels the loop later stamps
+    # into label_manifest.json / metadata, instead of silently defaulting
+    # unlabelled patches to 0 for stratification purposes only.
+    patch_labels: List[int] = []
     for rec in patch_records:
-        gid = rec["granule_id"]
-        granule_labels.setdefault(gid, []).append(int(rec.get("label", 0)))
+        stored_label = rec.get("label", None)
+        if stored_label is not None:
+            patch_labels.append(int(stored_label))
+            continue
+        patch_file = input_dir / rec["patch_file"]
+        if not patch_file.exists():
+            patch_labels.append(0)
+            continue
+        bt_patch = np.load(patch_file)
+        delta_t_file = patch_file.parent / patch_file.name.replace(
+            "_bt.npy", "_delta_t.npy"
+        )
+        delta_t = (
+            np.load(delta_t_file) if delta_t_file.exists() else np.zeros_like(bt_patch)
+        )
+        patch_labels.append(compute_patch_label(bt_patch, delta_t))
+
+    # ── Granule-level split (run_simulation is the split authority) ───────────
+    granule_labels: Dict[str, List[int]] = {}
+    for rec, label in zip(patch_records, patch_labels):
+        granule_labels.setdefault(rec["granule_id"], []).append(label)
 
     splits = granule_level_split(granule_labels, seed=seed)
-    granule_to_split: Dict[str, str] = {
-        gid: split_name
-        for split_name, gids in splits.items()
-        for gid in gids
-    }
+    granule_to_split: Dict[str, str] = invert_splits(splits)
 
     # Log per-split summary
-    for split_name, gids in splits.items():
-        patch_labels_split = [lbl for gid in gids for lbl in granule_labels[gid]]
-        n = len(patch_labels_split)
-        fire_frac = sum(patch_labels_split) / n if n else 0.0
-        logger.info(
-            "  %s: %d granules / %d patches / fire_frac=%.3f",
-            split_name, len(gids), n, fire_frac,
-        )
+    log_split_summary(splits, granule_labels, logger)
 
     # Write split_manifest.json (authority consumed by run_split)
     split_manifest = {
@@ -340,7 +375,7 @@ def main(argv=None) -> int:
     split_image_counts: Dict[str, int] = {"train": 0, "val": 0, "test": 0}
 
     n_total_patches = len(patch_records)
-    for patch_num, rec in enumerate(patch_records, 1):
+    for patch_num, (rec, label) in enumerate(zip(patch_records, patch_labels), 1):
         granule_id = rec["granule_id"]
         patch_index = rec["patch_index"]
         patch_file = input_dir / rec["patch_file"]
@@ -371,17 +406,7 @@ def main(argv=None) -> int:
                 patch_index,
             )
 
-        # ── Label ─────────────────────────────────────────────────────────────
-        stored_label = rec.get("label", None)
-        if stored_label is not None:
-            label = int(stored_label)
-        else:
-            label = compute_patch_label(bt_patch, delta_t)
-            logger.debug(
-                "Fallback label for %s_p%04d: no pre-computed label in manifest.",
-                granule_id,
-                patch_index,
-            )
+        # ── Label (resolved once, up-front, in the patch_labels pre-pass) ──────
         surface_type = classify_patch_surface_type(bt_patch, delta_t, label)
         logger.debug(
             "  patch %s_p%04d: label=%d  surface=%s  nan_frac=%.3f",
@@ -399,17 +424,9 @@ def main(argv=None) -> int:
 
         # ── Resolve split and effective policy ────────────────────────────────
         split = granule_to_split.get(granule_id, "train")
-
-        if profile_override is not None and agc_override is not None:
-            profiles_eff, agc_modes_eff = profile_override, agc_override
-        elif profile_override is not None:
-            _, agc_modes_eff = _policy_for_split(split)
-            profiles_eff = profile_override
-        elif agc_override is not None:
-            profiles_eff, _ = _policy_for_split(split)
-            agc_modes_eff = agc_override
-        else:
-            profiles_eff, agc_modes_eff = _policy_for_split(split)
+        profiles_eff, agc_modes_eff = _policy_for_split(
+            split, profile_override, agc_override
+        )
 
         base_key = f"{granule_id}_p{patch_index:04d}"
 
