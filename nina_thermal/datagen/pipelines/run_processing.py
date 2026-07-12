@@ -136,6 +136,12 @@ def build_parser() -> argparse.ArgumentParser:
             f"Default: {config.FIRMS_MIN_CONFIDENCE!r}."
         ),
     )
+    p.add_argument(
+        "--time_window_days",
+        type=int,
+        default=0,
+        help="Number of calendar days around sensing_date to include FIRMS alerts (default: 0 = same day only).",
+    )
     return p
 
 
@@ -249,6 +255,7 @@ def main(argv=None) -> int:
                     lat,
                     lon,
                     sensing_date,
+                    time_window_days=args.time_window_days,
                     min_confidence=args.firms_min_confidence,
                     min_frp_mw=args.firms_min_frp,
                 )

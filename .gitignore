@@ -201,6 +201,8 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+
+
 # Marimo
 marimo/_static/
 marimo/_lsp/
@@ -222,4 +224,7 @@ data/
 
 # Large source ROI files — commit only *_simplified.geojson derivatives
 nina_thermal/resources/bo_nina_roi.geojson
-datagen/[0-9][0-9][0-9]
+datagen/[0-9][0-9][0-9]image_processing_notebooks/raw_images/
+*.zip
+*.tif
+*.tiff

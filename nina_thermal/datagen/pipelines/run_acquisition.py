@@ -17,6 +17,7 @@ Credentials are read from ``$CDSE_USER`` and ``$CDSE_PASSWORD``
 import argparse
 import json
 import logging
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -25,6 +26,8 @@ from sentinelsat import read_geojson, geojson_to_wkt  # type: ignore
 
 from shared.cdse_auth import get_access_token
 from nina_thermal.datagen.acquisition.cdse_search import search_slstr_products
+from nina_thermal.datagen.acquisition.firms_api import query_firms_fire_dates
+from nina_thermal.datagen.ingestion.roi_mask import load_roi_polygon
 from shared.cdse_download import download_and_extract
 from nina_thermal.datagen import config
 from shared.pipeline_logging import configure_logging, log_run_footer
@@ -76,6 +79,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="SLSTR L1B product type identifier.",
     )
     p.add_argument(
+        "--use_firms",
+        action="store_true",
+        help="If set, query NASA FIRMS API to identify dates with active fires and filter acquisitions to those dates.",
+    )
+    p.add_argument(
+        "--firms_key",
+        default=None,
+        metavar="KEY",
+        help="NASA FIRMS Map Key. Falls back to $FIRMS_MAP_KEY environment variable.",
+    )
+    p.add_argument(
+        "--firms_source",
+        default="VIIRS_SNPP_NRT",
+        choices=["MODIS_NRT", "VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT", "VIIRS_NOAA21_NRT"],
+        help="FIRMS sensor data source to query.",
+    )
+    p.add_argument(
         "--log_dir",
         default=None,
         metavar="DIR",
@@ -118,22 +138,74 @@ def main(argv=None) -> int:
         logger.error("Failed to read AOI GeoJSON %s: %s", args.roi, exc)
         return log_run_footer(start_time, exit_code=1)
 
+    # ── FIRMS Query (Optional Date Filtering) ────────────────────────────────
+    firms_key = args.firms_key or os.getenv("FIRMS_MAP_KEY")
+    if args.use_firms and not firms_key:
+        logger.error("FIRMS Map Key is required when using --use_firms. Set $FIRMS_MAP_KEY or pass --firms_key.")
+        return log_run_footer(start_time, exit_code=1)
+
+    fire_dates = None
+    if args.use_firms:
+        try:
+            roi_poly = load_roi_polygon(Path(args.roi))
+            bbox = roi_poly.bounds  # (minx, miny, maxx, maxy)
+            logger.info("Querying NASA FIRMS for active fires in bounds: %s ...", bbox)
+            fire_dates = query_firms_fire_dates(
+                firms_key=firms_key,
+                bbox=bbox,
+                start_date_str=args.start,
+                end_date_str=args.end,
+                source=args.firms_source,
+                min_confidence=config.FIRMS_MIN_CONFIDENCE,
+                min_frp_mw=config.FIRMS_MIN_FRP_MW,
+            )
+            if not fire_dates:
+                logger.warning(
+                    "No active fires found on FIRMS for the given range. "
+                    "Option B: Falling back to download all images for the full date range."
+                )
+                fire_dates = None
+        except Exception as exc:
+            logger.error(
+                "FIRMS query failed: %s. Falling back to downloading all images.",
+                exc,
+            )
+            fire_dates = None
+
     # ── Search ────────────────────────────────────────────────────────────────
-    logger.info(
-        "Searching catalog: %s  %s – %s  (max %d products) …",
-        args.product_type,
-        args.start,
-        args.end,
-        args.max_products,
-    )
-    products = search_slstr_products(
-        access_token=token,
-        footprint_wkt=footprint_wkt,
-        start_date=args.start,
-        end_date=args.end,
-        product_type=args.product_type,
-        max_results=args.max_products,
-    )
+    if fire_dates is not None:
+        logger.info("Filtering CDSE search to %d date(s) with active fires...", len(fire_dates))
+        products = []
+        for d in fire_dates:
+            logger.info("Searching CDSE for date: %s ...", d)
+            day_products = search_slstr_products(
+                access_token=token,
+                footprint_wkt=footprint_wkt,
+                start_date=d,
+                end_date=d,
+                product_type=args.product_type,
+                max_results=args.max_products - len(products),
+            )
+            products.extend(day_products)
+            if len(products) >= args.max_products:
+                logger.info("Reached maximum products limit (%d).", args.max_products)
+                break
+    else:
+        logger.info(
+            "Searching catalog: %s  %s – %s  (max %d products) …",
+            args.product_type,
+            args.start,
+            args.end,
+            args.max_products,
+        )
+        products = search_slstr_products(
+            access_token=token,
+            footprint_wkt=footprint_wkt,
+            start_date=args.start,
+            end_date=args.end,
+            product_type=args.product_type,
+            max_results=args.max_products,
+        )
 
     if not products:
         logger.warning("No products found for the given criteria.")

@@ -164,3 +164,8 @@ DEFAULT_END_DATE = "20230930"  # YYYYMMDD — Bolivia fire season peak
 # ── Reproducibility ───────────────────────────────────────────────────────
 DEFAULT_SEED = 42
 SCRIPT_VERSION = "1.0.0"
+
+# ── NASA FIRMS API ───────────────────────────────────────────────────────
+FIRMS_API_BASE_URL = "https://firms.modaps.eosdis.nasa.gov/api/area/csv"
+FIRMS_API_MAX_CHUNKS = 5
+
