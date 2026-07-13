@@ -36,7 +36,7 @@ def query_firms_fire_dates(
     firms_key: str,
     bbox: tuple,  # (west, south, east, north)
     start_date_str: str,  # YYYYMMDD
-    end_date_str: str,    # YYYYMMDD
+    end_date_str: str,  # YYYYMMDD
     source: str = "VIIRS_SNPP_NRT",
     min_confidence: str = "nominal",
     min_frp_mw: float = 10.0,
@@ -75,7 +75,9 @@ def query_firms_fire_dates(
         date_param = current_date.strftime("%Y-%m-%d")
 
         url = f"{config.FIRMS_API_BASE_URL}/{firms_key}/{source}/{bbox_str}/{chunk_size}/{date_param}"
-        logger.info("Querying FIRMS API: %s (range: %d days) ...", date_param, chunk_size)
+        logger.info(
+            "Querying FIRMS API: %s (range: %d days) ...", date_param, chunk_size
+        )
 
         try:
             response = requests.get(url, timeout=30)
@@ -90,7 +92,9 @@ def query_firms_fire_dates(
         # If the response contains error messages (e.g. invalid map key, bad format)
         # rather than valid CSV header containing 'latitude', handle it.
         if "latitude" not in csv_data.lower():
-            logger.error("FIRMS API returned invalid response: %s", csv_data.strip()[:200])
+            logger.error(
+                "FIRMS API returned invalid response: %s", csv_data.strip()[:200]
+            )
             current_date += timedelta(days=chunk_size)
             continue
 
@@ -120,7 +124,9 @@ def query_firms_fire_dates(
             if "frp" in filtered_df.columns:
                 filtered_df = filtered_df[filtered_df["frp"] >= min_frp_mw]
             else:
-                logger.warning("'frp' column missing in FIRMS response; skipping FRP filter.")
+                logger.warning(
+                    "'frp' column missing in FIRMS response; skipping FRP filter."
+                )
 
         if not filtered_df.empty:
             dates = filtered_df["acq_date"].dropna().unique()

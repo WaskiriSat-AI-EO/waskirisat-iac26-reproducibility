@@ -1,7 +1,6 @@
-import unittest
 from unittest.mock import patch, MagicMock
 import pandas as pd
-import pytest
+
 
 from nina_thermal.datagen.acquisition.firms_api import (
     _normalise_confidence,

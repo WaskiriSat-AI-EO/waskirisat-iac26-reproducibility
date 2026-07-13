@@ -141,7 +141,9 @@ def main(argv=None) -> int:
     # ── FIRMS Query (Optional Date Filtering) ────────────────────────────────
     firms_key = args.firms_key or os.getenv("FIRMS_MAP_KEY")
     if args.use_firms and not firms_key:
-        logger.error("FIRMS Map Key is required when using --use_firms. Set $FIRMS_MAP_KEY or pass --firms_key.")
+        logger.error(
+            "FIRMS Map Key is required when using --use_firms. Set $FIRMS_MAP_KEY or pass --firms_key."
+        )
         return log_run_footer(start_time, exit_code=1)
 
     fire_dates = None
@@ -174,7 +176,9 @@ def main(argv=None) -> int:
 
     # ── Search ────────────────────────────────────────────────────────────────
     if fire_dates is not None:
-        logger.info("Filtering CDSE search to %d date(s) with active fires...", len(fire_dates))
+        logger.info(
+            "Filtering CDSE search to %d date(s) with active fires...", len(fire_dates)
+        )
         products = []
         for d in fire_dates:
             logger.info("Searching CDSE for date: %s ...", d)
