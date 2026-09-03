@@ -32,6 +32,7 @@ from typing import Dict, List, Set
 
 from nina_thermal.datagen import config
 from nina_thermal.datagen.dataset.balance import build_balanced_dataset
+from nina_thermal.datagen.dataset.export import patch_key
 from shared.pipeline_logging import configure_logging, log_run_footer
 
 logger = logging.getLogger(__name__)
@@ -153,11 +154,10 @@ def main(argv=None) -> int:
             try:
                 with open(meta_file, encoding="utf-8") as fh:
                     meta = json.load(fh)
-                patch_key = (
-                    f"{meta.get('granule_id', '')}"
-                    f"_p{meta.get('patch_index', 0):04d}"
+                key = patch_key(
+                    meta.get("granule_id", ""), meta.get("patch_index", 0)
                 )
-                if patch_key in excluded_patches:
+                if key in excluded_patches:
                     meta["excluded_by_balance"] = True
                     with open(meta_file, "w", encoding="utf-8") as fh:
                         json.dump(meta, fh, indent=2)

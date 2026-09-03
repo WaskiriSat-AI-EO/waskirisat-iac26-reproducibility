@@ -11,7 +11,10 @@ Stages
 2. QAT fine-tune (skippable with ``--epochs 0`` for a pure-PTQ artifact).
 3. TFLite export + SHA-256 checksum + size check against the mission budget.
 4. Threshold re-sweep on int8 val scores.
-5. Parity report — fp32 vs int8 ROC-AUC and operating-point deltas.
+5. Parity report + acceptance gate — fp32-vs-int8 metric deltas, score-space
+   SQNR and KL, checked against the four deployment tolerances (recall drop
+   <= 0.5 pp, F-beta drop <= 1.0 pp, SQNR >= 30 dB, KL <= 0.05 nats). A failed
+   gate is a non-zero exit.
 
 Note on transforms
 ------------------
@@ -43,6 +46,7 @@ from torchvision import transforms
 
 from shared.pipeline_logging import configure_logging, log_run_footer
 
+from nina_thermal.quantization import parity as parity_lib
 from nina_thermal.quantization import qat as qat_lib
 from nina_thermal.training.dataset import (
     ThermalDataset,
@@ -349,8 +353,25 @@ def main(argv: list[str] | None = None) -> int:
         int8_metrics["precision"],
     )
 
-    # ── Stage 5: parity report ────────────────────────────────────────────────
+    # ── Stage 5: parity report + acceptance gate ─────────────────────────────
     auc_delta = (int8_auc - fp32_auc) if (int8_auc and fp32_auc) else None
+    paired_fp32_scores = fp32_scores[: len(int8_scores)]
+    sqnr_db = parity_lib.compute_sqnr(paired_fp32_scores, int8_scores)
+    kl_nats = parity_lib.compute_kl_divergence(paired_fp32_scores, int8_scores)
+    acceptance = parity_lib.check_acceptance(
+        fp32_recall=fp32_metrics["recall"],
+        int8_recall=int8_metrics["recall"],
+        fp32_fbeta=fp32_metrics["fbeta"],
+        int8_fbeta=int8_metrics["fbeta"],
+        sqnr_db=sqnr_db,
+        kl_nats=kl_nats,
+    )
+    logger.info(
+        "SQNR=%s dB  KL=%.4f nats  acceptance=%s",
+        "inf" if math.isinf(sqnr_db) else f"{sqnr_db:.1f}",
+        kl_nats,
+        "PASS" if acceptance["passed"] else "FAIL",
+    )
     report = {
         "stage": "run_quantize",
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -396,7 +417,11 @@ def main(argv: list[str] | None = None) -> int:
             "precision_delta": round(
                 int8_metrics["precision"] - fp32_metrics["precision"], 6
             ),
+            "fbeta_delta": round(int8_metrics["fbeta"] - fp32_metrics["fbeta"], 6),
+            "sqnr_db": None if math.isinf(sqnr_db) else round(sqnr_db, 2),
+            "kl_divergence_nats": round(kl_nats, 6),
         },
+        "acceptance": acceptance,
         "deployment_note": (
             "Load on OpenMV N6 with ml.Model('/rom/mobilenetv3s_fire_int8.tflite'); "
             "feed the Lepton frame replicated to 3 channels, apply sigmoid to the "
@@ -411,7 +436,8 @@ def main(argv: list[str] | None = None) -> int:
     report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
     logger.info("Quantization report → %s", report_path)
 
-    return log_run_footer(start_time, exit_code=0 if within_budget else 1)
+    ok = within_budget and acceptance["passed"]
+    return log_run_footer(start_time, exit_code=0 if ok else 1)
 
 
 if __name__ == "__main__":

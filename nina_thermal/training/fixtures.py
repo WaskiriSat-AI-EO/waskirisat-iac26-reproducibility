@@ -44,6 +44,8 @@ from nina_thermal.datagen import config
 from nina_thermal.datagen.dataset.balance import build_balanced_dataset
 from nina_thermal.datagen.dataset.export import (
     build_image_metadata,
+    image_stem,
+    patch_key,
     save_label_manifest,
     save_patch_image,
     save_patch_metadata,
@@ -75,22 +77,6 @@ _FIRMS_CLUSTER_LAT = -12.0
 _FIRMS_CLUSTER_LON = -63.0
 _PEAK_CENTROID = (_FIRMS_CLUSTER_LAT, _FIRMS_CLUSTER_LON)
 _OFF_SEASON_CENTROID = (-19.0, -61.0)  # ~780 km south of the cluster
-
-
-# ── Filename convention ──────────────────────────────────────────────────────
-# TODO(PR-D): hoist these to nina_thermal.datagen.dataset.export and update
-# run_simulation / run_balance / training.dataset / training.frp_labels to use
-# them (single source of truth for the on-disk name).
-
-
-def _patch_key(granule_id: str, patch_index: int) -> str:
-    """Physical-patch key: ``"{granule_id}_p{patch_index:04d}"``."""
-    return f"{granule_id}_p{patch_index:04d}"
-
-
-def _image_stem(patch: str, agc_mode: str, profile: str) -> str:
-    """Shared stem of a rendered variant's PNG and JSON: ``"{patch}_{agc_mode}_{profile}"``."""
-    return f"{patch}_{agc_mode}_{profile}"
 
 
 @dataclass(frozen=True)
@@ -356,7 +342,7 @@ def generate_synthetic_dataset(
         else:
             n_nominal += 1
 
-        base_key = _patch_key(granule_id, p_idx)
+        base_key = patch_key(granule_id, p_idx)
         label_records.append(
             {
                 "patch": base_key,
@@ -386,7 +372,7 @@ def generate_synthetic_dataset(
             bt_normalized = apply_agc(bt_patch, t_min, t_max)
 
             for prof in spec.profiles:
-                stem = _image_stem(base_key, agc_mode, prof)
+                stem = image_stem(base_key, agc_mode, prof)
                 img_u8 = simulate_lepton(
                     bt_normalized,
                     profile=prof,
