@@ -135,3 +135,42 @@ def granule_level_split(
         )
 
     return splits
+
+
+def invert_splits(splits: Dict[str, List[str]]) -> Dict[str, str]:
+    """Map each granule_id to its split name.
+
+    Args:
+        splits: ``{"train": [...], "val": [...], "test": [...]}`` as returned
+            by :func:`granule_level_split`.
+
+    Returns:
+        ``{granule_id: split_name}`` for every granule across all splits.
+    """
+    return {gid: split_name for split_name, gids in splits.items() for gid in gids}
+
+
+def log_split_summary(
+    splits: Dict[str, List[str]],
+    granule_labels: Dict[str, List[int]],
+    log: logging.Logger,
+) -> None:
+    """Log per-split granule/patch/fire-fraction counts.
+
+    Args:
+        splits: ``{"train": [...], "val": [...], "test": [...]}``.
+        granule_labels: ``granule_id -> list of patch labels`` for every
+            granule referenced in *splits*.
+        log: Logger to write the summary lines to.
+    """
+    for split_name, gids in splits.items():
+        patch_labels = [lbl for gid in gids for lbl in granule_labels[gid]]
+        n_patches = len(patch_labels)
+        fire_frac = (sum(patch_labels) / n_patches) if n_patches else 0.0
+        log.info(
+            "  %s: %d granules / %d patches / fire_frac=%.3f",
+            split_name,
+            len(gids),
+            n_patches,
+            fire_frac,
+        )

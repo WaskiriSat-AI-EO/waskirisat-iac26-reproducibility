@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 # ── Physical constants ────────────────────────────────────────────────────
 H_PLANCK = 6.626e-34  # Planck constant [J·s]
@@ -57,6 +57,7 @@ AMBIENT_REFERENCE_K = 295.0  # reference ambient temperature [K]
 #   100 K range → quantization step 100/255 ≈ 0.39 K/uint8 step
 #   Fire pixels saturate near 1.0 → correct behavior for detection
 FLIGHT_AGC_MODE = "fixed"
+VALID_AGC_MODES: List[str] = ["fixed", "global", "auto"]
 FIXED_TEMP_MIN_C = -15.0
 FIXED_TEMP_MAX_C = 85.0
 FIXED_TEMP_MIN_K = FIXED_TEMP_MIN_C + 273.15  # 258.15 K
@@ -98,6 +99,41 @@ DEGRADATION_PROFILES: Dict[str, Dict[str, Any]] = {
         "description": "SAA worst case — 4x NETD, heavy blur, FPN",
     },
 }
+
+# ── Profile / AGC policy per split ───────────────────────────────────────
+# Profiles A/B/C are fixed-seed deterministic noise variants of the SAME
+# underlying BT patch — not stochastic augmentation. Training on all three
+# teaches the model to memorise specific FPN/blur patterns rather than learning
+# to generalise across noise levels. Their methodological value is a test-set
+# cross-degradation robustness table ("how much does accuracy drop in the
+# SAA/pre-FFC worst case?"), which is destroyed if the model trains on C.
+#
+# AGC 'fixed' is the confirmed flight inference configuration (FLIGHT_AGC_MODE);
+# it is the only mode val/test may use, so reported metrics correspond to real
+# deployment. 'global' is a legitimate train-only contrast augmentation (shifts
+# the effective BT mapping without duplicating spatial content).
+#
+# Policy enforced by run_simulation (the split authority):
+#   train → profile B,     AGC {fixed, global}
+#   val   → profile B,     AGC {fixed}
+#   test  → profiles A,B,C, AGC {fixed}
+TRAIN_PROFILES: List[str] = ["B"]
+TEST_PROFILES: List[str] = list(DEGRADATION_PROFILES.keys())  # ["A", "B", "C"]
+TRAIN_AGC_MODES: List[str] = ["fixed", "global"]
+EVAL_AGC_MODES: List[str] = ["fixed"]  # val + test
+
+assert set(TRAIN_PROFILES) <= set(
+    DEGRADATION_PROFILES
+), "TRAIN_PROFILES must be a subset of DEGRADATION_PROFILES keys"
+assert set(TEST_PROFILES) <= set(
+    DEGRADATION_PROFILES
+), "TEST_PROFILES must be a subset of DEGRADATION_PROFILES keys"
+assert set(TRAIN_AGC_MODES) <= set(
+    VALID_AGC_MODES
+), "TRAIN_AGC_MODES must be a subset of VALID_AGC_MODES"
+assert set(EVAL_AGC_MODES) <= set(
+    VALID_AGC_MODES
+), "EVAL_AGC_MODES must be a subset of VALID_AGC_MODES"
 
 # ── Dataset construction ──────────────────────────────────────────────────
 # Fire ratio 1:4 justified by asymmetric detection cost:

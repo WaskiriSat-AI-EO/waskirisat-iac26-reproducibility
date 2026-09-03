@@ -22,7 +22,15 @@ def apply_agc(bt_patch: np.ndarray, t_min: float, t_max: float) -> np.ndarray:
     Returns:
         float32 array clipped to [0, 1].
     """
-    normalized = (bt_patch.astype(np.float32) - t_min) / (t_max - t_min)
+    agc_range = t_max - t_min
+    if agc_range <= 0:
+        logger.warning(
+            "Degenerate AGC range (t_min=%.2f, t_max=%.2f) — using +1.0K floor.",
+            t_min,
+            t_max,
+        )
+        agc_range = 1.0
+    normalized = (bt_patch.astype(np.float32) - t_min) / agc_range
     return np.clip(normalized, 0.0, 1.0).astype(np.float32)
 
 

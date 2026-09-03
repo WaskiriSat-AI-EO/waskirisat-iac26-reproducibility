@@ -175,6 +175,49 @@ def pipeline_output(tmp_path_factory):
     return dataset_dir, summary
 
 
+@pytest.fixture(scope="module")
+def default_policy_output(tmp_path_factory):
+    """Run run_simulation + run_split with NO --profiles/--agc_modes flags.
+
+    Unlike `pipeline_output` above (which always passes explicit overrides
+    and so exercises the CLI-override branch), this exercises the new
+    per-split default policy path: train=profile B (AGC fixed+global),
+    val=profile B (AGC fixed), test=profiles A/B/C (AGC fixed).
+    """
+    tmp = tmp_path_factory.mktemp("default_policy_pipeline")
+    patches_dir = _build_patches_dir(tmp)
+    dataset_dir = tmp / "04_dataset"
+
+    rc = sim_main(
+        [
+            "--input_dir",
+            str(patches_dir),
+            "--output_dir",
+            str(dataset_dir),
+            "--seed",
+            "42",
+        ]
+    )
+    assert rc == 0, "run_simulation failed"
+
+    rc = split_main(
+        [
+            "--dataset_dir",
+            str(dataset_dir),
+            "--seed",
+            "42",
+        ]
+    )
+    assert rc == 0, "run_split failed"
+
+    with open(dataset_dir / "simulation_manifest.json") as fh:
+        sim_manifest = json.load(fh)
+    with open(dataset_dir / "split_manifest.json") as fh:
+        split_manifest = json.load(fh)
+
+    return dataset_dir, sim_manifest, split_manifest
+
+
 # ── Section 6.14: all required fields present ─────────────────────────────────
 
 
@@ -462,3 +505,119 @@ class TestPipelineIntegrity:
         assert pp["fixed_agc_range_k"] == config.FIXED_TEMP_RANGE_K
         assert pp["fire_ratio_target"] == config.FIRE_RATIO
         assert pp["script_version"] == config.SCRIPT_VERSION
+
+
+# ── Per-split default policy (no --profiles/--agc_modes overrides) ────────────
+
+
+class TestPerSplitDefaultPolicy:
+    """Exercises the default (no CLI override) per-split policy path, added to
+    close the profile/AGC train-test leakage bug: train sees profile B only
+    (AGC fixed+global), val sees profile B only (AGC fixed), test sees
+    profiles A/B/C (AGC fixed). `pipeline_output` never exercises this path
+    since it always passes explicit --profiles/--agc_modes.
+    """
+
+    @staticmethod
+    def _images_for_split(sim_manifest, split_name):
+        images = [img for img in sim_manifest["images"] if img["split"] == split_name]
+        assert images, f"No images generated for split={split_name!r}"
+        return images
+
+    def test_train_uses_profile_b_only(self, default_policy_output):
+        _, sim_manifest, _ = default_policy_output
+        images = self._images_for_split(sim_manifest, "train")
+        assert {img["profile"] for img in images} == {"B"}
+
+    def test_train_uses_fixed_and_global_agc(self, default_policy_output):
+        _, sim_manifest, _ = default_policy_output
+        images = self._images_for_split(sim_manifest, "train")
+        assert {img["agc_mode"] for img in images} == {"fixed", "global"}
+
+    def test_val_uses_profile_b_only(self, default_policy_output):
+        _, sim_manifest, _ = default_policy_output
+        images = self._images_for_split(sim_manifest, "val")
+        assert {img["profile"] for img in images} == {"B"}
+
+    def test_val_uses_fixed_agc_only(self, default_policy_output):
+        _, sim_manifest, _ = default_policy_output
+        images = self._images_for_split(sim_manifest, "val")
+        assert {img["agc_mode"] for img in images} == {"fixed"}
+
+    def test_test_split_uses_all_profiles(self, default_policy_output):
+        _, sim_manifest, _ = default_policy_output
+        images = self._images_for_split(sim_manifest, "test")
+        assert {img["profile"] for img in images} == {"A", "B", "C"}
+
+    def test_test_split_uses_fixed_agc_only(self, default_policy_output):
+        _, sim_manifest, _ = default_policy_output
+        images = self._images_for_split(sim_manifest, "test")
+        assert {img["agc_mode"] for img in images} == {"fixed"}
+
+    def test_images_by_split_matches_actual_counts(self, default_policy_output):
+        _, sim_manifest, _ = default_policy_output
+        counts = sim_manifest["images_by_split"]
+        for split_name in ("train", "val", "test"):
+            actual = len(
+                [img for img in sim_manifest["images"] if img["split"] == split_name]
+            )
+            assert counts[split_name] == actual
+
+    def test_split_manifest_matches_image_splits(self, default_policy_output):
+        """run_split's reuse of split_manifest.json (written by run_simulation)
+        must not disagree with the split already stamped on each image."""
+        _, sim_manifest, split_manifest = default_policy_output
+        granule_to_split = {
+            gid: split_name
+            for split_name in ("train", "val", "test")
+            for gid in split_manifest[split_name]
+        }
+        for img in sim_manifest["images"]:
+            assert granule_to_split.get(img["granule_id"]) == img["split"]
+
+
+# ── run_simulation CLI validation (review fixes) ───────────────────────────────
+
+
+class TestRunSimulationArgValidation:
+    """Covers the review fix that closed the asymmetry between --profiles
+    (always validated) and --agc_modes (previously unvalidated, silently
+    falling through to per-patch 'auto' normalization on a typo)."""
+
+    def test_unknown_agc_mode_override_exits_nonzero(self, tmp_path):
+        patches_dir = _build_patches_dir(tmp_path)
+        dataset_dir = tmp_path / "04_dataset"
+
+        rc = sim_main(
+            [
+                "--input_dir",
+                str(patches_dir),
+                "--output_dir",
+                str(dataset_dir),
+                "--agc_modes",
+                "fixed,glbal",  # typo — not a valid AGC mode
+                "--seed",
+                "42",
+            ]
+        )
+        assert rc == 1
+
+    def test_unknown_profile_override_still_exits_nonzero(self, tmp_path):
+        """Pre-existing behaviour (regression guard) — --profiles validation
+        must still reject unknown profile keys the same way."""
+        patches_dir = _build_patches_dir(tmp_path)
+        dataset_dir = tmp_path / "04_dataset"
+
+        rc = sim_main(
+            [
+                "--input_dir",
+                str(patches_dir),
+                "--output_dir",
+                str(dataset_dir),
+                "--profiles",
+                "Z",
+                "--seed",
+                "42",
+            ]
+        )
+        assert rc == 1
