@@ -77,16 +77,22 @@ class TestSetMode:
 class TestCalibrate:
     def _loader(self, multiroot, n=16):
         records, _ = load_merged_records(multiroot.roots)
-        samples = split_samples(expand_to_samples(records, ["B"], ["fixed"]))["train"][:n]
+        samples = split_samples(expand_to_samples(records, ["B"], ["fixed"]))["train"][
+            :n
+        ]
         ds = ThermalDataset(samples, train_thermal.build_transforms(augment=False))
         return DataLoader(ds, batch_size=4)
 
     def test_runs_without_grad(self, multiroot):
-        model = qat.NormalizedFireNet(train_thermal.build_model(pretrained=False)).eval()
+        model = qat.NormalizedFireNet(
+            train_thermal.build_model(pretrained=False)
+        ).eval()
         qat.calibrate(model, self._loader(multiroot), torch.device("cpu"), batches=2)
 
     def test_empty_loader_is_not_fatal(self):
-        model = qat.NormalizedFireNet(train_thermal.build_model(pretrained=False)).eval()
+        model = qat.NormalizedFireNet(
+            train_thermal.build_model(pretrained=False)
+        ).eval()
         qat.calibrate(model, DataLoader([]), torch.device("cpu"), batches=4)
 
 
@@ -105,7 +111,9 @@ class TestQatCaptureAndConvert:
         assert quantizer is not None
 
         records, _ = load_merged_records(multiroot.roots)
-        samples = split_samples(expand_to_samples(records, ["B"], ["fixed"]))["train"][:8]
+        samples = split_samples(expand_to_samples(records, ["B"], ["fixed"]))["train"][
+            :8
+        ]
         loader = DataLoader(
             ThermalDataset(samples, train_thermal.build_transforms(augment=False)),
             batch_size=4,

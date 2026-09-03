@@ -63,9 +63,7 @@ class TestLoadMergedRecords:
         records, _ = dataset.load_merged_records(multiroot.roots)
         by_granule_votes: dict[str, set[str]] = {}
         for root in multiroot.roots:
-            sm = json.loads(
-                (root / "04_dataset" / "split_manifest.json").read_text()
-            )
+            sm = json.loads((root / "04_dataset" / "split_manifest.json").read_text())
             for split_name in ("train", "val", "test"):
                 for gid in sm[split_name]:
                     by_granule_votes.setdefault(gid, set()).add(split_name)
@@ -122,9 +120,7 @@ class TestSplitSamples:
         records, _ = dataset.load_merged_records(multiroot.roots)
         samples = dataset.expand_to_samples(records, ["B"], ["fixed"])
         by_split = dataset.split_samples(samples)
-        granules = {
-            k: {s["granule_id"] for s in v} for k, v in by_split.items()
-        }
+        granules = {k: {s["granule_id"] for s in v} for k, v in by_split.items()}
         assert not (granules.get("train", set()) & granules.get("test", set()))
         assert not (granules.get("train", set()) & granules.get("val", set()))
         assert not (granules.get("val", set()) & granules.get("test", set()))

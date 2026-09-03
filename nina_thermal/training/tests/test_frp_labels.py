@@ -5,7 +5,6 @@ reformulates the target as "large fire complex in view" (summed FRP over the
 footprint) and drops the ambiguous middle band rather than mislabelling it.
 """
 
-
 import numpy as np
 import pytest
 
@@ -49,8 +48,13 @@ def _sample(patch, granule_id, meta_dir, centroid, date, *, label=0):
 class TestComputePatchFrp:
     def test_sums_in_footprint_and_time_window(self, tmp_path):
         gid = "S3A_SL_1_RBT____20230815T120000_g001"
-        s = _sample("g001_p0000", gid, tmp_path / "images_meta_root/metadata",
-                    (-12.0, -63.0), None)
+        s = _sample(
+            "g001_p0000",
+            gid,
+            tmp_path / "images_meta_root/metadata",
+            (-12.0, -63.0),
+            None,
+        )
         # 2 rows in-window at the centroid, 1 row a week away (excluded).
         det = _detections(
             [

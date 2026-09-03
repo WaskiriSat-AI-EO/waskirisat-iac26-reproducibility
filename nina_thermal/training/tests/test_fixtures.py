@@ -62,7 +62,9 @@ class TestSingleRoot:
             granule_ids=ids,
         )
         fixtures.generate_synthetic_dataset(tmp_path / "04_dataset", spec)
-        records = json.loads((tmp_path / "04_dataset" / "label_manifest.json").read_text())
+        records = json.loads(
+            (tmp_path / "04_dataset" / "label_manifest.json").read_text()
+        )
         assert {r["granule_id"] for r in records} == set(ids)
 
     def test_warm_surface_below_ambient_threshold_raises(self):

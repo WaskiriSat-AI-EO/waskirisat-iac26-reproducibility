@@ -61,8 +61,12 @@ class TestBuildTransforms:
         assert out.shape == (3, IMAGE_HEIGHT, IMAGE_WIDTH)
 
     def test_augment_adds_flips(self):
-        aug = [type(t).__name__ for t in train_thermal.build_transforms(True).transforms]
-        plain = [type(t).__name__ for t in train_thermal.build_transforms(False).transforms]
+        aug = [
+            type(t).__name__ for t in train_thermal.build_transforms(True).transforms
+        ]
+        plain = [
+            type(t).__name__ for t in train_thermal.build_transforms(False).transforms
+        ]
         assert len(aug) > len(plain)
         assert any("Flip" in n for n in aug)
         assert not any("ColorJitter" in n or "Brightness" in n for n in aug)

@@ -186,7 +186,9 @@ def _make_bt_patch(
     elif surface_target == "fire":
         n_fire = max(12, int(2.0 * config.MIN_FIRE_FRACTION * _PATCH_PX))
         idx = rng.choice(_PATCH_PX, size=n_fire, replace=False)
-        flat[idx] = config.FIRE_F2_ABS_THRESHOLD_K + rng.uniform(40.0, 90.0, size=n_fire)
+        flat[idx] = config.FIRE_F2_ABS_THRESHOLD_K + rng.uniform(
+            40.0, 90.0, size=n_fire
+        )
 
     return flat.reshape(_PATCH_H, _PATCH_W).astype(np.float32)
 
@@ -210,7 +212,9 @@ def _is_off_season(granule_id: str) -> bool:
 def granule_sensing_date(granule_id: str) -> datetime:
     """Parse the sensing date from a granule id (matches ``frp_labels._granule_date``)."""
     token = granule_id.split("____")[1][:8]
-    return datetime(int(token[:4]), int(token[4:6]), int(token[6:8]), tzinfo=timezone.utc)
+    return datetime(
+        int(token[:4]), int(token[4:6]), int(token[6:8]), tzinfo=timezone.utc
+    )
 
 
 def _deterministic_centroid(granule_id: str) -> tuple[float, float]:
@@ -288,7 +292,11 @@ def generate_synthetic_dataset(
         off_season = _is_off_season(granule_id)
         fire_ratio = spec.off_season_fire_ratio if off_season else spec.peak_fire_ratio
         surface_p = np.array(
-            [fire_ratio, spec.warm_surface_ratio, 1.0 - fire_ratio - spec.warm_surface_ratio]
+            [
+                fire_ratio,
+                spec.warm_surface_ratio,
+                1.0 - fire_ratio - spec.warm_surface_ratio,
+            ]
         )
         if surface_p[-1] < 0:
             raise ValueError("fire_ratio + warm_surface_ratio must be <= 1.0")
@@ -301,7 +309,9 @@ def generate_synthetic_dataset(
             bt_patch = _make_bt_patch(
                 rng, surface_target, spec.ambient_mean_k, spec.ambient_std_k
             )
-            delta_t = (rng.standard_normal((_PATCH_H, _PATCH_W)) * 0.3).astype(np.float32)
+            delta_t = (rng.standard_normal((_PATCH_H, _PATCH_W)) * 0.3).astype(
+                np.float32
+            )
 
             label = compute_patch_label(bt_patch, delta_t)
             surface_type = classify_patch_surface_type(bt_patch, delta_t, label)
@@ -406,7 +416,8 @@ def generate_synthetic_dataset(
 
     # ── Split (granule level, real function) ────────────────────────────────
     splits = granule_level_split(
-        granule_labels, seed=spec.split_seed if spec.split_seed is not None else spec.seed
+        granule_labels,
+        seed=spec.split_seed if spec.split_seed is not None else spec.seed,
     )
     granule_to_split = {gid: name for name, gids in splits.items() for gid in gids}
 
@@ -628,9 +639,7 @@ def generate_multiroot_fixture(
         raise ValueError("overlap must be smaller than granules_per_root")
 
     total_granules = step * (n_roots - 1) + granules_per_root
-    all_ids = [
-        _granule_id(i, off_season=(i % 3 == 0)) for i in range(total_granules)
-    ]
+    all_ids = [_granule_id(i, off_season=(i % 3 == 0)) for i in range(total_granules)]
 
     roots: list[Path] = []
     summaries: list[dict[str, Any]] = []
@@ -652,7 +661,9 @@ def generate_multiroot_fixture(
         write_firms_csv(root_dir / "firms", root_ids, seed=seed + r)
 
         split_manifest = json.loads(
-            (root_dir / "04_dataset" / "split_manifest.json").read_text(encoding="utf-8")
+            (root_dir / "04_dataset" / "split_manifest.json").read_text(
+                encoding="utf-8"
+            )
         )
         for split_name in ("train", "val", "test"):
             for gid in split_manifest[split_name]:
@@ -662,9 +673,7 @@ def generate_multiroot_fixture(
         summaries.append(summary)
 
     shared = sorted(g for g, m in per_root_split.items() if len(m) > 1)
-    conflicting = sorted(
-        g for g in shared if len(set(per_root_split[g].values())) > 1
-    )
+    conflicting = sorted(g for g in shared if len(set(per_root_split[g].values())) > 1)
 
     logger.info(
         "Multi-root fixture: %d roots, %d shared granules, %d with conflicting splits",
