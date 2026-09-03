@@ -9,10 +9,10 @@ End-to-end pipeline for generating machine learning datasets of wildfire hotspot
 The package:
 
 1. **Downloads** Sentinel-3 SLSTR granules from the Copernicus Data Space Ecosystem
-2. **Extracts** thermal brightness temperature channels (F2 at 10.85 µm and S8) from NetCDF
+2. **Extracts** the thermal brightness-temperature channel (F2, the low-gain fire channel at 10.85 µm; S8 is its co-located standard-gain twin) from NetCDF
 3. **Processes** them with physically correct radiance-domain aggregation to match the NINA Lepton GSD (~3,563 m/pixel)
 4. **Simulates** the full Lepton sensor degradation chain (thermal noise, AGC quantization, optical PSF, FPN)
-5. **Labels** fire/hotspot patches with a dual brightness temperature criterion
+5. **Labels** patches from NASA FIRMS active-fire detections (confidence- and FRP-gated), matched to the SLSTR grid — the brightness-temperature mask is a QA cross-check only, never a label source
 6. **Splits** at granule level (not patch level) to prevent spatial data leakage
 7. **Balances** fire/no-fire class ratio (target: 20% fire) by undersampling
 8. **Reports** comprehensive statistics for dataset publication
@@ -27,9 +27,10 @@ The package:
 | Lepton GSD | 3,563 m/pixel | Operational ground sampling distance |
 | SLSTR pixel size | 1,000 m | Sentinel-3 nadir thermal channel |
 | Aggregation factor | 4× | SLSTR pixels aggregated to match Lepton GSD (~4,000 m) |
-| F2 wavelength | 10.85 µm | Sentinel-3 narrowband thermal channel |
-| Fire delta-T threshold | 8 K | Min temp difference (F2_BT − S8_BT) for fire pixel |
-| Fire absolute threshold | 320 K | Min F2 brightness temperature for fire pixel |
+| F2 wavelength | 10.85 µm | Sentinel-3 fire channel (S8 shares its spectral response) |
+| FIRMS min confidence | `nominal` | Minimum FIRMS active-fire confidence tier accepted |
+| FIRMS min FRP | 10 MW | Minimum Fire Radiative Power for a labelled detection |
+| BT QA threshold | 310 K | F2_BT cross-check only — quantifies warm-surface FP rate, not a label |
 | AGC range (flight) | 258.15–358.15 K | Fixed quantization window (−15°C to +85°C) |
 | Fire ratio target | 20% | Target fire-to-no-fire ratio after balancing |
 | Lepton NETD | 50 mK | Noise Equivalent Temperature Difference |
@@ -150,7 +151,7 @@ Reads F2_BT, S8_BT, lat, lon from NetCDF; applies cloud and exception bitmasks (
 
 **Outputs per granule:**
 - `*_F2_BT.npy` — brightness temperature at 10.85 µm [K]
-- `*_S8_BT.npy` — brightness temperature at 12.0 µm [K]
+- `*_S8_BT.npy` — brightness temperature at 10.85 µm [K] (standard-gain twin of F2)
 - `*_lat.npy`, `*_lon.npy` — geolocation [degrees]
 - `data/02_extracted/extraction_manifest.json`
 
@@ -296,17 +297,26 @@ python -m nina_thermal.pipelines.run_report \
 
 ---
 
-## Fire Detection Criterion
+## Fire Labelling
 
-A pixel is classified as **fire** when all three conditions hold:
+**Labels come from NASA FIRMS active-fire detections, not from the imagery.**
+FIRMS detections are matched to the SLSTR grid within a ±1-day overpass window
+and accepted only when they clear both quality gates:
 
 ```
-F2_BT  > 320 K      (absolute brightness temperature threshold)
-delta_T = F2_BT - S8_BT > 8 K  (contextual fire signal: fire heats shorter wavelength more)
-pixel is finite (not NaN / not cloud-masked)
+confidence tier >= nominal        (VIIRS string / MODIS 0-100 mapped per C6.1)
+fire radiative power >= 10 MW      (energetic enough for a detectable LWIR anomaly at 3563 m)
 ```
 
-A patch receives **label = 1** when the fraction of fire pixels is ≥ 0.05%.
+A patch receives **label = 1** when an accepted FIRMS detection falls inside it.
+
+A two-channel brightness-temperature discriminant over the F2/S8 pair was
+implemented and evaluated and carries **no fire information**: the two channels
+share a spectral response function, so their BT difference is identically zero
+wherever both are unsaturated. The `compute_patch_label` BT mask
+(`F2_BT > 310 K`, `delta_T` disabled) is retained only as a QA cross-check to
+quantify warm-surface false-positive rates against FIRMS, and to label
+synthetic test fixtures.
 
 Patches are further classified by surface type:
 

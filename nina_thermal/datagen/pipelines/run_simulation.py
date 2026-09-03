@@ -61,6 +61,8 @@ import numpy as np
 from nina_thermal.datagen import config
 from nina_thermal.datagen.dataset.export import (
     build_image_metadata,
+    image_stem,
+    patch_key,
     save_label_manifest,
     save_patch_metadata,
 )
@@ -430,7 +432,7 @@ def main(argv=None) -> int:
             split, profile_override, agc_override
         )
 
-        base_key = f"{granule_id}_p{patch_index:04d}"
+        base_key = patch_key(granule_id, patch_index)
 
         # One label-manifest entry per physical patch (independent of config)
         label_records.append(
@@ -468,7 +470,7 @@ def main(argv=None) -> int:
             bt_normalized = apply_agc(bt_patch, t_min, t_max)
 
             for prof in profiles_eff:
-                img_name = f"{base_key}_{agc_mode}_{prof}"
+                img_name = image_stem(base_key, agc_mode, prof)
                 img_path = img_dir / f"{img_name}.png"
                 meta_path = meta_dir / f"{img_name}.json"
 

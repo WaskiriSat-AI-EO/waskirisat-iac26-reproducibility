@@ -33,6 +33,7 @@ from typing import Any
 import numpy as np
 
 from nina_thermal.datagen import config
+from nina_thermal.datagen.dataset.export import image_stem
 from nina_thermal.training.dataset import load_merged_records
 from nina_thermal.training.frp_labels import (
     DEFAULT_FRP_THRESHOLD_MW,
@@ -64,11 +65,6 @@ FEATURE_NAMES: tuple[str, ...] = (
     "grad_p99",
     "top_pixel_excess",
 )
-
-
-def _image_stem(patch: str, agc_mode: str, profile: str) -> str:
-    # TODO(PR-D): shared with training.fixtures — hoist to datagen.dataset.export.
-    return f"{patch}_{agc_mode}_{profile}"
 
 
 # ── BT recovery and per-patch statistics ────────────────────────────────────
@@ -156,7 +152,7 @@ def build_feature_matrix(
 
     for rec in records:
         root = Path(rec["_root"])
-        stem = _image_stem(rec["patch"], agc_mode, profile)
+        stem = image_stem(rec["patch"], agc_mode, profile)
         img_path = root / "images" / f"{stem}.png"
         meta_path = root / "metadata" / f"{stem}.json"
         if not img_path.is_file():

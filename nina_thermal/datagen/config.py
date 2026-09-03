@@ -151,13 +151,17 @@ HIGH_FIRE_GRANULE_THRESH = 0.05  # fire fraction tier for stratified split
 # retained only as a QA cross-check to quantify warm-surface false-positive
 # rates relative to FIRMS — it is NEVER used as a label source.
 #
-# NOTE: F2 (10.85 µm) and S8 (11.45 µm) are both LWIR channels.
-# Their BT difference is physically bounded to ~0–3 K for any surface,
-# including fire pixels. A delta_T discriminant is only meaningful for
-# MWIR vs LWIR channel pairs (e.g. 3.7 µm vs 11 µm). Since WaskiriSat
-# Lepton is a broadband LWIR sensor (8–14 µm) with no MWIR channel,
-# the BT check alone cannot discriminate fire from warm bare rock/sand.
-FIRE_DELTA_T_THRESHOLD_K = float("-inf")  # disabled — F2/S8 both LWIR
+# NOTE: F2 (the low-gain fire channel) and S8 (the standard thermal channel)
+# are co-located at 10.85 µm and SHARE a spectral response function.  Their
+# BT difference is therefore identically zero across the range in which both
+# are unsaturated, and departs from zero only where S8 saturates over a
+# high-temperature target — it carries no fire information.  Dual-band
+# active-fire discrimination requires a mid-wave + long-wave pair (e.g.
+# 3.7 µm vs 11 µm), across which the Planck radiance contrast between a
+# flaming front and its background differs by orders of magnitude.  The
+# WaskiriSat Lepton is a single broadband LWIR sensor (8–14 µm), so no such
+# discriminant exists and FIRMS is the sole positive-label source.
+FIRE_DELTA_T_THRESHOLD_K = float("-inf")  # disabled — F2/S8 share a spectral response
 FIRE_F2_ABS_THRESHOLD_K = 310.0  # QA cross-check threshold [K] — NOT a label source
 FIRE_EXEMPT_THRESHOLD_K = (
     308.0  # pixels above this are never cloud-masked in extraction

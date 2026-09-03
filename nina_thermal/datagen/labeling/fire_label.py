@@ -1,4 +1,14 @@
-"""Fire labeling functions for thermal patch classification."""
+"""Fire labeling functions for thermal patch classification.
+
+In the production pipeline **FIRMS active-fire detections are the sole
+positive-label source** (see ``run_processing`` and ``ingestion/firms_labels``).
+:func:`compute_patch_label` is a QA cross-check / offline fallback: a pure
+brightness-temperature mask, used to quantify warm-surface false-positive rates
+against FIRMS and to label synthetic fixtures where no FIRMS record exists. Its
+``delta_T`` term is disabled by default (``FIRE_DELTA_T_THRESHOLD_K = -inf``) —
+F2 and S8 share a spectral response function, so their BT difference carries no
+fire information (see ``config.py``).
+"""
 
 import logging
 from typing import Optional
@@ -17,22 +27,26 @@ def compute_patch_label(
     fire_f2_abs_threshold_k: Optional[float] = None,
     min_fire_fraction: Optional[float] = None,
 ) -> int:
-    """Return 1 if the patch contains enough fire pixels, else 0.
+    """QA / fallback BT mask — return 1 if enough pixels clear the thresholds.
 
-    A pixel counts as fire only when ALL three conditions hold:
-      1. ``delta_T > fire_delta_t_threshold_k``
+    NOT the production labeler (FIRMS is — see the module docstring). A pixel
+    counts as fire only when ALL of:
+      1. ``delta_T > fire_delta_t_threshold_k`` (disabled by default: the
+         default threshold is ``-inf``, so this term is a no-op — F2/S8 share
+         a spectral response and their BT difference carries no fire signal)
       2. ``F2_BT  > fire_f2_abs_threshold_k``
       3. The pixel is finite in both arrays (``np.isfinite``)
 
-    The dual criterion prevents warm-but-uniform surfaces (hot desert,
-    bare rock) from triggering fire labels. The fraction threshold allows
-    sub-pixel fires at the 3 563 m GSD to produce positive labels.
+    With delta_T disabled this reduces to an absolute-BT + fire-fraction mask,
+    which cannot separate a sub-pixel fire from warm bare rock at the 3 563 m
+    GSD — hence FIRMS, not this function, sets production labels.
 
     Args:
         f2_bt_patch: float32 (H, W) brightness temperature [K].
-        delta_t_patch: float32 (H, W) F2_BT − S8_BT [K].
+        delta_t_patch: float32 (H, W) — retained for signature compatibility;
+            with the default ``-inf`` threshold its values are never consulted.
         fire_delta_t_threshold_k: Minimum delta-T for a fire pixel.
-            Defaults to ``config.FIRE_DELTA_T_THRESHOLD_K``.
+            Defaults to ``config.FIRE_DELTA_T_THRESHOLD_K`` (``-inf``).
         fire_f2_abs_threshold_k: Minimum absolute F2_BT for a fire pixel.
             Defaults to ``config.FIRE_F2_ABS_THRESHOLD_K``.
         min_fire_fraction: Minimum fraction of fire pixels required for

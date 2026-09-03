@@ -34,7 +34,7 @@ class TestSingleRoot:
         dataset_dir, _ = single_root
         records = json.loads((dataset_dir / "label_manifest.json").read_text())
         for rec in records:
-            stem = fixtures._image_stem(rec["patch"], "fixed", "B")
+            stem = fixtures.image_stem(rec["patch"], "fixed", "B")
             assert (dataset_dir / "images" / f"{stem}.png").is_file()
             assert (dataset_dir / "metadata" / f"{stem}.json").is_file()
 

@@ -11,10 +11,11 @@ Design notes
   window; a false alarm (FP) costs one downlink. Fire *recall* is the primary
   metric; F-beta uses ``beta = sqrt(pos_weight)`` to stay coherent with the
   weighted training loss.
-* **Seasonal prevalence.** One patch footprint is ~307,000 km^2 and fire
-  prevalence over it is strongly seasonal, so the raw test-set precision is not
-  an operational number. :func:`precision_at_prevalence` projects it for stated
-  prevalences via Bayes' theorem.
+* **Seasonal prevalence.** A synthesized patch covers 640 x 480 km
+  (~307,000 km^2; the flight frame is 570 x 428 km, ~a quarter of Bolivia) and
+  fire prevalence over it is strongly seasonal, so the raw test-set precision
+  is not an operational number. :func:`precision_at_prevalence` projects it for
+  stated prevalences via Bayes' theorem.
 * **Granule-level bootstrap.** 50% tile overlap makes adjacent patches share up
   to 75% of their pixels, so :func:`cluster_bootstrap_ci` resamples *granules*,
   never patches.

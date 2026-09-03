@@ -13,6 +13,53 @@ import numpy as np
 from nina_thermal.datagen import config
 
 
+# ── On-disk naming convention (single source of truth) ───────────────────────
+#
+# A (granule_id, patch_index, agc_mode, profile) tuple maps to a file on disk
+# through these helpers ONLY. run_simulation, run_balance, the training dataset
+# assembly, the FRP relabel and the test fixtures all call them rather than
+# re-deriving the f-string.
+
+
+def patch_key(granule_id: str, patch_index: int) -> str:
+    """Config-independent physical-patch key: ``"{granule_id}_p{patch_index:04d}"``.
+
+    One key per physical patch, independent of how many AGC-mode x profile image
+    variants are rendered from it. This is the key used in ``label_manifest.json``.
+    """
+    return f"{granule_id}_p{patch_index:04d}"
+
+
+def image_stem(patch: str, agc_mode: str, profile: str) -> str:
+    """Shared stem of a rendered variant's PNG and JSON: ``"{patch}_{agc_mode}_{profile}"``.
+
+    Args:
+        patch: Physical-patch key from :func:`patch_key`.
+        agc_mode: ``"fixed"``, ``"global"`` or ``"auto"``.
+        profile: Degradation profile ``"A"`` / ``"B"`` / ``"C"``.
+    """
+    return f"{patch}_{agc_mode}_{profile}"
+
+
+def image_filename(patch: str, agc_mode: str, profile: str) -> str:
+    """PNG filename (relative to ``<dataset_dir>/images/``) for a variant."""
+    return f"{image_stem(patch, agc_mode, profile)}.png"
+
+
+def metadata_filename(patch: str, agc_mode: str, profile: str) -> str:
+    """JSON filename (relative to ``<dataset_dir>/metadata/``) for a variant."""
+    return f"{image_stem(patch, agc_mode, profile)}.json"
+
+
+def metadata_path_for_image(image_path: Path) -> Path:
+    """Sidecar metadata JSON path for a rendered image path.
+
+    ``<dataset_dir>/images/<stem>.png`` -> ``<dataset_dir>/metadata/<stem>.json``.
+    """
+    image_path = Path(image_path)
+    return image_path.parent.parent / "metadata" / f"{image_path.stem}.json"
+
+
 # ── Image and metadata persistence ───────────────────────────────────────────
 
 

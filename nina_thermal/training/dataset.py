@@ -47,6 +47,8 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset
 
+from nina_thermal.datagen.dataset.export import image_filename
+
 logger = logging.getLogger(__name__)
 
 # ── Native Lepton geometry ────────────────────────────────────────────────────
@@ -231,7 +233,7 @@ def expand_to_samples(
     for record in records:
         for agc_mode in agc_modes:
             for profile in profiles:
-                name = f"{record['patch']}_{agc_mode}_{profile}.png"
+                name = image_filename(record["patch"], agc_mode, profile)
                 path = record["_root"] / "images" / name
                 if not path.is_file():
                     missing += 1

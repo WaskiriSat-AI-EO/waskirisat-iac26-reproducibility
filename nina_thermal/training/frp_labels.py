@@ -47,6 +47,7 @@ from pathlib import Path
 import numpy as np
 
 from nina_thermal.datagen import config as C
+from nina_thermal.datagen.dataset.export import metadata_path_for_image
 
 logger = logging.getLogger(__name__)
 
@@ -163,11 +164,7 @@ def compute_patch_frp(samples: list[dict], detections) -> dict[str, dict]:
     for sample in samples:
         if sample["patch"] in result:
             continue
-        meta_path = Path(
-            str(sample["path"])
-            .replace("/images/", "/metadata/")
-            .replace(".png", ".json")
-        )
+        meta_path = metadata_path_for_image(sample["path"])
         if not meta_path.is_file():
             missing_metadata += 1
             continue
