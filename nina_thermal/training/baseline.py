@@ -198,7 +198,9 @@ def build_feature_matrix(
 # ── Baseline model ─────────────────────────────────────────────────────────
 
 
-def fit_logistic_baseline(X: np.ndarray, y: np.ndarray, *, seed: int = config.DEFAULT_SEED):
+def fit_logistic_baseline(
+    X: np.ndarray, y: np.ndarray, *, seed: int = config.DEFAULT_SEED
+):
     """Fit a standardized logistic-regression baseline.
 
     ``class_weight="balanced"`` compensates for label imbalance so the baseline
@@ -361,9 +363,13 @@ def detect_degenerate_labels(
     n_granules = len(per_granule)
 
     if n_granules and all_pos == n_granules:
-        warns.append("Every granule is 100% fire-labeled — no genuine negative granule.")
+        warns.append(
+            "Every granule is 100% fire-labeled — no genuine negative granule."
+        )
     if n_granules and all_neg == n_granules:
-        warns.append("Every granule is 100% no-fire-labeled — no genuine positive granule.")
+        warns.append(
+            "Every granule is 100% no-fire-labeled — no genuine positive granule."
+        )
 
     for w in warns:
         logger.warning(w)
@@ -424,7 +430,7 @@ def recalibrate_min_fire_fraction(
 
 def _apply_label_scheme(
     records: list[dict[str, Any]],
-    roots: list[Path],
+    roots: list[str | Path],
     label_scheme: str,
     agc_mode: str,
     profile: str,
@@ -446,7 +452,9 @@ def _apply_label_scheme(
         s["patch"]: int(s["label"]) for s in samples if s["label"] != LABEL_AMBIGUOUS
     }
     kept = [
-        {**r, "label": frp_label[r["patch"]]} for r in records if r["patch"] in frp_label
+        {**r, "label": frp_label[r["patch"]]}
+        for r in records
+        if r["patch"] in frp_label
     ]
     return kept, summary
 
@@ -478,7 +486,6 @@ def build_baseline_report(
     Returns:
         The report dict. Callers write it to ``baseline_report.json``.
     """
-    roots = [Path(r) for r in roots]
     records, _ = load_merged_records(roots)
     records = [r for r in records if r.get("split") in ("train", "val")]
     if not records:

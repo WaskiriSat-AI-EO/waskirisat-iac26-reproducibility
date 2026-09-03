@@ -76,7 +76,9 @@ class TestGroupedCvAuc:
 
     def test_single_class_is_reported_not_raised(self):
         X = np.zeros((10, len(baseline.FEATURE_NAMES)))
-        out = baseline.grouped_cv_auc(X, np.zeros(10, dtype=int), [f"g{i}" for i in range(10)])
+        out = baseline.grouped_cv_auc(
+            X, np.zeros(10, dtype=int), [f"g{i}" for i in range(10)]
+        )
         assert out["auc_mean"] is None and "one class" in out["error"].lower()
 
     def test_separable_data_scores_high(self):
@@ -113,9 +115,7 @@ class TestRecalibrateMinFireFraction:
     def test_recommends_the_target_quantile(self, tmp_path):
         import json
 
-        manifest = {
-            "patches": [{"fire_fraction": f / 100} for f in range(100)]
-        }
+        manifest = {"patches": [{"fire_fraction": f / 100} for f in range(100)]}
         path = tmp_path / "patches_manifest.json"
         path.write_text(json.dumps(manifest))
         out = baseline.recalibrate_min_fire_fraction(path, target_positive_rate=0.20)
@@ -140,7 +140,11 @@ class TestBuildBaselineReport:
         assert rep["frp_relabel"] is None
         assert rep["frp_threshold_mw"] is None
         assert set(rep["grouped_cv"]) == {
-            "n_splits", "auc_per_fold", "auc_mean", "auc_std", "error"
+            "n_splits",
+            "auc_per_fold",
+            "auc_mean",
+            "auc_std",
+            "error",
         }
         assert set(rep["per_feature_auc"]) == set(baseline.FEATURE_NAMES)
 

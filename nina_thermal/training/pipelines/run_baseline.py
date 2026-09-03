@@ -52,7 +52,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Summed-FRP threshold [MW] when --label frp.",
     )
     parser.add_argument(
-        "--cv_folds", type=int, default=DEFAULT_CV_FOLDS, help="Requested grouped-CV folds."
+        "--cv_folds",
+        type=int,
+        default=DEFAULT_CV_FOLDS,
+        help="Requested grouped-CV folds.",
     )
     parser.add_argument(
         "--patches_manifest",
