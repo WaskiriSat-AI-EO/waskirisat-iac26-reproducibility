@@ -34,5 +34,10 @@ pytest==9.0.2
 torch>=2.12.0
 torchvision>=0.27.0
 # QAT → int8 TFLite for STM32N6 Neural-ART NPU (OpenMV N6)
+# ai-edge-torch is the deprecated name; litert-torch is the current package and
+# is what nina_thermal.quantization.qat imports first (falling back to the old
+# name). It pulls torchao (the PT2E API moved there in torch 2.12) and
+# ai-edge-litert transitively.
+litert-torch>=0.9.0
 ai-edge-torch>=0.3.0
 ai-edge-litert>=1.0.0
