@@ -154,9 +154,7 @@ def main(argv=None) -> int:
             try:
                 with open(meta_file, encoding="utf-8") as fh:
                     meta = json.load(fh)
-                key = patch_key(
-                    meta.get("granule_id", ""), meta.get("patch_index", 0)
-                )
+                key = patch_key(meta.get("granule_id", ""), meta.get("patch_index", 0))
                 if key in excluded_patches:
                     meta["excluded_by_balance"] = True
                     with open(meta_file, "w", encoding="utf-8") as fh:

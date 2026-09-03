@@ -85,5 +85,8 @@ class TestCheckAcceptance:
         out = parity.check_acceptance(**self._kw())
         assert set(out) == {"passed", "violations", "tolerances", "measured"}
         assert set(out["tolerances"]) == {
-            "recall_drop", "fbeta_drop", "sqnr_min_db", "kl_max_nats"
+            "recall_drop",
+            "fbeta_drop",
+            "sqnr_min_db",
+            "kl_max_nats",
         }
