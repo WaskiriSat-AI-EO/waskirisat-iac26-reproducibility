@@ -81,7 +81,10 @@ def random_checkpoint(tmp_path_factory):
         json.dumps(
             {
                 "selected_threshold": 0.45,
-                "hyperparameters": {"beta": round(math.sqrt(3.0), 6), "pos_weight": 3.0},
+                "hyperparameters": {
+                    "beta": round(math.sqrt(3.0), 6),
+                    "pos_weight": 3.0,
+                },
             }
         )
     )

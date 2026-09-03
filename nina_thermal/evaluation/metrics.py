@@ -143,7 +143,9 @@ def compute_classification_metrics(
         # headline, prevalence-free
         "recall": round(recall, 6),
         "specificity": round(specificity, 6),
-        "roc_auc": round(float(roc_auc_score(arr_true, arr_score)), 6) if both else None,
+        "roc_auc": (
+            round(float(roc_auc_score(arr_true, arr_score)), 6) if both else None
+        ),
         "average_precision": (
             round(float(average_precision_score(arr_true, arr_score)), 6)
             if both
@@ -227,7 +229,14 @@ def profile_deltas(
     base = by_profile.get(baseline)
     if base is None:
         return {}
-    fields = ("recall", "specificity", "roc_auc", "average_precision", "fbeta", "precision")
+    fields = (
+        "recall",
+        "specificity",
+        "roc_auc",
+        "average_precision",
+        "fbeta",
+        "precision",
+    )
     out: dict[str, dict[str, float]] = {}
     for profile, metrics in by_profile.items():
         if profile == baseline:
@@ -293,7 +302,9 @@ def cluster_bootstrap_ci(
         idx = np.concatenate([group_to_idx[g] for g in sampled])
         try:
             v = metric_fn(arr_true[idx], arr_score[idx])
-        except Exception:  # noqa: BLE001, S112 - a degenerate resample is skipped by design
+        except (
+            Exception
+        ):  # noqa: BLE001, S112 - a degenerate resample is skipped by design
             continue
         if v is None or (isinstance(v, float) and np.isnan(v)):
             continue
@@ -338,7 +349,9 @@ def precision_fn(threshold: float) -> Callable[[np.ndarray, np.ndarray], float |
     return _fn
 
 
-def fbeta_fn(threshold: float, beta: float) -> Callable[[np.ndarray, np.ndarray], float | None]:
+def fbeta_fn(
+    threshold: float, beta: float
+) -> Callable[[np.ndarray, np.ndarray], float | None]:
     """Bootstrap ``metric_fn`` for F-beta at a fixed threshold."""
 
     def _fn(yt: np.ndarray, ys: np.ndarray) -> float | None:

@@ -64,7 +64,9 @@ _DEFAULT_BETA = math.sqrt(3.0)  # sqrt(POS_WEIGHT); overridden by training_repor
 # ── Model + inference ───────────────────────────────────────────────────────
 
 
-def load_checkpoint_model(checkpoint_path: Path, device: torch.device) -> torch.nn.Module:
+def load_checkpoint_model(
+    checkpoint_path: Path, device: torch.device
+) -> torch.nn.Module:
     """Rebuild the architecture and load a bare state-dict checkpoint.
 
     Args:
@@ -180,8 +182,10 @@ def build_evaluation_report(
     out_dir.mkdir(parents=True, exist_ok=True)
 
     if training_report is None:
-        for candidate in (out_dir / "training_report.json",
-                          checkpoint_path.parent / "training_report.json"):
+        for candidate in (
+            out_dir / "training_report.json",
+            checkpoint_path.parent / "training_report.json",
+        ):
             if candidate.is_file():
                 training_report = candidate
                 break
@@ -203,7 +207,10 @@ def build_evaluation_report(
         # No training report — sweep on the test scores at the default recall
         # floor, and flag it. This is not a validated operating point.
         provisional = run_inference(
-            load_checkpoint_model(checkpoint_path, device), test_samples, device, 0.5,
+            load_checkpoint_model(checkpoint_path, device),
+            test_samples,
+            device,
+            0.5,
             batch_size,
         )
         threshold, degenerate = select_threshold(
@@ -217,6 +224,8 @@ def build_evaluation_report(
             threshold,
             degenerate,
         )
+
+    assert threshold is not None  # set by _resolve or the swept block above
 
     model = load_checkpoint_model(checkpoint_path, device)
     predictions = run_inference(model, test_samples, device, threshold, batch_size)
@@ -265,7 +274,8 @@ def build_evaluation_report(
         "frp_threshold_mw": frp_threshold,
         "operating_threshold": round(float(threshold), 6),
         "threshold_source": (
-            "swept_on_test" if threshold_swept
+            "swept_on_test"
+            if threshold_swept
             else ("explicit" if explicit_threshold is not None else "training_report")
         ),
         "beta": round(beta, 6),
@@ -349,7 +359,9 @@ def save_figures(
     figures_dir = Path(out_dir) / "figures"
     figures_dir.mkdir(parents=True, exist_ok=True)
 
-    def _plot(group_name: str, metrics: dict[str, Any], recs: list[dict[str, Any]]) -> None:
+    def _plot(
+        group_name: str, metrics: dict[str, Any], recs: list[dict[str, Any]]
+    ) -> None:
         fig, axes = plt.subplots(1, 3, figsize=(15, 4))
         fig.suptitle(f"Evaluation — {group_name}", fontsize=13)
 
@@ -386,9 +398,16 @@ def save_figures(
         pr = M.compute_pr_curve(y_true.tolist(), y_score.tolist())
         if pr is not None:
             p_vals, r_vals, _ = pr
-            ax3.plot(r_vals, p_vals, lw=2, label=f"AP = {metrics.get('average_precision') or 0.0:.3f}")
+            ax3.plot(
+                r_vals,
+                p_vals,
+                lw=2,
+                label=f"AP = {metrics.get('average_precision') or 0.0:.3f}",
+            )
             base = metrics.get("n_fire", 0) / max(metrics.get("n", 1), 1)
-            ax3.axhline(base, color="k", linestyle="--", lw=1, label=f"baseline (pi={base:.2f})")
+            ax3.axhline(
+                base, color="k", linestyle="--", lw=1, label=f"baseline (pi={base:.2f})"
+            )
             ax3.legend(loc="upper right")
         else:
             ax3.text(0.5, 0.5, "Single class — PR N/A", ha="center", va="center")
@@ -402,7 +421,9 @@ def save_figures(
         plt.close(fig)
         logger.info("Figure saved: %s", path)
 
-    nominal = [r for r in predictions if r["profile"] == M.NOMINAL_PROFILE] or predictions
+    nominal = [
+        r for r in predictions if r["profile"] == M.NOMINAL_PROFILE
+    ] or predictions
     _plot(f"nominal_profile_{M.NOMINAL_PROFILE}", report["nominal"], nominal)
 
     by_profile_recs: dict[str, list[dict[str, Any]]] = {}

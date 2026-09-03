@@ -98,7 +98,9 @@ def main(argv: list[str] | None = None) -> int:
             device,
             frp_threshold=args.frp_threshold,
             explicit_threshold=args.threshold,
-            training_report=Path(args.training_report) if args.training_report else None,
+            training_report=(
+                Path(args.training_report) if args.training_report else None
+            ),
             batch_size=args.batch_size,
             seed=args.seed,
         )

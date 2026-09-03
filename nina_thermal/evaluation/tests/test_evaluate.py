@@ -25,25 +25,40 @@ class TestReportShape:
     def test_all_blocks_present(self, eval_multiroot, random_checkpoint, tmp_path):
         ckpt, ckpt_dir = random_checkpoint
         rep = _report(
-            eval_multiroot.roots, ckpt, tmp_path,
+            eval_multiroot.roots,
+            ckpt,
+            tmp_path,
             training_report=ckpt_dir / "training_report.json",
         )
         for key in (
-            "nominal", "by_profile", "deltas_vs_B", "by_surface_type",
-            "merge_stats", "frp_relabel", "test_composition", "operating_threshold",
+            "nominal",
+            "by_profile",
+            "deltas_vs_B",
+            "by_surface_type",
+            "merge_stats",
+            "frp_relabel",
+            "test_composition",
+            "operating_threshold",
         ):
             assert key in rep, key
         assert set(rep["by_profile"]) == {"A", "B", "C"}
         assert set(rep["deltas_vs_B"]) == {"A", "C"}
         assert "bootstrap_ci" in rep["nominal"]
         assert set(rep["nominal"]["bootstrap_ci"]) == {
-            "recall", "precision", "fbeta", "roc_auc"
+            "recall",
+            "precision",
+            "fbeta",
+            "roc_auc",
         }
 
-    def test_predictions_file_aligns_with_report(self, eval_multiroot, random_checkpoint, tmp_path):
+    def test_predictions_file_aligns_with_report(
+        self, eval_multiroot, random_checkpoint, tmp_path
+    ):
         ckpt, ckpt_dir = random_checkpoint
         rep = _report(
-            eval_multiroot.roots, ckpt, tmp_path,
+            eval_multiroot.roots,
+            ckpt,
+            tmp_path,
             training_report=ckpt_dir / "training_report.json",
         )
         preds = json.loads((tmp_path / "predictions.json").read_text())
@@ -53,7 +68,9 @@ class TestReportShape:
 
 
 class TestDataPath:
-    def test_evaluates_only_the_test_split(self, eval_multiroot, random_checkpoint, tmp_path):
+    def test_evaluates_only_the_test_split(
+        self, eval_multiroot, random_checkpoint, tmp_path
+    ):
         from nina_thermal.training.dataset import (
             expand_to_samples,
             load_merged_records,
@@ -63,7 +80,9 @@ class TestDataPath:
 
         ckpt, ckpt_dir = random_checkpoint
         _report(
-            eval_multiroot.roots, ckpt, tmp_path,
+            eval_multiroot.roots,
+            ckpt,
+            tmp_path,
             training_report=ckpt_dir / "training_report.json",
         )
         records, _ = load_merged_records(eval_multiroot.roots)
@@ -75,10 +94,14 @@ class TestDataPath:
         preds = json.loads((tmp_path / "predictions.json").read_text())["records"]
         assert {p["granule_id"] for p in preds} == test_granules
 
-    def test_non_degenerate_on_the_tuned_fixture(self, eval_multiroot, random_checkpoint, tmp_path):
+    def test_non_degenerate_on_the_tuned_fixture(
+        self, eval_multiroot, random_checkpoint, tmp_path
+    ):
         ckpt, ckpt_dir = random_checkpoint
         rep = _report(
-            eval_multiroot.roots, ckpt, tmp_path,
+            eval_multiroot.roots,
+            ckpt,
+            tmp_path,
             training_report=ckpt_dir / "training_report.json",
         )
         assert rep["degenerate_eval"] is False
@@ -89,10 +112,14 @@ class TestDataPath:
 
 
 class TestThresholdResolution:
-    def test_reads_selected_threshold_from_report(self, eval_multiroot, random_checkpoint, tmp_path):
+    def test_reads_selected_threshold_from_report(
+        self, eval_multiroot, random_checkpoint, tmp_path
+    ):
         ckpt, ckpt_dir = random_checkpoint
         rep = _report(
-            eval_multiroot.roots, ckpt, tmp_path,
+            eval_multiroot.roots,
+            ckpt,
+            tmp_path,
             training_report=ckpt_dir / "training_report.json",
         )
         assert rep["operating_threshold"] == 0.45
@@ -118,7 +145,9 @@ class TestDegenerateGuard:
     def test_small_fixture_is_flagged(self, multiroot, random_checkpoint, tmp_path):
         ckpt, ckpt_dir = random_checkpoint
         rep = _report(
-            multiroot.roots, ckpt, tmp_path,
+            multiroot.roots,
+            ckpt,
+            tmp_path,
             training_report=ckpt_dir / "training_report.json",
         )
         # the small `multiroot` fixture cannot supply 20 fire patches in profile B
@@ -126,14 +155,22 @@ class TestDegenerateGuard:
 
 
 class TestFigures:
-    def test_writes_one_png_per_slice(self, eval_multiroot, random_checkpoint, tmp_path):
+    def test_writes_one_png_per_slice(
+        self, eval_multiroot, random_checkpoint, tmp_path
+    ):
         ckpt, ckpt_dir = random_checkpoint
         rep = _report(
-            eval_multiroot.roots, ckpt, tmp_path,
+            eval_multiroot.roots,
+            ckpt,
+            tmp_path,
             training_report=ckpt_dir / "training_report.json",
         )
         preds = json.loads((tmp_path / "predictions.json").read_text())["records"]
         evaluate.save_figures(rep, preds, tmp_path)
         pngs = {p.name for p in (tmp_path / "figures").glob("*.png")}
         assert "eval_nominal_profile_b.png" in pngs
-        assert {"eval_profile_a.png", "eval_profile_b.png", "eval_profile_c.png"} <= pngs
+        assert {
+            "eval_profile_a.png",
+            "eval_profile_b.png",
+            "eval_profile_c.png",
+        } <= pngs

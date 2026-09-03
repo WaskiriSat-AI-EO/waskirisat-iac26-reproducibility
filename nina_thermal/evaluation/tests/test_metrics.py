@@ -11,7 +11,9 @@ class TestPrecisionAtPrevalence:
     def test_bayes_projection(self):
         # perfect recall, 90% specificity -> FPR 0.1
         # pi=0.5: 0.5*1 / (0.5*1 + 0.5*0.1) = 1/1.1
-        assert M.precision_at_prevalence(1.0, 0.9, 0.5) == pytest.approx(1 / 1.1, abs=1e-6)
+        assert M.precision_at_prevalence(1.0, 0.9, 0.5) == pytest.approx(
+            1 / 1.1, abs=1e-6
+        )
 
     def test_rare_prevalence_drives_precision_down(self):
         hi = M.precision_at_prevalence(0.9, 0.9, 0.9)
@@ -36,12 +38,17 @@ class TestComputeClassificationMetrics:
     def test_roc_auc_matches_sklearn(self):
         rng = np.random.default_rng(0)
         y = rng.integers(0, 2, 100).tolist()
-        s = [float(np.clip(0.5 + (0.2 if v else -0.2) + rng.normal(0, 0.3), 0, 1)) for v in y]
+        s = [
+            float(np.clip(0.5 + (0.2 if v else -0.2) + rng.normal(0, 0.3), 0, 1))
+            for v in y
+        ]
         m = M.compute_classification_metrics(y, [int(x >= 0.5) for x in s], s, beta=1.7)
         assert m["roc_auc"] == pytest.approx(roc_auc_score(y, s), abs=1e-6)
 
     def test_single_class_nulls_ranking_metrics(self):
-        m = M.compute_classification_metrics([1, 1, 1], [1, 1, 0], [0.9, 0.8, 0.3], beta=2.0)
+        m = M.compute_classification_metrics(
+            [1, 1, 1], [1, 1, 0], [0.9, 0.8, 0.3], beta=2.0
+        )
         assert m["roc_auc"] is None and m["average_precision"] is None
 
     def test_prevalence_block_only_when_requested(self):
@@ -62,10 +69,34 @@ class TestGroupMetrics:
     @pytest.fixture
     def records(self):
         return [
-            {"profile": "B", "surface_type": "fire", "label": 1, "pred": 1, "score": 0.9},
-            {"profile": "B", "surface_type": "nominal", "label": 0, "pred": 0, "score": 0.1},
-            {"profile": "A", "surface_type": "nominal", "label": 0, "pred": 1, "score": 0.8},
-            {"profile": "C", "surface_type": "warm_surface", "label": 0, "pred": 0, "score": 0.3},
+            {
+                "profile": "B",
+                "surface_type": "fire",
+                "label": 1,
+                "pred": 1,
+                "score": 0.9,
+            },
+            {
+                "profile": "B",
+                "surface_type": "nominal",
+                "label": 0,
+                "pred": 0,
+                "score": 0.1,
+            },
+            {
+                "profile": "A",
+                "surface_type": "nominal",
+                "label": 0,
+                "pred": 1,
+                "score": 0.8,
+            },
+            {
+                "profile": "C",
+                "surface_type": "warm_surface",
+                "label": 0,
+                "pred": 0,
+                "score": 0.3,
+            },
         ]
 
     def test_groups_by_profile(self, records):
@@ -81,12 +112,30 @@ class TestGroupMetrics:
 class TestProfileDeltas:
     def test_signed_drop_vs_baseline(self):
         by_profile = {
-            "A": {"recall": 0.90, "specificity": 0.80, "roc_auc": 0.85,
-                  "average_precision": 0.7, "fbeta": 0.88, "precision": 0.6},
-            "B": {"recall": 0.95, "specificity": 0.85, "roc_auc": 0.90,
-                  "average_precision": 0.8, "fbeta": 0.92, "precision": 0.7},
-            "C": {"recall": 0.80, "specificity": 0.70, "roc_auc": 0.75,
-                  "average_precision": 0.6, "fbeta": 0.78, "precision": 0.5},
+            "A": {
+                "recall": 0.90,
+                "specificity": 0.80,
+                "roc_auc": 0.85,
+                "average_precision": 0.7,
+                "fbeta": 0.88,
+                "precision": 0.6,
+            },
+            "B": {
+                "recall": 0.95,
+                "specificity": 0.85,
+                "roc_auc": 0.90,
+                "average_precision": 0.8,
+                "fbeta": 0.92,
+                "precision": 0.7,
+            },
+            "C": {
+                "recall": 0.80,
+                "specificity": 0.70,
+                "roc_auc": 0.75,
+                "average_precision": 0.6,
+                "fbeta": 0.78,
+                "precision": 0.5,
+            },
         }
         deltas = M.profile_deltas(by_profile, baseline="B")
         assert set(deltas) == {"A", "C"}
@@ -106,7 +155,11 @@ class TestClusterBootstrapCI:
                 label = int(rng.random() < 0.4)
                 y_true.append(label)
                 y_score.append(
-                    float(np.clip(0.5 + (sep if label else -sep) + rng.normal(0, 0.2), 0, 1))
+                    float(
+                        np.clip(
+                            0.5 + (sep if label else -sep) + rng.normal(0, 0.2), 0, 1
+                        )
+                    )
                 )
                 groups.append(f"g{g}")
         return y_true, y_score, groups
