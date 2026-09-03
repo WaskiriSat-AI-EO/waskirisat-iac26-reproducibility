@@ -122,9 +122,7 @@ HIGH_FIRE_GRANULE_THRESH = 0.05  # fire fraction tier for stratified split
 # Lepton is a broadband LWIR sensor (8–14 µm) with no MWIR channel,
 # the BT check alone cannot discriminate fire from warm bare rock/sand.
 FIRE_DELTA_T_THRESHOLD_K = float("-inf")  # disabled — F2/S8 both LWIR
-FIRE_F2_ABS_THRESHOLD_K = (
-    310.0  # QA cross-check threshold [K] — NOT a label source
-)
+FIRE_F2_ABS_THRESHOLD_K = 310.0  # QA cross-check threshold [K] — NOT a label source
 FIRE_EXEMPT_THRESHOLD_K = (
     308.0  # pixels above this are never cloud-masked in extraction
 )
@@ -141,8 +139,8 @@ WARM_SURFACE_THRESH_K = 310.0  # threshold for warm_surface label (reporting onl
 #      Justification: a 10 MW fire covering ~0.1% of a 3.5 km pixel raises the
 #      pixel BT by ~0.5 K above background — at the 1-sigma detection limit.
 #      Detections below this floor produce contradictory (unlearnable) labels.
-FIRMS_MIN_CONFIDENCE = "nominal"   # minimum FIRMS confidence tier to accept
-FIRMS_MIN_FRP_MW = 10.0            # minimum Fire Radiative Power [MW] to label as fire
+FIRMS_MIN_CONFIDENCE = "nominal"  # minimum FIRMS confidence tier to accept
+FIRMS_MIN_FRP_MW = 10.0  # minimum Fire Radiative Power [MW] to label as fire
 
 # ── Visualization ─────────────────────────────────────────────────────────
 # For STEM communication and paper figures ONLY
@@ -164,3 +162,7 @@ DEFAULT_END_DATE = "20230930"  # YYYYMMDD — Bolivia fire season peak
 # ── Reproducibility ───────────────────────────────────────────────────────
 DEFAULT_SEED = 42
 SCRIPT_VERSION = "1.0.0"
+
+# ── NASA FIRMS API ───────────────────────────────────────────────────────
+FIRMS_API_BASE_URL = "https://firms.modaps.eosdis.nasa.gov/api/area/csv"
+FIRMS_API_MAX_CHUNKS = 5

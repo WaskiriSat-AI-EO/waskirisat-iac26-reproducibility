@@ -136,6 +136,12 @@ def build_parser() -> argparse.ArgumentParser:
             f"Default: {config.FIRMS_MIN_CONFIDENCE!r}."
         ),
     )
+    p.add_argument(
+        "--time_window_days",
+        type=int,
+        default=0,
+        help="Number of calendar days around sensing_date to include FIRMS alerts (default: 0 = same day only).",
+    )
     return p
 
 
@@ -249,6 +255,7 @@ def main(argv=None) -> int:
                     lat,
                     lon,
                     sensing_date,
+                    time_window_days=args.time_window_days,
                     min_confidence=args.firms_min_confidence,
                     min_frp_mw=args.firms_min_frp,
                 )
@@ -302,7 +309,7 @@ def main(argv=None) -> int:
         # fraction (QA metric) for paper analysis.
         extra_in = {
             "delta_T": delta_T,
-            "fire_frac": fire_px_1km,                        # FIRMS label source
+            "fire_frac": fire_px_1km,  # FIRMS label source
             "bt_fire_frac": bt_fire_mask.astype(np.float32),  # QA cross-check
         }
         if roi_mask_1km is not None:
@@ -421,8 +428,8 @@ def main(argv=None) -> int:
                     "bt_min": bt_min,
                     "bt_max": bt_max,
                     "label": label,
-                    "fire_fraction": fire_fraction,         # FIRMS-based (label source)
-                    "bt_fire_fraction": bt_fire_fraction,   # BT-threshold (QA only)
+                    "fire_fraction": fire_fraction,  # FIRMS-based (label source)
+                    "bt_fire_fraction": bt_fire_fraction,  # BT-threshold (QA only)
                 }
             )
 

@@ -173,7 +173,7 @@ class TestTileGranuleToLeptonPatches:
         agg_factor = 4
         # Source array: 2 × lepton_h aggregated rows → 2*agg_factor*lepton_h source rows
         H = 2 * agg_factor * lepton_h  # 960
-        W = agg_factor * lepton_w      # 640
+        W = agg_factor * lepton_w  # 640
         bt = np.full((H, W), 300.0, dtype=np.float32)
         # Make the first lepton_h aggregated rows all-NaN → first patch rejected
         bt[: agg_factor * lepton_h, :] = np.nan  # first 480 source rows
@@ -189,6 +189,7 @@ class TestTileGranuleToLeptonPatches:
         assert len(patches) == 1, "Only the second patch should be accepted"
         assert len(grid_pos) == 1
         # The accepted patch is at the second row of the aggregated array
-        assert grid_pos[0] == (lepton_h, 0), (
-            f"Expected grid position ({lepton_h}, 0), got {grid_pos[0]}"
-        )
+        assert grid_pos[0] == (
+            lepton_h,
+            0,
+        ), f"Expected grid position ({lepton_h}, 0), got {grid_pos[0]}"

@@ -1,0 +1,98 @@
+{
+  "stage": "run_quantize",
+  "generated_at": "2026-08-30T21:02:00.482409+00:00",
+  "source_checkpoint": "models/nina_thermal_frp20000/mobilenetv3s_fire_best.pt",
+  "frp_relabel": {
+    "threshold_mw": 20000.0,
+    "counts": {
+      "fire": 120,
+      "no_fire": 217,
+      "ambiguous": 587,
+      "no_frp_data": 0
+    },
+    "retained": 337,
+    "definition": "label=1 when summed FIRMS FRP over the 640x480 km patch footprint >= 20000 MW within +/-1 day of sensing; label=0 only when the footprint contains zero FIRMS detections; patches in between are ambiguous and excluded."
+  },
+  "artifact": {
+    "path": "models/nina_thermal_frp20000/mobilenetv3s_fire_int8.tflite",
+    "checksum_file": "models/nina_thermal_frp20000/mobilenetv3s_fire_int8.sha256",
+    "size_mb": 1.3852,
+    "size_budget_mb": 2.0,
+    "within_budget": true
+  },
+  "quantization": {
+    "weights": "per-output-channel symmetric int8",
+    "activations": "per-tensor asymmetric uint8",
+    "io": {
+      "input": {
+        "dtype": "float32",
+        "shape": [
+          1,
+          3,
+          120,
+          160
+        ],
+        "scale": 0.0,
+        "zero_point": 0
+      },
+      "output": {
+        "dtype": "int8",
+        "shape": [
+          1,
+          1
+        ],
+        "scale": 0.04537102207541466,
+        "zero_point": -5
+      },
+      "fully_quantized": false
+    },
+    "normalization": "folded into graph via NormalizedFireNet",
+    "method": "QAT",
+    "epochs": 40,
+    "lr": 5e-05
+  },
+  "fp32": {
+    "roc_auc": 0.835913,
+    "average_precision": 0.738297,
+    "threshold": 0.45628589391708374,
+    "degenerate": false,
+    "metrics_at_threshold": {
+      "recall": 1.0,
+      "precision": 0.73913,
+      "specificity": 0.684211,
+      "fbeta": 0.918919,
+      "beta": 1.732051,
+      "confusion_matrix": {
+        "tp": 17,
+        "fp": 6,
+        "fn": 0,
+        "tn": 13
+      }
+    }
+  },
+  "int8": {
+    "roc_auc": 0.76935,
+    "average_precision": 0.648278,
+    "threshold": 0.28752797842025757,
+    "degenerate": false,
+    "metrics_at_threshold": {
+      "recall": 1.0,
+      "precision": 0.62963,
+      "specificity": 0.473684,
+      "fbeta": 0.871795,
+      "beta": 1.732051,
+      "confusion_matrix": {
+        "tp": 17,
+        "fp": 10,
+        "fn": 0,
+        "tn": 9
+      }
+    }
+  },
+  "parity": {
+    "roc_auc_delta": -0.066563,
+    "recall_delta": 0.0,
+    "precision_delta": -0.1095
+  },
+  "deployment_note": "Load on OpenMV N6 with ml.Model('/rom/mobilenetv3s_fire_int8.tflite'); feed the Lepton frame replicated to 3 channels, apply sigmoid to the logit and compare against int8.threshold.  Check artifact.io: this PT2E export quantizes weights to int8 but leaves the graph boundary in float32, so it is not yet a full-NPU graph.  Achieving uint8 I/O needs the ai_edge_quantizer static_wi8_ai8 recipe applied to a float export, which is not yet wired into this pipeline."
+}
