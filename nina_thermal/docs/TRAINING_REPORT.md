@@ -1,8 +1,14 @@
 # NINA Thermal — Fire Classifier Training Report
 
 **WaskiriSat / NINA payload — fire detection model**
-**Date:** 2026-08-31 · **Branch:** `feat/enhance-thermal-pipeline`
-**Artifacts:** `models/nina_thermal_frp20000/`
+**Date:** 2026-08-31 · **Refreshed:** 2026-09-03 (`run_baseline` + `run_evaluate` +
+`run_quantize` re-run against `main` post-#8→#12, no retraining)
+**Finalized:** 2026-10-02 — every number in this report re-checked against the
+committed artifacts in `models/nina_thermal_frp20000/` (training/quantization/
+evaluation/baseline reports, 129/129 `nina_thermal` tests passing); fixed a
+unit inconsistency in §4/§8 and synced §12 to `RUNBOOK_acquire_low_season.md`.
+No retraining.
+**Branch:** `main` · **Artifacts:** `models/nina_thermal_frp20000/`
 
 ---
 
@@ -14,14 +20,18 @@ int8 TFLite artifact of **1.385 MB** — within the 2 MB mission budget.
 
 Headline validation result (fp32): **ROC-AUC 0.836, accuracy 0.833, recall 1.000,
 specificity 0.684.** On the granule-disjoint test split the model holds at
-**ROC-AUC 0.787**, indicating the learned feature transfers to unseen scenes.
+**ROC-AUC 0.787** (90% bootstrap CI **[0.644, 0.943]**, granule-level resampling,
+n=1000), indicating the learned feature transfers to unseen scenes.
 
 Inference is **not** a bottleneck: 1.61 ms per frame for the int8 model on a host
 CPU core, against a Lepton frame period of ~116 ms (8.6 Hz).
 
-Two items remain open before flight: int8 quantization costs ~0.07 ROC-AUC, and
-the exported graph still has a float32 input boundary, so the Neural-ART NPU
-cannot yet own the whole graph.
+**2026-09-03 refresh — new finding.** The reusable evaluation/quantization
+pipelines added in #8→#11 introduced a formal **acceptance gate** for the int8
+artifact (recall drop ≤0.5pp, F-beta drop ≤1.0pp, SQNR ≥30dB, KL ≤0.05 nats).
+Re-running quantization against the unchanged fp32 checkpoint, **the gate now
+fails** — see §6.2. This did not exist when 0.787/0.769 were first reported;
+it is new information, not a regression in the model itself.
 
 ---
 
@@ -96,8 +106,11 @@ closes.
 | Stored tensors (incl. BatchNorm buffers) | 939,731 |
 | Input | 160 × 120 × 3 (grayscale replicated), native Lepton geometry — no resize |
 | Compute | **22.22 MMACs** (44.45 MFLOPs) per inference |
-| fp32 checkpoint | 3.58 MB |
+| fp32 checkpoint | 3.67 MB |
 | **int8 TFLite** | **1.385 MB** ✅ within 2 MB budget |
+
+(Sizes are MiB — bytes / 1024² — matching `run_quantize`'s own `size_mb`
+computation and the 2 MB budget check it is compared against.)
 
 **Why MobileNetV3-Small:** measured at 160×120 with a single-logit head,
 MobileNetV2 α=1.0 is 2,225,153 params (~2.12 MB int8) while MobileNetV3-Small is
@@ -181,26 +194,53 @@ Every fire in the validation set was caught, at the cost of 6 false alarms out o
 
 ### 6.2 int8 quantized model
 
-Operating threshold **0.2875**, re-swept on int8 validation scores.
+Operating threshold **0.1809**, re-swept on int8 validation scores (40 QAT
+epochs, lr 5e-5, `--batch_size 16 --num_workers 4` default settings OOM-killed
+this GPU mid-run at the default batch size 32 / 4 workers — reduce to
+`--batch_size 16 --num_workers 2` if reproducing).
 
 | metric | value | Δ vs fp32 |
 |---|---|---|
 | Recall | 1.000 | 0.000 |
-| Precision | 0.630 | −0.110 |
-| Specificity | 0.474 | −0.210 |
-| F-beta | 0.872 | −0.047 |
-| **ROC-AUC** | **0.769** | **−0.067** |
-| PR-AUC | 0.648 | −0.090 |
+| Precision | 0.607 | −0.132 |
+| Specificity | 0.421 | −0.263 |
+| F-beta | 0.861 | −0.058 |
+| **ROC-AUC** | **0.774** | **−0.062** |
+| PR-AUC | 0.671 | −0.068 |
 
 ```
                     pred FIRE   pred NO-FIRE
   actual FIRE            17            0
-  actual NO-FIRE         10            9
+  actual NO-FIRE         11            8
 ```
 
 Recall is preserved exactly; the cost is precision and specificity. QAT epoch
-count matters strongly here — 3 epochs gave ROC-AUC 0.599, 15 gave 0.709, and
-**40 epochs at lr 5e-5** recovered 0.769.
+count matters strongly here — 3 epochs gave ROC-AUC 0.599, 15 gave 0.709, 40
+epochs at lr 5e-5 recovers ROC-AUC to the 0.77–0.79 range (run-to-run variance
+of a few points on a 36-image validation set).
+
+**Acceptance gate: FAILED**, on all three measured axes:
+
+| check | tolerance | measured | verdict |
+|---|---|---|---|
+| Recall drop | ≤ 0.005 | 0.000 | pass |
+| F-beta drop | ≤ 0.010 | 0.058 | **fail** |
+| SQNR | ≥ 30 dB | 8.3 dB | **fail** |
+| Score-distribution KL | ≤ 0.05 nats | 11.07 nats | **fail** |
+
+SQNR and the F-beta drop are real and consistent with the operating-point
+metrics above — the int8 model works, but noticeably noisier than fp32.
+
+The **KL figure needs a caveat**: it is a 64-bin histogram divergence
+estimated from only **36 validation scores**, so most bins hold 0–1 samples.
+With this few samples the estimator is structurally unstable regardless of
+how good the quantization is — a handful of scores landing in bins where the
+other distribution's epsilon-smoothed density is tiny inflates KL sharply.
+0.05 nats as a tolerance was very likely calibrated assuming a much larger
+validation set; on n=36 it may not be achievable at any epoch count. Treat
+SQNR and F-beta drop as the trustworthy signals here, and consider either
+enlarging the val split (§9) or revisiting the KL tolerance/bin count before
+treating this gate as a go/no-go for deployment.
 
 ### 6.3 Test set (generalization check)
 
@@ -210,8 +250,25 @@ count matters strongly here — 3 epochs gave ROC-AUC 0.599, 15 gave 0.709, and
 | **fp32** | **test** | **0.720** | **0.778** | 0.651 | 0.674 | 0.709 | **0.787** | 0.702 |
 | int8 | test | 0.634 | 0.972 | 0.547 | 0.370 | 0.700 | 0.694 | 0.539 |
 
+Granule-level 90% bootstrap CIs (n=1000 resamples) on the fp32 test row, from
+`run_evaluate --figures`:
+
+| metric | point estimate | 90% CI |
+|---|---|---|
+| Recall | 0.778 | [0.675, 0.889] |
+| Precision | 0.651 | [0.386, 0.941] |
+| F-beta | 0.742 | [0.598, 0.849] |
+| ROC-AUC | 0.787 | [0.644, 0.943] |
+
+Precision's CI is wide — 82 test images is not enough to pin it down tightly;
+the lower bound (0.386) is a real possibility, not a rounding artifact.
+
 The **0.836 → 0.787** val-to-test gap is small, indicating genuine transfer to
 unseen granules. Under the original labels the same gap was 0.698 → 0.572.
+The int8 test row above predates the acceptance-gate machinery in §6.2 and was
+measured manually rather than through a reusable pipeline command —
+`run_evaluate` scores the fp32 checkpoint only; there is currently no
+equivalent one-command int8-on-test path.
 
 ### 6.4 Cross-profile robustness (test set, fp32)
 
@@ -224,6 +281,47 @@ unseen granules. Under the original labels the same gap was 0.698 → 0.572.
 Ranking quality is robust across all three degradation profiles, but **the
 operating threshold does not transfer** — calibrated on B, recall collapses on A
 and C. Either train on B+C or calibrate a threshold per profile.
+
+**This table is now one command**, not a manual analysis: `run_evaluate`
+expands the test set to A/B/C automatically and writes `by_profile` +
+`deltas_vs_B` to `evaluation_summary.json`, plus
+`figures/eval_profile_{a,b,c}.png`. A/C images for the test granules already
+exist on disk for all four data roots (rendered before the split-aware
+policy in #5) — **no re-simulation is needed to reproduce this table.**
+
+### 6.5 Feasibility baselines (`run_baseline`, reproducible gate)
+
+Two logistic-regression baselines over hand-crafted BT statistics
+(mean/std/percentiles/gradient/hot-fraction), grouped 5-fold CV by granule,
+train+val only — the test split is never read here. This is the number a CNN
+must beat to justify its complexity, and reproduces the paper's negative
+result on demand.
+
+| label scheme | n | fire fraction | grouped-CV AUC |
+|---|---|---|---|
+| `datagen` (any fire) | 717 | 0.446 | 0.593 ± 0.101 |
+| `frp` (≥ 20,000 MW) | 255 | 0.329 | **0.717 ± 0.134** |
+
+The `datagen` result is more nuanced than a flat "~0.5" and worth reading at
+the per-feature level, since it independently reproduces §2's within-granule
+finding:
+
+| feature | AUC | reads as |
+|---|---|---|
+| `bt_mean` / `bt_p50` | 0.611 / 0.623 | whole-scene warmth — mildly predictive |
+| `top_pixel_excess` | **0.479** | localized hotspot — at chance |
+| `grad_mean` / `grad_p99` | 0.492 / 0.491 | local gradient structure — at chance |
+
+Only whole-scene features carry signal; every localized feature sits at
+chance. This is the same scene-warmth confound documented in `frp_labels.py`
+and §10, now visible in a hand-crafted-feature ablation rather than only in
+the within-granule sign test. Per the runbook, an AUC "high" enough to
+contradict this — strong signal on the local features — would mean the
+datagen label is not degenerate after all and §§3/6/7 would need rework;
+that did not happen here.
+
+The `frp` baseline (0.717) sits below the CNN's test ROC-AUC (0.787),
+consistent with the CNN learning some structure beyond BT summary statistics.
 
 ---
 
@@ -270,12 +368,24 @@ hardware.
 
 ```
 models/nina_thermal_frp20000/
-├── mobilenetv3s_fire_best.pt        3.85 MB   fp32 checkpoint (state dict)
-├── mobilenetv3s_fire_int8.tflite    1.45 MB   int8 TFLite, QAT 40 epochs
-├── mobilenetv3s_fire_int8.sha256              6e486fc771f9c7a9…
+├── mobilenetv3s_fire_best.pt        3.67 MB   fp32 checkpoint (state dict) — gitignored, regenerable
+├── mobilenetv3s_fire_int8.tflite    1.385 MB  int8 TFLite, QAT 40 epochs — not yet committed (see note)
+├── mobilenetv3s_fire_int8.sha256              fdbdf938d4dcc036…
 ├── training_report.json              18 KB    full provenance, 35-epoch history
-└── quantization_report.json         2.9 KB    fp32↔int8 parity
+├── quantization_report.json         2.9 KB    fp32↔int8 parity + acceptance gate
+├── evaluation_summary.json                    test-set metrics + bootstrap CIs + per-profile (§6.3–6.4)
+├── baseline_report_datagen.json               feasibility baseline, datagen labels (§6.5)
+├── baseline_report_frp.json                   feasibility baseline, FRP labels (§6.5)
+├── predictions.json                           per-sample test predictions (underlies the CIs above)
+└── figures/eval_profile_{a,b,c}.png           per-profile score distributions (§6.4)
 ```
+
+`.pt` checkpoints are gitignored repo-wide (regenerable from the committed
+training code). The `.tflite` is the deployable artifact but, per repo
+convention, is "added explicitly when a release is cut" — it exists on disk
+and its checksum/report are committed, but the binary itself is not yet in
+git. The checksum above was re-verified against the current file on disk as
+part of finalizing this report.
 
 ### Reproduction
 
@@ -298,13 +408,14 @@ against a different target than the checkpoint was trained on.
 
 | # | issue | impact | proposed action |
 |---|---|---|---|
-| 1 | int8 costs ROC-AUC 0.787 → 0.694 (test) | deployable model weaker than fp32 | outlier clipping before quantization; more QAT epochs |
+| 1 | int8 **fails the acceptance gate** (§6.2): F-beta drop 0.058, SQNR 8.3 dB, KL 11.07 nats | not clearable to fly as-is on the current gate | outlier clipping before quantization; more QAT epochs; separately, the KL tolerance/bin-count may need recalibrating for a 36-image val set (§6.2) |
 | 2 | Float32 input boundary on exported graph | NPU cannot own the whole graph | wire the `ai_edge_quantizer` `static_wi8_ai8` recipe |
 | 3 | Threshold does not transfer across profiles | recall 0.778 (B) → 0.278 (C) | train on B+C, or per-profile threshold calibration |
-| 4 | Only 219 training images | wide confidence intervals | train on B+C (→438); mine `download/` for clean negatives |
-| 5 | Scene-warmth confound not excluded | may be a "hot dry day" detector | correlate score vs scene mean temperature |
+| 4 | Only 219 training images, 36 validation images | wide CIs (precision 90% CI [0.386, 0.941]); KL estimator unstable at this n | train on B+C (→438); low-season acquisition planned (§12) |
+| 5 | Scene-warmth confound not excluded | may be a "hot dry day" detector | correlate score vs scene mean temperature; low-season clean negatives (§12) directly attack this |
 | 6 | FIRMS ±1 day window vs 62 % night overpasses | label noise | tighten window; match night passes to VIIRS 01:30 |
 | 7 | `nina_cloud/quantization/` broken on current deps | cloud pipeline will not run | apply the same `torchao` / `litert-torch` fallbacks |
+| 8 | Default `run_quantize` settings (`--batch_size 32 --num_workers 4`) OOM-killed on a 30 GB RAM host at 40 epochs | silent process death, no traceback | use `--batch_size 16 --num_workers 2`; document in the runbook |
 
 ### Deployment prerequisite
 
@@ -346,3 +457,31 @@ test whether fire is visible there.
   wrong, and it is a fixable data problem.
 
 Either outcome is decisive, and it uses granules already on disk.
+
+## 12. Planned — two new acquisition roots (not yet run)
+
+Full step-by-step plan: **`nina_thermal/docs/RUNBOOK_acquire_low_season.md`**
+(status as of 2026-09-24: **not started**). Summary:
+
+- **`data_202208`** — Aug 2022, fire-rich (`--use_firms`), no overlap with
+  existing roots. Training has shifted toward accumulated-fire scenes, which
+  needs more fire-rich data.
+- **`data_202302`** — Feb–Apr 2023, low/wet season, no FIRMS filter. Adds the
+  clean no-fire negatives that directly attack the scene-warmth confound in
+  §10: a fire complex occurring on a hot dry day is confounded with "hot dry
+  day"; a genuinely low-season scene is neither, and is exactly the control
+  the within-granule test in §2 could not construct at the 20 GW threshold.
+
+Disk estimate in the runbook is **60–80 GB** for both windows (revised up from
+an earlier 30–50 GB guess), against 128 GB free as of 2026-09-24 — workable
+but worth checking before starting; three old `.zip` archives (~59 GB) at the
+repo root look like they duplicate already-extracted directories and may be
+removable first (verify before deleting).
+
+This is a separate, larger job from the refresh in this report: it requires
+`run_extraction → run_processing → run_simulation → run_split → run_balance`
+per new root, then **retraining, requantizing and re-evaluating** everything
+above into a new `models/nina_thermal_frp20000_v2/` directory (the runbook
+gives the exact commands, including the `--batch_size 16 --num_workers 2`
+fix for the OOM in §9 issue 8), since it changes the training pool. The 0.787
+headline may move.

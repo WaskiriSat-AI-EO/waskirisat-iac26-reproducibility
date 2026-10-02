@@ -1,0 +1,51 @@
+{
+  "stage": "baseline_feasibility_gate",
+  "generated_at": "2026-09-03T20:31:28.043911+00:00",
+  "script_version": "1.0.0",
+  "label_scheme": "datagen",
+  "frp_threshold_mw": null,
+  "agc_mode": "fixed",
+  "profile": "B",
+  "seed": 42,
+  "n_records_used": 717,
+  "class_balance": {
+    "n_fire": 320,
+    "n_nofire": 397,
+    "fire_fraction": 0.44630404463040446
+  },
+  "degenerate": false,
+  "degenerate_warnings": [],
+  "n_granules_used": 166,
+  "frp_relabel": null,
+  "grouped_cv": {
+    "n_splits": 5,
+    "auc_per_fold": [
+      0.4563932002956393,
+      0.6817151102865388,
+      0.550390625,
+      0.5416917821981113,
+      0.7349683544303798
+    ],
+    "auc_mean": 0.5930318144421338,
+    "auc_std": 0.10112852136701399,
+    "error": null
+  },
+  "per_feature_auc": {
+    "bt_mean": 0.6108784634760704,
+    "bt_std": 0.4604848866498741,
+    "bt_p50": 0.6227802267002519,
+    "bt_p90": 0.6148811397984887,
+    "bt_p99": 0.6050377833753149,
+    "bt_p999": 0.6005195214105793,
+    "bt_max": 0.6046993073047859,
+    "bt_p99_minus_p50": 0.4225322732997481,
+    "bt_max_minus_p90": 0.4555376259445844,
+    "warm_frac": 0.5362248110831233,
+    "hot_frac": 0.5362248110831233,
+    "grad_mean": 0.49228589420654917,
+    "grad_p99": 0.4910972921914357,
+    "top_pixel_excess": 0.47870355793450886
+  },
+  "min_fire_fraction_recalibration": null,
+  "notes": "grouped_cv.auc_mean is the number a CNN must beat to justify its complexity. An AUC near 0.5 across every feature and fold means the fire signal is not detectable at this GSD/AGC with this label. Run with label_scheme='datagen' to reproduce the negative result that motivated frp_labels.py, and label_scheme='frp' to show the reformulated target is learnable. The test split is never read here."
+}

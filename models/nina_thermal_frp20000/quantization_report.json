@@ -1,6 +1,6 @@
 {
   "stage": "run_quantize",
-  "generated_at": "2026-08-30T21:02:00.482409+00:00",
+  "generated_at": "2026-09-03T20:34:48.005106+00:00",
   "source_checkpoint": "models/nina_thermal_frp20000/mobilenetv3s_fire_best.pt",
   "frp_relabel": {
     "threshold_mw": 20000.0,
@@ -41,7 +41,7 @@
           1,
           1
         ],
-        "scale": 0.04537102207541466,
+        "scale": 0.045774947851896286,
         "zero_point": -5
       },
       "fully_quantized": false
@@ -71,28 +71,51 @@
     }
   },
   "int8": {
-    "roc_auc": 0.76935,
-    "average_precision": 0.648278,
-    "threshold": 0.28752797842025757,
+    "roc_auc": 0.773994,
+    "average_precision": 0.670822,
+    "threshold": 0.18085384368896484,
     "degenerate": false,
     "metrics_at_threshold": {
       "recall": 1.0,
-      "precision": 0.62963,
-      "specificity": 0.473684,
-      "fbeta": 0.871795,
+      "precision": 0.607143,
+      "specificity": 0.421053,
+      "fbeta": 0.860759,
       "beta": 1.732051,
       "confusion_matrix": {
         "tp": 17,
-        "fp": 10,
+        "fp": 11,
         "fn": 0,
-        "tn": 9
+        "tn": 8
       }
     }
   },
   "parity": {
-    "roc_auc_delta": -0.066563,
+    "roc_auc_delta": -0.061919,
     "recall_delta": 0.0,
-    "precision_delta": -0.1095
+    "precision_delta": -0.131987,
+    "fbeta_delta": -0.05816,
+    "sqnr_db": 8.29,
+    "kl_divergence_nats": 11.066738
+  },
+  "acceptance": {
+    "passed": false,
+    "violations": [
+      "F-beta drop 0.0582 > tol 0.0100 (fp32=0.9189, int8=0.8608)",
+      "SQNR 8.3 dB < 30 dB minimum",
+      "score-distribution KL 11.0667 nats > 0.0500 nats"
+    ],
+    "tolerances": {
+      "recall_drop": 0.005,
+      "fbeta_drop": 0.01,
+      "sqnr_min_db": 30.0,
+      "kl_max_nats": 0.05
+    },
+    "measured": {
+      "recall_drop": 0.0,
+      "fbeta_drop": 0.05816,
+      "sqnr_db": 8.29,
+      "kl_nats": 11.066738
+    }
   },
   "deployment_note": "Load on OpenMV N6 with ml.Model('/rom/mobilenetv3s_fire_int8.tflite'); feed the Lepton frame replicated to 3 channels, apply sigmoid to the logit and compare against int8.threshold.  Check artifact.io: this PT2E export quantizes weights to int8 but leaves the graph boundary in float32, so it is not yet a full-NPU graph.  Achieving uint8 I/O needs the ai_edge_quantizer static_wi8_ai8 recipe applied to a float export, which is not yet wired into this pipeline."
 }

@@ -1,0 +1,61 @@
+{
+  "stage": "baseline_feasibility_gate",
+  "generated_at": "2026-09-03T20:31:54.593482+00:00",
+  "script_version": "1.0.0",
+  "label_scheme": "frp",
+  "frp_threshold_mw": 20000.0,
+  "agc_mode": "fixed",
+  "profile": "B",
+  "seed": 42,
+  "n_records_used": 255,
+  "class_balance": {
+    "n_fire": 84,
+    "n_nofire": 171,
+    "fire_fraction": 0.32941176470588235
+  },
+  "degenerate": false,
+  "degenerate_warnings": [],
+  "n_granules_used": 83,
+  "frp_relabel": {
+    "threshold_mw": 20000.0,
+    "counts": {
+      "fire": 84,
+      "no_fire": 171,
+      "ambiguous": 462,
+      "no_frp_data": 0
+    },
+    "retained": 255,
+    "definition": "label=1 when summed FIRMS FRP over the 640x480 km patch footprint >= 20000 MW within +/-1 day of sensing; label=0 only when the footprint contains zero FIRMS detections; patches in between are ambiguous and excluded."
+  },
+  "grouped_cv": {
+    "n_splits": 5,
+    "auc_per_fold": [
+      0.8460207612456747,
+      0.8403361344537815,
+      0.49080882352941174,
+      0.7629757785467128,
+      0.6470588235294118
+    ],
+    "auc_mean": 0.7174400642609985,
+    "auc_std": 0.13418284488254134,
+    "error": null
+  },
+  "per_feature_auc": {
+    "bt_mean": 0.7599554441659704,
+    "bt_std": 0.36396546922862716,
+    "bt_p50": 0.7667780562517404,
+    "bt_p90": 0.7422027290448343,
+    "bt_p99": 0.7231620718462825,
+    "bt_p999": 0.7149122807017545,
+    "bt_max": 0.7272695627958786,
+    "bt_p99_minus_p50": 0.40298663324979117,
+    "bt_max_minus_p90": 0.5222431077694235,
+    "warm_frac": 0.6458507379560011,
+    "hot_frac": 0.6458507379560011,
+    "grad_mean": 0.45238095238095244,
+    "grad_p99": 0.4223753829016987,
+    "top_pixel_excess": 0.5485240879977723
+  },
+  "min_fire_fraction_recalibration": null,
+  "notes": "grouped_cv.auc_mean is the number a CNN must beat to justify its complexity. An AUC near 0.5 across every feature and fold means the fire signal is not detectable at this GSD/AGC with this label. Run with label_scheme='datagen' to reproduce the negative result that motivated frp_labels.py, and label_scheme='frp' to show the reformulated target is learnable. The test split is never read here."
+}
