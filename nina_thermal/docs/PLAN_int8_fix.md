@@ -2,7 +2,8 @@
 
 **Status (2026-10-08): int8 fixed** — root cause was that QAT never ran (config
 bug + torch 2.12 incompatibility); see `TRAINING_REPORT_v3.md` §8–§9. Phases 0–2
-and 6 done, 4 partly done, 3 and 5 not needed for accuracy.
+4 and 6 done (plus an observer-leak fix found on the way), 3 and 5 not needed
+for accuracy. Final artifact: `models/nina_thermal_frp20000_v3_bc_qat_sel/`.
 
 **Date:** 2026-10-08 · **Context:** `TRAINING_REPORT_v3.md` §8–§9 · **Model:** `models/nina_thermal_frp20000_v3_bc/`
 

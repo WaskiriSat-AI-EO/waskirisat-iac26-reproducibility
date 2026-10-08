@@ -52,6 +52,21 @@ class TestQatConversion:
         converted = qat.convert(prepared)
         assert not any("batch_norm" in str(n.target) for n in converted.graph.nodes)
 
+    def test_frozen_observers_keep_ranges_fixed(self):
+        # Regression: scoring val with live observers shifted the ranges, so
+        # the converted artifact differed from the checkpoint that was scored.
+        backbone = train_thermal.build_model(pretrained=False)
+        prepared, _ = qat.prepare_for_qat(qat.NormalizedFireNet(backbone).eval(), qat.sample_input())
+        x = torch.rand(2, 3, IMAGE_HEIGHT, IMAGE_WIDTH)
+        qat.calibrate(prepared, [(x, None)], torch.device("cpu"))
+        fake_quants = [m for m in prepared.modules() if hasattr(m, "scale") and hasattr(m, "disable_observer")]
+        assert fake_quants
+        before = [m.scale.clone() for m in fake_quants]
+        qat.freeze_observers(prepared)
+        with torch.no_grad():
+            prepared(x * 3.0)  # out-of-range data would widen live observers
+        assert all(torch.equal(b, m.scale) for b, m in zip(before, fake_quants))
+
 
 class TestSampleInput:
     def test_shape_is_native_geometry(self):

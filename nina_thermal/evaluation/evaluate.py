@@ -155,6 +155,8 @@ def build_evaluation_report(
     training_report: Path | None = None,
     batch_size: int = 32,
     seed: int = datagen_config.DEFAULT_SEED,
+    tflite_path: Path | None = None,
+    tflite_threshold: float | None = None,
 ) -> dict[str, Any]:
     """Evaluate the test split and write ``evaluation_summary.json``.
 
@@ -173,6 +175,11 @@ def build_evaluation_report(
             ``<checkpoint dir> / "training_report.json"``.
         batch_size: DataLoader batch size.
         seed: Bootstrap resampling seed.
+        tflite_path: Optional int8 artifact to score on the same test images;
+            adds an ``int8`` block and per-record ``int8_score`` / ``int8_pred``.
+        tflite_threshold: int8 operating threshold.  Defaults to
+            ``int8.threshold`` in the ``quantization_report.json`` beside the
+            artifact.
 
     Returns:
         The report dict (also written to disk).
@@ -298,6 +305,12 @@ def build_evaluation_report(
         "by_profile": by_profile,
         "deltas_vs_B": M.profile_deltas(by_profile),
         "by_surface_type": by_surface_type,
+        **(
+            {"int8": _int8_block(tflite_path, tflite_threshold, test_samples,
+                                 predictions, nominal_metrics, beta, seed)}
+            if tflite_path is not None
+            else {}
+        ),
         "notes": (
             f"'nominal' = profile {M.NOMINAL_PROFILE} only (the training / "
             "deployment configuration). Profiles A/C are out-of-distribution "
@@ -323,6 +336,75 @@ def build_evaluation_report(
         nominal_metrics["roc_auc"],
     )
     return report
+
+
+def _int8_block(
+    tflite_path: Path,
+    threshold: float | None,
+    samples: list[dict[str, Any]],
+    predictions: list[dict[str, Any]],
+    fp32_nominal: dict[str, Any],
+    beta: float,
+    seed: int,
+) -> dict[str, Any]:
+    """Score an int8 TFLite on the test samples and return its metrics block.
+
+    Mutates *predictions* in place, adding ``int8_score`` / ``int8_pred`` so
+    ``predictions.json`` carries both models side by side.
+    """
+    from nina_thermal.quantization import qat as qat_lib
+    from nina_thermal.quantization.pipelines.run_quantize import qat_transform
+
+    tflite_path = Path(tflite_path)
+    if threshold is None:
+        qreport = tflite_path.parent / "quantization_report.json"
+        if not qreport.is_file():
+            raise ValueError(
+                f"No int8 threshold: pass --tflite_threshold or provide {qreport}."
+            )
+        threshold = float(json.loads(qreport.read_text(encoding="utf-8"))["int8"]["threshold"])
+
+    # The artifact folds normalization into the graph: feed [0, 1] pixels.
+    loader = DataLoader(
+        ThermalDataset(samples, qat_transform(augment=False)), batch_size=32, shuffle=False
+    )
+    scores = qat_lib.tflite_scores(tflite_path, loader)
+    for record, score in zip(predictions, scores, strict=True):
+        record["int8_score"] = round(float(score), 6)
+        record["int8_pred"] = int(score >= threshold)
+    int8_records = [
+        {**r, "score": r["int8_score"], "pred": r["int8_pred"]} for r in predictions
+    ]
+    nominal = [r for r in int8_records if r["profile"] == M.NOMINAL_PROFILE] or int8_records
+    nominal_metrics = M.compute_classification_metrics(
+        [r["label"] for r in nominal],
+        [r["pred"] for r in nominal],
+        [r["score"] for r in nominal],
+        beta=beta,
+        prevalences=M.EVAL_PREVALENCES,
+    )
+    nominal_metrics["bootstrap_ci"] = _bootstrap_block(nominal, threshold, beta, seed)
+    deltas = {
+        k: round(nominal_metrics[k] - fp32_nominal[k], 6)
+        for k in ("accuracy", "recall", "specificity", "precision", "f1", "roc_auc")
+        if nominal_metrics.get(k) is not None and fp32_nominal.get(k) is not None
+    }
+    logger.info(
+        "int8 test (profile %s): accuracy=%.3f recall=%.3f roc_auc=%s",
+        M.NOMINAL_PROFILE,
+        nominal_metrics["accuracy"],
+        nominal_metrics["recall"],
+        nominal_metrics["roc_auc"],
+    )
+    return {
+        "artifact": str(tflite_path),
+        "operating_threshold": round(threshold, 6),
+        "nominal": nominal_metrics,
+        "by_profile": M.group_metrics(
+            int8_records, "profile", beta=beta, prevalences=M.EVAL_PREVALENCES
+        ),
+        "deltas_vs_fp32_nominal": deltas,
+    }
 
 
 def _bootstrap_block(

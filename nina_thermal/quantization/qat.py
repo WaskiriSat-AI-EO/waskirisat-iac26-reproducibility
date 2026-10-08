@@ -430,6 +430,29 @@ def calibrate(
     logger.info("Calibrated observers on %d batch(es).", min(batches, len(loader)))
 
 
+def freeze_observers(model: nn.Module, frozen: bool = True) -> nn.Module:
+    """Stop (or resume) activation-range updates in every fake-quant module.
+
+    QAT fake-quant modules keep updating their moving-average ranges whenever
+    data passes through, eval mode included.  Scoring validation with them
+    live leaks validation statistics into the quantization ranges and changes
+    the model mid-measurement, so the converted artifact no longer matches
+    what was scored.  Freeze before any scoring or conversion.
+
+    Args:
+        model: Prepared PT2E graph.
+        frozen: True to freeze, False to resume updates for further training.
+
+    Returns:
+        ``model``, for chaining.
+    """
+    for module in model.modules():
+        toggle = getattr(module, "disable_observer" if frozen else "enable_observer", None)
+        if callable(toggle):
+            toggle()
+    return model
+
+
 def convert(model: nn.Module) -> nn.Module:
     """Convert a prepared model from fake-quant to true int8 operations.
 
@@ -442,9 +465,10 @@ def convert(model: nn.Module) -> nn.Module:
     The model is switched to eval mode *before* conversion, since a QAT model
     leaves its fine-tune in train mode and the PT2E recipe converts from eval.
 
-    The converted graph still deviates somewhat from the fake-quant graph
-    (val score correlation ~0.91–0.95 after QAT); ``run_quantize`` records
-    this as ``conversion_parity``.  See docs/PLAN_int8_fix.md.
+    Freeze observers (:func:`freeze_observers`) first.  Even then the
+    converted graph deviates slightly from the fake-quant graph (val score
+    correlation ~0.98); ``run_quantize`` records this as
+    ``conversion_parity``.  See docs/PLAN_int8_fix.md.
 
     Args:
         model: Prepared PTQ or QAT model.

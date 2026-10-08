@@ -31,6 +31,7 @@ Usage::
 """
 
 import argparse
+import copy
 import json
 import logging
 import math
@@ -83,6 +84,18 @@ CONVERSION_MIN_CORR = 0.99
 
 def _sigmoid(logits: np.ndarray) -> list[float]:
     return (1.0 / (1.0 + np.exp(-logits))).tolist()
+
+
+def _converted_val_auc(qat_model, val_loader, y_true, device) -> float | None:
+    """Val ROC-AUC of a real-int8 conversion of a *copy* of ``qat_model``.
+
+    convert_pt2e rewrites the graph in place, so the training model itself is
+    never converted.
+    """
+    snapshot = qat_lib.freeze_observers(copy.deepcopy(qat_model))
+    qat_lib.set_mode(snapshot, training=False)
+    scores = _sigmoid(diag_lib.logits(qat_lib.convert(snapshot), val_loader, device))
+    return roc_auc(y_true, scores)
 
 # Mission budget for the on-orbit model artifact.
 #
@@ -153,6 +166,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="QAT fine-tune epochs; 0 exports PTQ only.",
     )
     parser.add_argument("--lr", type=float, default=1e-5, help="QAT learning rate.")
+    parser.add_argument(
+        "--select_every",
+        type=int,
+        default=5,
+        help=(
+            "Every N QAT epochs, convert a copy to real int8, score it on val and "
+            "keep the epoch with the best ROC-AUC.  0 keeps the last epoch."
+        ),
+    )
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size.")
     parser.add_argument(
         "--pos_weight", type=float, default=3.0, help="FN:FP cost ratio."
@@ -309,12 +331,17 @@ def main(argv: list[str] | None = None) -> int:
         model, example, per_channel=args.per_channel
     )
     qat_lib.calibrate(qat_model, train_loader, device)
+    selection: list[dict] = []  # (epoch, real-int8 val ROC-AUC) checkpoints
+    best = None  # (epoch, auc, state_dict) of the best converted checkpoint
 
     if args.epochs > 0:
         criterion = nn.BCEWithLogitsLoss(
             pos_weight=torch.tensor([args.pos_weight], device=device)
         )
         optimizer = torch.optim.Adam(qat_model.parameters(), lr=args.lr)
+        # Checkpoint selection on the *converted* model's val score: the
+        # fake-quant graph is only a simulation, and the deployed artifact is
+        # what has to be good.
         for epoch in range(1, args.epochs + 1):
             qat_lib.set_mode(qat_model, training=True)
             total, seen = 0.0, 0
@@ -330,6 +357,24 @@ def main(argv: list[str] | None = None) -> int:
             logger.info(
                 "  QAT epoch %d/%d  loss=%.4f", epoch, args.epochs, total / seen
             )
+            if args.select_every and (
+                epoch % args.select_every == 0 or epoch == args.epochs
+            ):
+                auc = _converted_val_auc(qat_model, val_loader, y_true, device)
+                selection.append({"epoch": epoch, "int8_val_roc_auc": auc})
+                improved = auc is not None and (best is None or auc > best[1])
+                if improved:
+                    best = (epoch, auc, copy.deepcopy(qat_model.state_dict()))
+                logger.info(
+                    "    real-int8 val ROC-AUC=%s%s",
+                    "n/a" if auc is None else f"{auc:.4f}",
+                    "  <- best" if improved else "",
+                )
+        if best is not None:
+            qat_model.load_state_dict(best[2])
+            logger.info(
+                "Selected QAT epoch %d by real-int8 val ROC-AUC %.4f", best[0], best[1]
+            )
     else:
         logger.info("Stage 2 skipped (--epochs 0) — exporting a PTQ artifact.")
 
@@ -341,6 +386,7 @@ def main(argv: list[str] | None = None) -> int:
     # graph simulated.  A gap here is a conversion defect, not quantization
     # noise, and no amount of QAT closes it.
     qat_lib.set_mode(qat_model, training=False)
+    qat_lib.freeze_observers(qat_model)
     # Exported graphs reject .eval(), so score without collect_scores.
     fake_quant_scores = _sigmoid(diag_lib.logits(qat_model, val_loader, device))
     converted = qat_lib.convert(qat_model)
@@ -472,6 +518,12 @@ def main(argv: list[str] | None = None) -> int:
             "kl_divergence_nats": round(kl_nats, 6),
         },
         "conversion_parity": conversion_parity,
+        "checkpoint_selection": {
+            "metric": "converted int8 val ROC-AUC",
+            "every_epochs": args.select_every,
+            "selected_epoch": best[0] if best is not None else args.epochs,
+            "history": selection,
+        },
         "acceptance": acceptance,
         "deployment_note": (
             "Load on OpenMV N6 with ml.Model('/rom/mobilenetv3s_fire_int8.tflite'); "

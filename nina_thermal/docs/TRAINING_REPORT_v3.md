@@ -3,9 +3,9 @@
 **WaskiriSat / NINA payload — fire detection model**
 **Date:** 2026-10-03 · **Updated:** 2026-10-08 (int8 fixed, §8–§9) · **Supersedes:**
 `TRAINING_REPORT.md` (v1, 2026-08-31) for all model metrics · **Artifacts:**
-`models/nina_thermal_frp20000_v3_{b,bc,bc_r90,bc_qat}/`
+`models/nina_thermal_frp20000_v3_{b,bc,bc_r90,bc_qat_sel}/`
 **Recommended model:** fp32 `models/nina_thermal_frp20000_v3_bc/mobilenetv3s_fire_best.pt`;
-int8 `models/nina_thermal_frp20000_v3_bc_qat/mobilenetv3s_fire_int8.tflite`
+int8 `models/nina_thermal_frp20000_v3_bc_qat_sel/mobilenetv3s_fire_int8.tflite`
 
 ---
 
@@ -31,9 +31,10 @@ The decision threshold now transfers across sensor-degradation profiles. Profile
 **int8 model fixed (2026-10-08, §8):** the quantization stage had never actually
 run quantization-aware training — a config bug plus a torch/torchao
 incompatibility made "QAT" fine-tune against plain observers. With real QAT the
-int8 artifact (1.385 MB) matches fp32 on the test set, profile B: **accuracy
-0.910 vs 0.894, ROC-AUC 0.960 vs 0.959** (previous int8: 0.540 / 0.717). Two of
-four acceptance-gate checks still fail (SQNR, KL), for reasons discussed in §8.4.
+int8 artifact (1.237 MB) matches fp32 on the test set, profile B: **accuracy
+0.905 vs 0.894, recall 0.940 vs 0.940, ROC-AUC 0.959 vs 0.959** (previous int8:
+0.540 / 0.904 / 0.717). Two of four acceptance-gate checks still fail (SQNR, KL),
+for reasons discussed in §8.5.
 
 **Still open:** scene mean temperature alone reaches test ROC-AUC 0.903. The CNN
 beats it inside months that contain both classes (0.889 vs 0.843), which is the
@@ -335,92 +336,116 @@ main cause: in-place operations, squeeze-excite blocks (quantized or kept
 float), hardswish/hardsigmoid (never quantized by this quantizer), degenerate
 observer ranges.
 
-### 8.2 Result with real QAT
+### 8.2 Observer leak (found and fixed 2026-10-08)
+
+QAT fake-quant modules keep updating their activation ranges whenever data
+passes through, in eval mode too. Scoring validation therefore (a) leaked
+validation statistics into the quantization ranges and (b) changed the model
+while it was being measured, so the converted artifact differed from the
+checkpoint that was scored (same weights: 0.913 in-loop vs 0.902 after
+conversion). `qat.freeze_observers()` now freezes the ranges before any
+scoring or conversion. This raised converted-vs-fake-quant score correlation
+from ~0.90 to **0.978** and removed most of the "conversion gap".
+
+### 8.3 Result — final pipeline
 
 `run_quantize` on v3_bc: QAT 40 epochs, lr 5e-5, batch 16, B + C, seed 42;
-per-channel symmetric int8 weights, per-tensor uint8 activations; float32
-input / int8 output. Artifact `models/nina_thermal_frp20000_v3_bc_qat/mobilenetv3s_fire_int8.tflite`,
-**1.385 MB**. int8 threshold 0.2654, re-swept on int8 validation scores for
-recall ≥ 0.95 (fp32: 0.5167).
+observers frozen for scoring; **checkpoint chosen by real-int8 validation
+ROC-AUC** every 5 epochs (selected: epoch 25 of 40). Per-channel symmetric
+int8 weights, per-tensor uint8 activations; float32 input / int8 output.
+Artifact `models/nina_thermal_frp20000_v3_bc_qat_sel/mobilenetv3s_fire_int8.tflite`,
+**1.237 MB**, SHA-256 `cc671cb1…0663d58`. int8 threshold 0.7648, re-swept on
+int8 validation scores for recall ≥ 0.95 (fp32: 0.5167).
 
 **Validation (B + C, 256 images: 100 fire / 156 no-fire)**
 
-| metric | fp32 | int8 before fix | **int8 with QAT** |
+| metric | fp32 | int8 before fix | **int8 final** |
 |---|---|---|---|
-| Accuracy | 0.840 | 0.531 | **0.852** |
+| Accuracy | 0.840 | 0.531 | **0.824** |
 | Recall | 0.950 | 0.950 | **0.950** |
-| Specificity | 0.769 | 0.263 | **0.788** |
-| Precision | 0.725 | 0.452 | **0.742** |
-| F1 | 0.823 | 0.613 | **0.833** |
-| F-beta (β = 1.732) | 0.882 | 0.745 | **0.888** |
-| ROC-AUC | 0.934 | 0.768 | **0.915** |
-| PR-AUC | 0.874 | 0.643 | **0.848** |
-| TP / FP / FN / TN | 95 / 36 / 5 / 120 | 95 / 115 / 5 / 41 | **95 / 33 / 5 / 123** |
+| Specificity | 0.769 | 0.263 | **0.744** |
+| Precision | 0.725 | 0.452 | **0.704** |
+| F1 | 0.823 | 0.613 | **0.809** |
+| F-beta (β = 1.732) | 0.882 | 0.745 | **0.874** |
+| ROC-AUC | 0.934 | 0.768 | **0.907** |
+| PR-AUC | 0.874 | 0.643 | **0.809** |
+| TP / FP / FN / TN | 95 / 36 / 5 / 120 | 95 / 115 / 5 / 41 | **95 / 40 / 5 / 116** |
 
-**Test set (189 patches per profile: 83 fire / 106 no-fire)**, each model at
-its own validation threshold (fp32 rows reproduce `evaluation_summary.json`):
+**Test set (189 patches per profile: 83 fire / 106 no-fire)** — from
+`run_evaluate --tflite` (`models/nina_thermal_frp20000_v3_bc_qat_sel/evaluation_summary.json`),
+each model at its own validation threshold:
 
 | profile | model | accuracy | recall | specificity | precision | F1 | ROC-AUC | PR-AUC | TP / FP / FN / TN |
 |---|---|---|---|---|---|---|---|---|---|
 | A | fp32 | 0.873 | 0.831 | 0.906 | 0.873 | 0.852 | 0.937 | 0.910 | 69 / 10 / 14 / 96 |
-| A | **int8** | **0.873** | 0.880 | 0.868 | 0.839 | 0.859 | **0.934** | 0.891 | 73 / 14 / 10 / 92 |
+| A | **int8** | **0.820** | 0.699 | 0.915 | 0.866 | 0.773 | **0.945** | 0.913 | 58 / 9 / 25 / 97 |
 | **B** | fp32 | 0.894 | 0.940 | 0.858 | 0.839 | 0.886 | 0.959 | 0.945 | 78 / 15 / 5 / 91 |
-| **B** | **int8** | **0.910** | 0.916 | 0.906 | 0.884 | 0.899 | **0.960** | 0.941 | 76 / 10 / 7 / 96 |
+| **B** | **int8** | **0.905** | **0.940** | 0.877 | 0.857 | 0.897 | **0.959** | 0.939 | 78 / 13 / 5 / 93 |
 | C | fp32 | 0.910 | 0.952 | 0.877 | 0.859 | 0.903 | 0.962 | 0.943 | 79 / 13 / 4 / 93 |
-| C | **int8** | **0.884** | 0.892 | 0.877 | 0.851 | 0.871 | **0.951** | 0.938 | 74 / 13 / 9 / 93 |
+| C | **int8** | **0.884** | 0.964 | 0.821 | 0.808 | 0.879 | **0.944** | 0.896 | 80 / 19 / 3 / 87 |
 
 ```
 int8, test profile B   pred FIRE  pred NO-FIRE
-actual FIRE                76          7
-actual NO-FIRE             10         96
+actual FIRE                78          5
+actual NO-FIRE             13         93
 ```
 
-On the flight profile the int8 model is as good as fp32 (accuracy +1.6 pp,
-ROC-AUC +0.001), trading 2 missed fires for 5 fewer false alarms. Profile C
-loses 2.6 pp accuracy (recall 0.89 vs 0.95).
+int8 test profile B, 90% granule-level bootstrap CIs: recall [0.870, 0.978],
+precision [0.724, 0.952], F-beta [0.847, 0.954], ROC-AUC [0.916, 0.989].
 
-### 8.3 Run-to-run stability
+**On the flight profile the int8 model equals fp32**: same recall (0.940, same
+78 / 5 fire split), two fewer false alarms, identical ROC-AUC. Profile C keeps
+recall (0.96) at the cost of specificity. **Profile A loses recall** (0.70 vs
+0.83): A is never seen in training and the higher int8 threshold cuts its
+lower-scoring fires, even though its ranking (ROC-AUC 0.945) is intact. A
+per-profile threshold or adding A to training would recover it (open issue #4).
 
-QAT is not bit-reproducible on GPU. Three independent runs (same settings,
-different seeds):
+### 8.4 Run-to-run stability
 
-| seed | val int8 ROC-AUC | test B accuracy | test B ROC-AUC | test A accuracy | test C accuracy |
+QAT is not bit-reproducible on GPU. Earlier runs (same settings, before the
+observer freeze and checkpoint selection, so with the leak of §8.2):
+
+| run | val int8 ROC-AUC | test B accuracy | test B ROC-AUC | test A accuracy | test C accuracy |
 |---|---|---|---|---|---|
-| **42 (selected)** | **0.915** | 0.910 | 0.960 | 0.873 | 0.884 |
-| 1 | 0.865 | 0.884 | 0.959 | 0.831 | 0.873 |
-| 2 | 0.906 | 0.905 | 0.962 | 0.852 | 0.889 |
+| seed 42 | 0.915 | 0.910 | 0.960 | 0.873 | 0.884 |
+| seed 1 | 0.865 | 0.884 | 0.959 | 0.831 | 0.873 |
+| seed 2 | 0.906 | 0.905 | 0.962 | 0.852 | 0.889 |
+| leaky run with selection | 0.898 | 0.862 | 0.913 | 0.847 | 0.873 |
+| **final pipeline (§8.3)** | **0.907** | **0.905** | **0.959** | **0.820** | **0.884** |
 | fp32 | 0.934 | 0.894 | 0.959 | 0.873 | 0.910 |
 
-Profile B is stable across seeds (accuracy 0.884–0.910, ROC-AUC 0.959–0.962).
-The selected run was chosen on **validation** ROC-AUC, not on test. A 100-epoch
-run at lr 1e-4 did not improve validation AUC (0.900): longer QAT overfits.
+Profile B lands at accuracy 0.86–0.91 / ROC-AUC 0.91–0.96 across runs; the
+leaky pipeline produced the one clearly weaker run. The final artifact was
+chosen by the pipeline on validation only. A 100-epoch run at lr 1e-4 did not
+improve validation AUC (0.900): longer QAT overfits.
 
-### 8.4 Acceptance gate
+### 8.5 Acceptance gate
 
 | check | tolerance | measured | verdict |
 |---|---|---|---|
 | Recall drop | ≤ 0.005 | 0.000 | pass |
-| F-beta drop | ≤ 0.010 | −0.006 (int8 better) | pass |
-| SQNR (int8 vs fp32 scores) | ≥ 30 dB | 9.3 dB | **fail** |
-| Score-distribution KL | ≤ 0.05 nats | 1.85 nats | **fail** |
+| F-beta drop | ≤ 0.010 | 0.008 | pass |
+| SQNR (int8 vs fp32 scores) | ≥ 30 dB | 9.2 dB | **fail** |
+| Score-distribution KL | ≤ 0.05 nats | 2.49 nats | **fail** |
 
 SQNR and KL compare int8 scores with the **original fp32 checkpoint's** scores.
 That is the right test after post-training quantization, where the weights are
 unchanged. After QAT the weights are fine-tuned, so the scores legitimately
-shift even when decisions are as good or better, as the operating-point checks
-and the test set show. Proposed change for decision: after QAT, measure SQNR/KL
+shift even when decisions are as good, as the operating-point checks and the
+test set show. Proposed change for decision: after QAT, measure SQNR/KL
 between the int8 artifact and the fake-quant graph it was converted from
 (conversion fidelity), and keep recall/F-beta drop against fp32 as the
 accuracy gate. Also, the KL estimate rests on 256 scores in 64 bins, which is
 unstable (v1 §6.2).
 
-### 8.5 Remaining conversion gap
+### 8.6 Remaining conversion gap
 
-`run_quantize` now records `conversion_parity`: on validation the converted
-graph's scores correlate 0.91–0.95 with the fake-quant graph's (rounding alone
-would be > 0.99). The gap does not hurt accuracy measurably (test results
-above), but it means the int8 file is not an exact image of what QAT trained.
-The artifact also still has a float32 input boundary (open issue #6).
+`run_quantize` records `conversion_parity`: with observers frozen, the
+converted graph's validation scores correlate **0.978** with the fake-quant
+graph's (fake-quant ROC-AUC 0.909, converted 0.909, TFLite 0.907). Rounding
+alone should give > 0.99, so a small residual mismatch remains; it does not
+affect accuracy measurably. The artifact also still has a float32 input
+boundary (open issue #6).
 
 ---
 
@@ -434,11 +459,28 @@ Plan: `docs/PLAN_int8_fix.md`.
 | 1. Isolate defect | **done** | in-place ops, squeeze-excite, hardswish, degenerate ranges ruled out; real cause = no QAT (§8.1) |
 | 2. BatchNorm folding | **done** | torch 2.12 shim; 0 BN nodes after convert |
 | 3. `ai-edge-quantizer` route | not needed for accuracy | still the path to int8 input/output (full-NPU graph) |
-| 4. Harden pipeline | **partly done** | conversion-parity check in `run_quantize` ✅; QAT regression tests ✅; pending: checkpoint selection by real-int8 validation score, int8 test evaluation inside `run_evaluate` |
+| 4. Harden pipeline | **done** | conversion-parity check; observer freeze (§8.2); checkpoint selection by real-int8 val ROC-AUC (`--select_every`); int8 test evaluation in `run_evaluate --tflite`; regression tests |
 | 5. Fallback backbone | not needed | |
 | 6. Validate and report | **done** | this section |
 
-Test suite: **276 / 276 passing**.
+Test suite: **277 / 277 passing**.
+
+Reproduce:
+
+```bash
+ROOTS="data data_202408 data_202409 data_202509 data_202208 data_202302 data_202309"
+OUT=models/nina_thermal_frp20000_v3_bc_qat_sel
+cp models/nina_thermal_frp20000_v3_bc/training_report.json $OUT/   # fp32 threshold for run_evaluate
+python -m nina_thermal.quantization.pipelines.run_quantize \
+    --checkpoint models/nina_thermal_frp20000_v3_bc/mobilenetv3s_fire_best.pt \
+    --frp_threshold 20000 --frp_negative_max 1000 --roots $ROOTS --profiles B C \
+    --out_dir $OUT --epochs 40 --lr 5e-5 --batch_size 16 --num_workers 2 \
+    --select_every 5 --no_smoke_test
+python -m nina_thermal.evaluation.pipelines.run_evaluate \
+    --checkpoint models/nina_thermal_frp20000_v3_bc/mobilenetv3s_fire_best.pt \
+    --tflite $OUT/mobilenetv3s_fire_int8.tflite \
+    --frp_threshold 20000 --frp_negative_max 1000 --roots $ROOTS --out_dir $OUT
+```
 
 ---
 
@@ -446,7 +488,7 @@ Test suite: **276 / 276 passing**.
 
 | # | issue | impact | proposed action |
 |---|---|---|---|
-| 1 | int8 gate: SQNR/KL fail after QAT (§8.4); small conversion gap (§8.5) | gate not formally passed although test accuracy matches fp32 | decide gate definition for QAT; finish plan phase 4 |
+| 1 | int8 gate: SQNR/KL fail after QAT (§8.5); small conversion gap (§8.6) | gate not formally passed although test accuracy matches fp32 | decide gate definition for QAT |
 | 2 | Warm-scene confound reduced but not removed (§7) | part of the signal may be season | acquire more mixed-class months (Sep–Oct 2021–2023); month-stratified splits; report within-month AUC as a headline |
 | 3 | June 2023 false alarms | 12 of 15 test FPs | more early-season scenes with both classes |
 | 4 | Profile A recall 0.83 with B+C training | best-case sensor condition loses recall | per-profile threshold, or train A + B + C |
@@ -491,15 +533,16 @@ models/nina_thermal_frp20000_v3_bc/              (recommended)
 ├── mobilenetv3s_fire_int8.tflite    OLD int8 from broken QAT — superseded, do not deploy
 └── quantization_report.json         its gate report (FAILED)
 
-models/nina_thermal_frp20000_v3_bc_qat/          (recommended int8)
-├── mobilenetv3s_fire_int8.tflite    int8, real QAT, seed 42 — 1.385 MB (§8.2)
+models/nina_thermal_frp20000_v3_bc_qat_sel/      (recommended int8)
+├── mobilenetv3s_fire_int8.tflite    final pipeline, 1.237 MB (§8.3)
 ├── mobilenetv3s_fire_int8.sha256
-├── quantization_report.json         val metrics, conversion_parity, gate
-├── int8_test_scores.json            test A/B/C, fp32 vs int8
-└── run_quantize.log
+├── quantization_report.json         val metrics, conversion_parity, checkpoint_selection, gate
+├── evaluation_summary.json          fp32 + int8 test metrics, CIs, per-profile
+└── predictions.json                 per-sample fp32 and int8 scores
 
-models/nina_thermal_frp20000_v3_bc_qat_s{1,2}/   stability runs (§8.3)
-models/nina_thermal_frp20000_v3_bc_qat100/       100-epoch run, not better (§8.3)
+models/nina_thermal_frp20000_v3_bc_qat/          first real-QAT run, pre-freeze (§8.4)
+models/nina_thermal_frp20000_v3_bc_qat_s{1,2}/   stability runs (§8.4)
+models/nina_thermal_frp20000_v3_bc_qat100/       100-epoch run, not better (§8.4)
 
 models/nina_thermal_frp20000_v3_b/      B-only variant
 models/nina_thermal_frp20000_v3_bc_r90/ same network as v3_bc, threshold for recall 0.90
