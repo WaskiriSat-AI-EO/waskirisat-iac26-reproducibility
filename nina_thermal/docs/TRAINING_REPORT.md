@@ -1,5 +1,10 @@
 # NINA Thermal — Fire Classifier Training Report
 
+> **Superseded by [`TRAINING_REPORT_v3.md`](TRAINING_REPORT_v3.md) (2026-10-03).**
+> The FRP labels in this report were built from FIRMS CSVs that did not cover
+> most patch footprints, so its negative class was largely geography and its
+> metrics (including test ROC-AUC 0.787) should not be cited.
+
 **WaskiriSat / NINA payload — fire detection model**
 **Date:** 2026-08-31 · **Refreshed:** 2026-09-03 (`run_baseline` + `run_evaluate` +
 `run_quantize` re-run against `main` post-#8→#12, no retraining)
@@ -416,6 +421,7 @@ against a different target than the checkpoint was trained on.
 | 6 | FIRMS ±1 day window vs 62 % night overpasses | label noise | tighten window; match night passes to VIIRS 01:30 |
 | 7 | `nina_cloud/quantization/` broken on current deps | cloud pipeline will not run | apply the same `torchao` / `litert-torch` fallbacks |
 | 8 | Default `run_quantize` settings (`--batch_size 32 --num_workers 4`) OOM-killed on a 30 GB RAM host at 40 epochs | silent process death, no traceback | use `--batch_size 16 --num_workers 2`; document in the runbook |
+| 9 | **int8 conversion is broken, not just noisy** (found 2026-10-03 on `v3_bc`). QAT fake-quant tracks fp32 (val ROC-AUC 0.91, corr 0.99) but `convert_pt2e` output already drops to ~0.66 (corr ~0.36) before TFLite export — this, not QAT epochs, is why every int8 run failed the gate. The `ai-edge-quantizer` `static_wi8_ai8` route (float TFLite → int8, fully-int8 I/O, 1.27 MB) has its own calibration bug: per-sample min/max averaging collapses single-element tensors (the logit, dead squeeze-excite ReLUs) to zero-width ranges, wiping biases | no deployable int8 artifact yet; fp32 model is fine | dedicated debugging session on the convert step; for `ai-edge-quantizer`, override collapsed QSVs before `quantize()` |
 
 ### Deployment prerequisite
 

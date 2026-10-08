@@ -61,6 +61,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=DEFAULT_FRP_THRESHOLD_MW,
         help="Summed-FRP relabel threshold [MW]; must match training.",
     )
+    parser.add_argument(
+        "--frp_negative_max",
+        type=float,
+        default=0.0,
+        help=(
+            "Negative class = summed FRP below this many MW (low fire "
+            "activity).  0 keeps the strict zero-detection definition, which "
+            "leaves almost no negatives once FIRMS covers the whole 640x480 km "
+            "footprint.  Must match training."
+        ),
+    )
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size.")
     parser.add_argument("--seed", type=int, default=42, help="Bootstrap RNG seed.")
     parser.add_argument("--figures", action="store_true", help="Render figures/.")
@@ -97,6 +108,7 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.out_dir),
             device,
             frp_threshold=args.frp_threshold,
+            frp_negative_max=args.frp_negative_max,
             explicit_threshold=args.threshold,
             training_report=(
                 Path(args.training_report) if args.training_report else None

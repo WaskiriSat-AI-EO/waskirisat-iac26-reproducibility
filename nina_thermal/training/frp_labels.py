@@ -80,6 +80,14 @@ DEFAULT_FRP_THRESHOLD_MW = 20000.0
 
 LABEL_AMBIGUOUS = -1
 
+# Minimum fraction of a patch footprint that must lie inside the bbox the
+# FIRMS CSVs were queried for (``firms/coverage.json``) for its detection count
+# to be trusted.  Below this, "zero detections" mostly reflects where FIRMS
+# was not queried, not an absence of fire.
+MIN_FOOTPRINT_COVERAGE = 0.9
+
+COVERAGE_FILE = "coverage.json"
+
 
 def load_firms_detections(roots: list[str | Path]):
     """Load and de-duplicate every FIRMS CSV under the given data roots.
@@ -120,6 +128,38 @@ def load_firms_detections(roots: list[str | Path]):
     return detections
 
 
+def load_firms_coverage(roots: list[str | Path]) -> list[tuple] | None:
+    """Read the queried FIRMS bbox declared by each root's ``firms/coverage.json``.
+
+    The file is ``{"bbox": [west, south, east, north]}`` and records the area
+    the CSVs beside it were fetched for.  Detections alone cannot tell a
+    fire-free area from one that was never queried.
+
+    Args:
+        roots: Data roots holding ``firms/`` CSVs.
+
+    Returns:
+        One bbox per root that declares coverage, or None when none does — the
+        spatial coverage check is then skipped with a warning.
+    """
+    bboxes = []
+    undeclared = []
+    for root in roots:
+        path = Path(root) / "firms" / COVERAGE_FILE
+        if path.is_file():
+            bboxes.append(tuple(json.loads(path.read_text(encoding="utf-8"))["bbox"]))
+        else:
+            undeclared.append(str(root))
+    if undeclared:
+        logger.warning(
+            "No firms/%s in %s — footprints outside the queried FIRMS area cannot "
+            "be told apart from fire-free ones there.",
+            COVERAGE_FILE,
+            undeclared,
+        )
+    return bboxes or None
+
+
 def _granule_date(granule_id: str) -> np.datetime64:
     """Extract the sensing date from an SLSTR granule id.
 
@@ -139,7 +179,9 @@ def _granule_date(granule_id: str) -> np.datetime64:
         raise ValueError(f"Cannot parse sensing date from {granule_id!r}") from exc
 
 
-def compute_patch_frp(samples: list[dict], detections) -> dict[str, dict]:
+def compute_patch_frp(
+    samples: list[dict], detections, coverage: list[tuple] | None = None
+) -> dict[str, dict]:
     """Sum FIRMS FRP inside each patch's footprint and time window.
 
     The footprint is approximated as a lat/lon box around the patch centroid.
@@ -147,9 +189,22 @@ def compute_patch_frp(samples: list[dict], detections) -> dict[str, dict]:
     to the footprint itself, and the result is used only to rank patches by
     fire load, so the approximation does not affect the conclusion.
 
+    Zero detections only means "no fire" where FIRMS was actually queried, so
+    two kinds of patch are treated as uncovered rather than as clean
+    negatives, left out of the result, and surface as ``no_frp_data``:
+
+    * sensing date with no detection *anywhere* within the time window — no
+      CSV was fetched for that date, or the sensor was down (e.g. the
+      Suomi-NPP outage of late July–10 Aug 2022);
+    * footprint less than ``MIN_FOOTPRINT_COVERAGE`` inside every queried
+      bbox in ``coverage`` — the CSVs were fetched for an area that does not
+      reach the patch, so its "zero detections" is missing data.
+
     Args:
         samples: Samples carrying ``patch``, ``granule_id`` and ``path``.
         detections: DataFrame from :func:`load_firms_detections`.
+        coverage: Queried ``(west, south, east, north)`` bboxes from
+            :func:`load_firms_coverage`; None skips the spatial check.
 
     Returns:
         Maps ``patch`` to ``{"frp_sum", "frp_max", "n_detections"}``.
@@ -158,11 +213,19 @@ def compute_patch_frp(samples: list[dict], detections) -> dict[str, dict]:
     lon = detections["longitude"].to_numpy()
     frp = detections["frp"].to_numpy()
     dates = detections["acq_date"].to_numpy()
+    covered_dates = np.unique(dates.astype("datetime64[D]"))
 
     result: dict[str, dict] = {}
     missing_metadata = 0
+    uncovered_dates: set[str] = set()
+    outside_extent = 0
     for sample in samples:
         if sample["patch"] in result:
+            continue
+        sensed = _granule_date(sample["granule_id"])
+        gap = np.abs((covered_dates - sensed) / np.timedelta64(1, "D"))
+        if not covered_dates.size or gap.min() > TIME_WINDOW_DAYS:
+            uncovered_dates.add(str(sensed))
             continue
         meta_path = metadata_path_for_image(sample["path"])
         if not meta_path.is_file():
@@ -174,6 +237,18 @@ def compute_patch_frp(samples: list[dict], detections) -> dict[str, dict]:
         centre_lon = meta["centroid_lon"]
         d_lat = HALF_HEIGHT_KM / 111.0
         d_lon = HALF_WIDTH_KM / (111.320 * np.cos(np.radians(centre_lat)))
+        if coverage is not None:
+            inside = max(
+                (
+                    max(min(centre_lat + d_lat, north) - max(centre_lat - d_lat, south), 0.0)
+                    * max(min(centre_lon + d_lon, east) - max(centre_lon - d_lon, west), 0.0)
+                    for west, south, east, north in coverage
+                ),
+                default=0.0,
+            ) / (4 * d_lat * d_lon)
+            if inside < MIN_FOOTPRINT_COVERAGE:
+                outside_extent += 1
+                continue
 
         within = (
             (np.abs(lat - centre_lat) <= d_lat)
@@ -197,6 +272,24 @@ def compute_patch_frp(samples: list[dict], detections) -> dict[str, dict]:
         logger.warning(
             "%d sample(s) had no metadata JSON and carry no FRP.", missing_metadata
         )
+    if outside_extent:
+        logger.warning(
+            "%d patch(es) have under %.0f%% of their footprint inside the queried "
+            "FIRMS bbox %s and carry no FRP.  Re-fetch firms/ CSVs over a bbox "
+            "covering every patch footprint.",
+            outside_extent,
+            100 * MIN_FOOTPRINT_COVERAGE,
+            coverage,
+        )
+    if uncovered_dates:
+        logger.warning(
+            "No FIRMS detections within +/-%d day of %d sensing date(s) — those "
+            "patches carry no FRP instead of being labelled clean negatives.  "
+            "Fetch the missing firms/ CSVs: %s",
+            TIME_WINDOW_DAYS,
+            len(uncovered_dates),
+            ", ".join(sorted(uncovered_dates)),
+        )
     return result
 
 
@@ -204,11 +297,13 @@ def assign_frp_labels(
     samples: list[dict],
     patch_frp: dict[str, dict],
     threshold_mw: float = DEFAULT_FRP_THRESHOLD_MW,
+    negative_max_mw: float = 0.0,
 ) -> tuple[list[dict], dict]:
     """Relabel samples by summed FRP, dropping the ambiguous middle band.
 
-    Positive when ``frp_sum >= threshold_mw``; clean negative when the
-    footprint contains no FIRMS detection at all; ambiguous otherwise.
+    Positive when ``frp_sum >= threshold_mw``; negative when the footprint
+    contains no FIRMS detection at all or, with ``negative_max_mw > 0``, when
+    ``frp_sum < negative_max_mw`` (low fire activity); ambiguous otherwise.
     Ambiguous samples are returned with ``label = -1`` so the caller can drop
     them the same way the datagen pipeline drops its own ambiguous records.
 
@@ -216,6 +311,8 @@ def assign_frp_labels(
         samples: Samples to relabel, mutated copies are returned.
         patch_frp: Per-patch FRP from :func:`compute_patch_frp`.
         threshold_mw: Summed-FRP threshold for the positive class.
+        negative_max_mw: Summed-FRP ceiling for the negative class.  0 keeps
+            the strict zero-detection definition.
 
     Returns:
         ``(relabelled_samples, stats)``.
@@ -232,7 +329,7 @@ def assign_frp_labels(
         if stats["frp_sum"] >= threshold_mw:
             label = 1
             counts["fire"] += 1
-        elif stats["n_detections"] == 0:
+        elif stats["n_detections"] == 0 or stats["frp_sum"] < negative_max_mw:
             label = 0
             counts["no_fire"] += 1
         else:
@@ -251,13 +348,18 @@ def assign_frp_labels(
 
     summary = {
         "threshold_mw": threshold_mw,
+        "negative_max_mw": negative_max_mw,
         "counts": counts,
         "retained": counts["fire"] + counts["no_fire"],
         "definition": (
             "label=1 when summed FIRMS FRP over the 640x480 km patch footprint "
             f">= {threshold_mw:g} MW within +/-{TIME_WINDOW_DAYS} day of sensing; "
-            "label=0 only when the footprint contains zero FIRMS detections; "
-            "patches in between are ambiguous and excluded."
+            + (
+                f"label=0 when summed FRP < {negative_max_mw:g} MW; "
+                if negative_max_mw > 0
+                else "label=0 only when the footprint contains zero FIRMS detections; "
+            )
+            + "patches in between are ambiguous and excluded."
         ),
     }
     logger.info(
@@ -274,6 +376,7 @@ def apply_frp_labels(
     samples: list[dict],
     roots: list[str | Path],
     threshold_mw: float = DEFAULT_FRP_THRESHOLD_MW,
+    negative_max_mw: float = 0.0,
 ) -> tuple[list[dict], dict]:
     """Relabel samples by FRP and drop the ambiguous band.
 
@@ -283,12 +386,15 @@ def apply_frp_labels(
         samples: Samples from ``expand_to_samples``.
         roots: Data roots holding ``firms/`` CSVs.
         threshold_mw: Summed-FRP threshold for the positive class.
+        negative_max_mw: Summed-FRP ceiling for the negative class.
 
     Returns:
         ``(kept_samples, summary)`` with ambiguous samples already removed.
     """
     detections = load_firms_detections(roots)
-    patch_frp = compute_patch_frp(samples, detections)
-    relabelled, summary = assign_frp_labels(samples, patch_frp, threshold_mw)
+    patch_frp = compute_patch_frp(samples, detections, load_firms_coverage(roots))
+    relabelled, summary = assign_frp_labels(
+        samples, patch_frp, threshold_mw, negative_max_mw
+    )
     kept = [s for s in relabelled if s["label"] != LABEL_AMBIGUOUS]
     return kept, summary

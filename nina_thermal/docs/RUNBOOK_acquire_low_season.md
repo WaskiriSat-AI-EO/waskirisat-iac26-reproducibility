@@ -81,6 +81,26 @@ any).
 
 This is the slow step: CDSE throughput, not compute, is the bottleneck.
 
+### 2b. FIRMS CSVs — not written by `run_acquisition`
+
+`run_acquisition --use_firms` only uses FIRMS to pick dates; it never saves the
+CSVs that `run_processing` and the FRP relabel read from `$ROOT/firms/`. Fetch
+them separately, and get two things right (both were wrong before 2026-10-03
+and silently produced fake clean negatives):
+
+- **bbox must cover every patch footprint**, not just Bolivia's lowlands. A
+  patch is 640 × 480 km, so footprints reach lon −76.2…−52.7, lat −28.2…−5.6.
+  Use `-77,-29,-52,-5`. With the old `-67.5,-20.5,-59.7,-11.8` box, 70% of
+  "zero-detection" negatives were simply outside the queried area.
+- **one product per date** (`VIIRS_SNPP_SP`; NRT and SP rows are not
+  de-duplicated against each other and double-count FRP). Suomi-NPP was
+  offline 2022-07-20…08-10 — use `VIIRS_NOAA20_SP` for those dates.
+
+Each root's `firms/coverage.json` declares the queried bbox
+(`{"bbox": [-77, -29, -52, -5]}`); `frp_labels` refuses to call a patch a
+negative when its footprint falls outside it, or when its date has no FIRMS
+detection anywhere.
+
 ---
 
 ## 3. Per new root — five pipeline stages
@@ -147,13 +167,18 @@ python -m nina_thermal.training.train_thermal \
 
 python -m nina_thermal.evaluation.pipelines.run_evaluate \
     --checkpoint $OUT/mobilenetv3s_fire_best.pt \
-    --frp_threshold 20000 --out_dir $OUT --figures
+    --frp_threshold 20000 --roots $ROOTS --out_dir $OUT --figures
 
 python -m nina_thermal.quantization.pipelines.run_quantize \
     --checkpoint $OUT/mobilenetv3s_fire_best.pt \
-    --frp_threshold 20000 --out_dir $OUT \
+    --frp_threshold 20000 --roots $ROOTS --out_dir $OUT \
     --epochs 40 --lr 5e-5 --batch_size 16 --num_workers 2 --no_smoke_test
 ```
+
+**Pass `--roots $ROOTS` to every command.** Each one defaults to the four
+original roots (`DEFAULT_ROOTS` in `train_thermal.py`); on 2026-10-02 evaluate
+and quantize silently ran on the old roots while training used all seven.
+Likewise any `--frp_negative_max` must be identical across all four commands.
 
 **`--batch_size 16 --num_workers 2` on `run_quantize` is not optional.** At
 the defaults (32/4) this OOM-killed silently on this machine on 2026-09-03 —

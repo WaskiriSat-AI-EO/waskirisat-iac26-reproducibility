@@ -1,0 +1,281 @@
+{
+  "stage": "run_evaluate",
+  "generated_at": "2026-10-03T19:33:46.879559+00:00",
+  "script_version": "1.0.0",
+  "checkpoint": "mobilenetv3s_fire_best.pt",
+  "device": "cuda",
+  "frp_threshold_mw": 20000.0,
+  "operating_threshold": 0.640882,
+  "threshold_source": "training_report",
+  "beta": 1.732051,
+  "degenerate_eval": false,
+  "test_composition": {
+    "images": 567,
+    "patches": 189,
+    "granules": 49,
+    "nominal_images": 189,
+    "nominal_fire": 83
+  },
+  "merge_stats": {
+    "roots": {
+      "data/04_dataset": 576,
+      "data_202408/04_dataset": 171,
+      "data_202409/04_dataset": 161,
+      "data_202509/04_dataset": 187,
+      "data_202208/04_dataset": 333,
+      "data_202302/04_dataset": 358,
+      "data_202309/04_dataset": 170
+    },
+    "records_read": 1956,
+    "unique_patches": 1785,
+    "duplicate_patches_dropped": 171,
+    "granules": 337,
+    "granules_with_conflicting_splits": 19,
+    "patches_reassigned_by_reconciliation": 58,
+    "split_precedence": [
+      "train",
+      "val",
+      "test"
+    ]
+  },
+  "frp_relabel": {
+    "threshold_mw": 20000.0,
+    "negative_max_mw": 1000.0,
+    "counts": {
+      "fire": 866,
+      "no_fire": 1380,
+      "ambiguous": 2406,
+      "no_frp_data": 0
+    },
+    "retained": 2246,
+    "definition": "label=1 when summed FIRMS FRP over the 640x480 km patch footprint >= 20000 MW within +/-1 day of sensing; label=0 when summed FRP < 1000 MW; patches in between are ambiguous and excluded."
+  },
+  "nominal": {
+    "n": 189,
+    "n_fire": 83,
+    "n_nofire": 106,
+    "recall": 0.891566,
+    "specificity": 0.896226,
+    "roc_auc": 0.959309,
+    "average_precision": 0.944831,
+    "fbeta": 0.886228,
+    "beta": 1.732051,
+    "precision": 0.870588,
+    "accuracy": 0.89418,
+    "f1": 0.880952,
+    "confusion_matrix": {
+      "tn": 95,
+      "fp": 11,
+      "fn": 9,
+      "tp": 74
+    },
+    "precision_at_prevalence": {
+      "0.1": 0.488388,
+      "0.5": 0.895741,
+      "0.9": 0.987232
+    },
+    "bootstrap_ci": {
+      "recall": {
+        "point_estimate": 0.891566265060241,
+        "ci_low": 0.8333333333333334,
+        "ci_high": 0.948051948051948,
+        "n_resamples_used": 1000,
+        "n_resamples_requested": 1000
+      },
+      "precision": {
+        "point_estimate": 0.8705882352941177,
+        "ci_low": 0.7403219063545151,
+        "ci_high": 0.9732142857142857,
+        "n_resamples_used": 1000,
+        "n_resamples_requested": 1000
+      },
+      "fbeta": {
+        "point_estimate": 0.8862275457945509,
+        "ci_low": 0.8292594203765475,
+        "ci_high": 0.9361798858379136,
+        "n_resamples_used": 1000,
+        "n_resamples_requested": 1000
+      },
+      "roc_auc": {
+        "point_estimate": 0.959309,
+        "ci_low": 0.9189152,
+        "ci_high": 0.9894427,
+        "n_resamples_used": 1000,
+        "n_resamples_requested": 1000
+      }
+    }
+  },
+  "by_profile": {
+    "A": {
+      "n": 189,
+      "n_fire": 83,
+      "n_nofire": 106,
+      "recall": 0.638554,
+      "specificity": 0.943396,
+      "roc_auc": 0.938736,
+      "average_precision": 0.914626,
+      "fbeta": 0.688312,
+      "beta": 1.732051,
+      "precision": 0.898305,
+      "accuracy": 0.809524,
+      "f1": 0.746479,
+      "confusion_matrix": {
+        "tn": 100,
+        "fp": 6,
+        "fn": 30,
+        "tp": 53
+      },
+      "precision_at_prevalence": {
+        "0.1": 0.556238,
+        "0.5": 0.918574,
+        "0.9": 0.990247
+      }
+    },
+    "B": {
+      "n": 189,
+      "n_fire": 83,
+      "n_nofire": 106,
+      "recall": 0.891566,
+      "specificity": 0.896226,
+      "roc_auc": 0.959309,
+      "average_precision": 0.944831,
+      "fbeta": 0.886228,
+      "beta": 1.732051,
+      "precision": 0.870588,
+      "accuracy": 0.89418,
+      "f1": 0.880952,
+      "confusion_matrix": {
+        "tn": 95,
+        "fp": 11,
+        "fn": 9,
+        "tp": 74
+      },
+      "precision_at_prevalence": {
+        "0.1": 0.488388,
+        "0.5": 0.895741,
+        "0.9": 0.987232
+      }
+    },
+    "C": {
+      "n": 189,
+      "n_fire": 83,
+      "n_nofire": 106,
+      "recall": 0.891566,
+      "specificity": 0.90566,
+      "roc_auc": 0.959423,
+      "average_precision": 0.935846,
+      "fbeta": 0.888889,
+      "beta": 1.732051,
+      "precision": 0.880952,
+      "accuracy": 0.899471,
+      "f1": 0.886228,
+      "confusion_matrix": {
+        "tn": 96,
+        "fp": 10,
+        "fn": 9,
+        "tp": 74
+      },
+      "precision_at_prevalence": {
+        "0.1": 0.512211,
+        "0.5": 0.904312,
+        "0.9": 0.98838
+      }
+    }
+  },
+  "deltas_vs_B": {
+    "A": {
+      "recall": -0.253012,
+      "specificity": 0.04717,
+      "roc_auc": -0.020573,
+      "average_precision": -0.030205,
+      "fbeta": -0.197916,
+      "precision": 0.027717
+    },
+    "C": {
+      "recall": 0.0,
+      "specificity": 0.009434,
+      "roc_auc": 0.000114,
+      "average_precision": -0.008985,
+      "fbeta": 0.002661,
+      "precision": 0.010364
+    }
+  },
+  "by_surface_type": {
+    "fire": {
+      "n": 33,
+      "n_fire": 31,
+      "n_nofire": 2,
+      "recall": 0.903226,
+      "specificity": 1.0,
+      "roc_auc": 1.0,
+      "average_precision": 1.0,
+      "fbeta": 0.92562,
+      "beta": 1.732051,
+      "precision": 1.0,
+      "accuracy": 0.909091,
+      "f1": 0.949153,
+      "confusion_matrix": {
+        "tn": 2,
+        "fp": 0,
+        "fn": 3,
+        "tp": 28
+      },
+      "precision_at_prevalence": {
+        "0.1": 1.0,
+        "0.5": 1.0,
+        "0.9": 1.0
+      }
+    },
+    "nominal": {
+      "n": 146,
+      "n_fire": 47,
+      "n_nofire": 99,
+      "recall": 0.87234,
+      "specificity": 0.888889,
+      "roc_auc": 0.955298,
+      "average_precision": 0.906906,
+      "fbeta": 0.849741,
+      "beta": 1.732051,
+      "precision": 0.788462,
+      "accuracy": 0.883562,
+      "f1": 0.828283,
+      "confusion_matrix": {
+        "tn": 88,
+        "fp": 11,
+        "fn": 6,
+        "tp": 41
+      },
+      "precision_at_prevalence": {
+        "0.1": 0.465909,
+        "0.5": 0.887019,
+        "0.9": 0.986045
+      }
+    },
+    "warm_surface": {
+      "n": 10,
+      "n_fire": 5,
+      "n_nofire": 5,
+      "recall": 1.0,
+      "specificity": 1.0,
+      "roc_auc": 1.0,
+      "average_precision": 1.0,
+      "fbeta": 1.0,
+      "beta": 1.732051,
+      "precision": 1.0,
+      "accuracy": 1.0,
+      "f1": 1.0,
+      "confusion_matrix": {
+        "tn": 5,
+        "fp": 0,
+        "fn": 0,
+        "tp": 5
+      },
+      "precision_at_prevalence": {
+        "0.1": 1.0,
+        "0.5": 1.0,
+        "0.9": 1.0
+      }
+    }
+  },
+  "notes": "'nominal' = profile B only (the training / deployment configuration). Profiles A/C are out-of-distribution robustness bounds. 'bootstrap_ci' is a granule-level cluster bootstrap \u2014 patch-level resampling understates interval width at 50% tile overlap. 'precision' is measured-as-sampled; 'precision_at_prevalence' is the Bayes projection for the stated operational fire prevalences."
+}

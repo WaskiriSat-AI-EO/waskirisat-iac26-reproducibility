@@ -510,7 +510,8 @@ def write_firms_csv(
       three distinct 1 km FIRMS pixels.
     * **ambiguous** — a single row: a non-zero detection below threshold,
       which ``assign_frp_labels`` drops.
-    * **clean negative** — no rows.
+    * **clean negative** — no rows inside its footprint (only the far-away
+      background row that marks the date as covered).
 
     Off-season granules never get rows and, anchored ~780 km from the
     cluster, sit outside the footprint box regardless.
@@ -531,10 +532,20 @@ def write_firms_csv(
     for granule_id in granule_ids:
         cls = frp_granule_class(granule_id)
         n_rows = {"fire": 3, "ambiguous": 1, "clean": 0}[cls]
-        if n_rows == 0:
-            continue
         lat, lon = _deterministic_centroid(granule_id)
         date = granule_sensing_date(granule_id).strftime("%Y-%m-%d")
+        # A real regional FIRMS CSV always holds some detection on a sensing
+        # date; one far outside every footprint marks the date as covered so
+        # frp_labels treats its zero-detection patches as clean negatives.
+        rows.append(
+            {
+                "latitude": round(lat + 15.0, 5),
+                "longitude": round(lon, 5),
+                "acq_date": date,
+                "confidence": "nominal",
+                "frp": 1.0,
+            }
+        )
         for k in range(n_rows):
             rows.append(
                 {

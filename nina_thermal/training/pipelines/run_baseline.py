@@ -52,6 +52,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Summed-FRP threshold [MW] when --label frp.",
     )
     parser.add_argument(
+        "--frp_negative_max",
+        type=float,
+        default=0.0,
+        help=(
+            "Negative class = summed FRP below this many MW (low fire "
+            "activity).  0 keeps the strict zero-detection definition, which "
+            "leaves almost no negatives once FIRMS covers the whole 640x480 km "
+            "footprint.  Must match training."
+        ),
+    )
+    parser.add_argument(
         "--cv_folds",
         type=int,
         default=DEFAULT_CV_FOLDS,
@@ -92,6 +103,7 @@ def main(argv: list[str] | None = None) -> int:
             agc_mode=args.agc_mode,
             profile=args.profile,
             frp_threshold=args.frp_threshold,
+            frp_negative_max=args.frp_negative_max,
             cv_folds=args.cv_folds,
             seed=args.seed,
             patches_manifest_path=(

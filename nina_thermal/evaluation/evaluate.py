@@ -150,6 +150,7 @@ def build_evaluation_report(
     device: torch.device,
     *,
     frp_threshold: float = DEFAULT_FRP_THRESHOLD_MW,
+    frp_negative_max: float = 0.0,
     explicit_threshold: float | None = None,
     training_report: Path | None = None,
     batch_size: int = 32,
@@ -163,6 +164,8 @@ def build_evaluation_report(
         out_dir: Directory for ``evaluation_summary.json`` + ``predictions.json``.
         device: Inference device.
         frp_threshold: Summed-FRP threshold for the relabel (must match training).
+        frp_negative_max: Summed-FRP ceiling for the negative class (must
+            match training).
         explicit_threshold: Override the operating threshold.
         training_report: ``training_report.json`` to read
             ``selected_threshold`` / ``beta`` from. Defaults to
@@ -193,7 +196,9 @@ def build_evaluation_report(
 
     records, merge_stats = load_merged_records(roots)
     samples = expand_to_samples(records, TEST_PROFILES, EVAL_AGC_MODES)
-    samples, frp_summary = apply_frp_labels(samples, roots, frp_threshold)
+    samples, frp_summary = apply_frp_labels(
+        samples, roots, frp_threshold, frp_negative_max
+    )
     by_split = split_samples(samples)
     test_samples = by_split.get("test", [])
     if not test_samples:

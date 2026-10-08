@@ -85,6 +85,40 @@ class TestComputePatchFrp:
         out = frp_labels.compute_patch_frp([s], _detections([]))
         assert "ghost_p0" not in out
 
+    def test_date_without_any_detection_is_uncovered(self, tmp_path):
+        # Detections exist, but none within +/-1 day of the sensing date: no
+        # CSV was fetched for it, so zero in-footprint hits is missing data.
+        gid = "S3A_SL_1_RBT____20230601T120000_g003"
+        s = _sample("g003_p0000", gid, tmp_path / "r/metadata", (-12.0, -63.0), None)
+        det = _detections([(-30.0, -63.0, "2023-08-15", "nominal", 5.0)])
+        assert "g003_p0000" not in frp_labels.compute_patch_frp([s], det)
+
+    def test_footprint_outside_queried_bbox_is_uncovered(self, tmp_path):
+        gid = "S3A_SL_1_RBT____20230815T120000_g004"
+        s = _sample("g004_p0000", gid, tmp_path / "r/metadata", (-12.0, -72.0), None)
+        det = _detections([(-30.0, -63.0, "2023-08-15", "nominal", 5.0)])
+        # Queried bbox ends at lon -67.5: the footprint centred at -72 lies
+        # wholly outside it, so its zero detections are not a clean negative.
+        assert "g004_p0000" not in frp_labels.compute_patch_frp(
+            [s], det, coverage=[(-67.5, -20.5, -59.7, -11.8)]
+        )
+        out = frp_labels.compute_patch_frp([s], det, coverage=[(-77, -29, -52, -5)])
+        assert out["g004_p0000"]["n_detections"] == 0
+
+    def test_coverage_file_is_read_per_root(self, tmp_path):
+        import json
+
+        for name, bbox in (("a", [-77, -29, -52, -5]), ("b", None)):
+            (tmp_path / name / "firms").mkdir(parents=True)
+            if bbox:
+                (tmp_path / name / "firms" / "coverage.json").write_text(
+                    json.dumps({"bbox": bbox})
+                )
+        assert frp_labels.load_firms_coverage([tmp_path / "a", tmp_path / "b"]) == [
+            (-77, -29, -52, -5)
+        ]
+        assert frp_labels.load_firms_coverage([tmp_path / "b"]) is None
+
 
 class TestAssignFrpLabels:
     def _patch_frp(self):
@@ -114,6 +148,23 @@ class TestAssignFrpLabels:
             "no_frp_data": 0,
         }
         assert summary["retained"] == 2
+
+    def test_negative_max_admits_low_activity_negatives(self):
+        frp = {
+            **self._patch_frp(),
+            "p_low": {"frp_sum": 400.0, "frp_max": 50.0, "n_detections": 12},
+        }
+        samples = [{"patch": p, "label": 0} for p in ("p_clean", "p_low", "p_ambig")]
+        relabelled, summary = frp_labels.assign_frp_labels(
+            samples, frp, threshold_mw=20000.0, negative_max_mw=1000.0
+        )
+        by_patch = {r["patch"]: r["label"] for r in relabelled}
+        assert by_patch == {
+            "p_clean": 0,
+            "p_low": 0,
+            "p_ambig": frp_labels.LABEL_AMBIGUOUS,
+        }
+        assert summary["negative_max_mw"] == 1000.0
 
     def test_threshold_is_inclusive(self):
         pf = {"p": {"frp_sum": 20000.0, "frp_max": 20000.0, "n_detections": 2}}

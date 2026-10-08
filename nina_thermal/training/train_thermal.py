@@ -547,6 +547,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--frp_negative_max",
+        type=float,
+        default=0.0,
+        help=(
+            "Negative class = summed FRP below this many MW (low fire "
+            "activity).  0 keeps the strict zero-detection definition, which "
+            "leaves almost no negatives once FIRMS covers the whole 640x480 km "
+            "footprint.  Must match training."
+        ),
+    )
+    parser.add_argument(
         "--audit",
         action="store_true",
         help="Report the merge, reconciliation and split composition, then exit.",
@@ -578,7 +589,9 @@ def main(argv: list[str] | None = None) -> int:
 
     frp_summary = None
     if args.frp_threshold is not None:
-        samples, frp_summary = apply_frp_labels(samples, args.roots, args.frp_threshold)
+        samples, frp_summary = apply_frp_labels(
+            samples, args.roots, args.frp_threshold, args.frp_negative_max
+        )
 
     by_split = split_samples(samples)
     composition = {

@@ -431,6 +431,7 @@ def _apply_label_scheme(
     agc_mode: str,
     profile: str,
     frp_threshold: float,
+    frp_negative_max: float = 0.0,
 ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
     """Return ``(records, frp_summary)`` with labels per *label_scheme*.
 
@@ -443,7 +444,7 @@ def _apply_label_scheme(
     from nina_thermal.training.dataset import expand_to_samples
 
     samples = expand_to_samples(records, [profile], [agc_mode])
-    samples, summary = apply_frp_labels(samples, roots, frp_threshold)
+    samples, summary = apply_frp_labels(samples, roots, frp_threshold, frp_negative_max)
     frp_label = {
         s["patch"]: int(s["label"]) for s in samples if s["label"] != LABEL_AMBIGUOUS
     }
@@ -462,6 +463,7 @@ def build_baseline_report(
     agc_mode: str = "fixed",
     profile: str = "B",
     frp_threshold: float = DEFAULT_FRP_THRESHOLD_MW,
+    frp_negative_max: float = 0.0,
     cv_folds: int = DEFAULT_CV_FOLDS,
     seed: int = config.DEFAULT_SEED,
     patches_manifest_path: Path | None = None,
@@ -474,6 +476,8 @@ def build_baseline_report(
         agc_mode: AGC variant to read.
         profile: Degradation profile to read.
         frp_threshold: Summed-FRP threshold for ``label_scheme="frp"``.
+        frp_negative_max: Summed-FRP ceiling for the negative class (0 =
+            zero detections only).
         cv_folds: Requested grouped-CV fold count.
         seed: RNG seed.
         patches_manifest_path: Optional ``03_patches/patches_manifest.json`` for
@@ -488,7 +492,7 @@ def build_baseline_report(
         raise ValueError("No train/val records after merge — run the datagen split.")
 
     records, frp_summary = _apply_label_scheme(
-        records, roots, label_scheme, agc_mode, profile, frp_threshold
+        records, roots, label_scheme, agc_mode, profile, frp_threshold, frp_negative_max
     )
     if not records:
         raise ValueError(
