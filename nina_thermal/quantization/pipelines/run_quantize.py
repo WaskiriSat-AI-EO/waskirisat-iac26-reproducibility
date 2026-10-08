@@ -39,6 +39,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -46,6 +47,7 @@ from torchvision import transforms
 
 from shared.pipeline_logging import configure_logging, log_run_footer
 
+from nina_thermal.quantization import diagnostics as diag_lib
 from nina_thermal.quantization import parity as parity_lib
 from nina_thermal.quantization import qat as qat_lib
 from nina_thermal.training.dataset import (
@@ -73,6 +75,14 @@ from nina_thermal.training.threshold import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Minimum score correlation between the converted graph and the fake-quant
+# graph it came from.  Rounding alone stays well above this.
+CONVERSION_MIN_CORR = 0.99
+
+
+def _sigmoid(logits: np.ndarray) -> list[float]:
+    return (1.0 / (1.0 + np.exp(-logits))).tolist()
 
 # Mission budget for the on-orbit model artifact.
 #
@@ -167,6 +177,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--frp_negative_max",
+        type=float,
+        default=0.0,
+        help=(
+            "Negative class = summed FRP below this many MW (low fire "
+            "activity).  0 keeps the strict zero-detection definition, which "
+            "leaves almost no negatives once FIRMS covers the whole 640x480 km "
+            "footprint.  Must match training."
+        ),
+    )
+    parser.add_argument(
         "--no_smoke_test", action="store_true", help="Skip the PTQ smoke test."
     )
     parser.add_argument(
@@ -211,7 +232,9 @@ def main(argv: list[str] | None = None) -> int:
     samples = expand_to_samples(records, args.profiles, args.agc_modes)
     frp_summary = None
     if args.frp_threshold is not None:
-        samples, frp_summary = apply_frp_labels(samples, args.roots, args.frp_threshold)
+        samples, frp_summary = apply_frp_labels(
+            samples, args.roots, args.frp_threshold, args.frp_negative_max
+        )
     by_split = split_samples(samples)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -314,7 +337,34 @@ def main(argv: list[str] | None = None) -> int:
     logger.info("Stage 3: convert + export …")
     out_dir = Path(args.out_dir)
     tflite_path = out_dir / "mobilenetv3s_fire_int8.tflite"
+    # Conversion parity: the converted graph must compute what the fake-quant
+    # graph simulated.  A gap here is a conversion defect, not quantization
+    # noise, and no amount of QAT closes it.
+    qat_lib.set_mode(qat_model, training=False)
+    # Exported graphs reject .eval(), so score without collect_scores.
+    fake_quant_scores = _sigmoid(diag_lib.logits(qat_model, val_loader, device))
     converted = qat_lib.convert(qat_model)
+    converted_scores = _sigmoid(diag_lib.logits(converted, val_loader, device))
+    conversion_parity = {
+        "fake_quant_roc_auc": roc_auc(y_true, fake_quant_scores),
+        "converted_roc_auc": roc_auc(y_true, converted_scores),
+        "score_corr_converted_vs_fake_quant": round(
+            float(np.corrcoef(fake_quant_scores, converted_scores)[0, 1]), 4
+        ),
+    }
+    logger.info(
+        "Conversion parity — fake-quant ROC-AUC=%.4f  converted ROC-AUC=%.4f  corr=%.4f",
+        conversion_parity["fake_quant_roc_auc"],
+        conversion_parity["converted_roc_auc"],
+        conversion_parity["score_corr_converted_vs_fake_quant"],
+    )
+    if conversion_parity["score_corr_converted_vs_fake_quant"] < CONVERSION_MIN_CORR:
+        logger.warning(
+            "Converted graph diverges from the fake-quant graph (corr %.3f < %.2f): "
+            "a conversion defect, see docs/PLAN_int8_fix.md.",
+            conversion_parity["score_corr_converted_vs_fake_quant"],
+            CONVERSION_MIN_CORR,
+        )
     qat_lib.export_tflite(converted, example, tflite_path, quantizer=quantizer)
     checksum_path = qat_lib.write_checksum(tflite_path)
 
@@ -421,6 +471,7 @@ def main(argv: list[str] | None = None) -> int:
             "sqnr_db": None if math.isinf(sqnr_db) else round(sqnr_db, 2),
             "kl_divergence_nats": round(kl_nats, 6),
         },
+        "conversion_parity": conversion_parity,
         "acceptance": acceptance,
         "deployment_note": (
             "Load on OpenMV N6 with ml.Model('/rom/mobilenetv3s_fire_int8.tflite'); "

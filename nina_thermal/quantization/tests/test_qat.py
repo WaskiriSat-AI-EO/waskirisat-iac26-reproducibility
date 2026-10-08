@@ -33,6 +33,25 @@ class TestToolchainResolution:
         q = qat.build_quantizer(per_channel=True)
         assert q is not None
 
+    def test_qat_quantizer_uses_the_qat_config(self):
+        # Regression: build_quantizer once ignored QAT, so "QAT" fine-tuned
+        # against plain observers and never saw quantization noise.
+        assert qat.build_quantizer(qat=True).global_config.is_qat
+        assert not qat.build_quantizer().global_config.is_qat
+
+
+class TestQatConversion:
+    def test_qat_graph_fake_quantizes_and_folds_batchnorm(self):
+        # Needs the torch>=2.12 pattern-export shim: without it the QAT
+        # conv+BN annotation raises, and convert leaves BN unfolded.
+        backbone = train_thermal.build_model(pretrained=False)
+        model = qat.NormalizedFireNet(backbone).eval()
+        prepared, _ = qat.prepare_for_qat(model, qat.sample_input())
+        assert any("FakeQuantize" in type(m).__name__ for m in prepared.modules())
+        qat.calibrate(prepared, [(torch.rand(2, 3, IMAGE_HEIGHT, IMAGE_WIDTH), None)], torch.device("cpu"))
+        converted = qat.convert(prepared)
+        assert not any("batch_norm" in str(n.target) for n in converted.graph.nodes)
+
 
 class TestSampleInput:
     def test_shape_is_native_geometry(self):

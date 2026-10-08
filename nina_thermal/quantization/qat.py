@@ -162,6 +162,58 @@ def _converter_module():
     )
 
 
+class _PatternModule(nn.Module):
+    """Wraps a pattern function so ``torch.export.export`` accepts it."""
+
+    def __init__(self, fn) -> None:
+        super().__init__()
+        self.fn = fn
+
+    def forward(self, *args, **kwargs):
+        return self.fn(*args, **kwargs)
+
+
+_PATTERN_HELPER_MODULES = (
+    "torchao.quantization.pt2e.utils",
+    "torchao.quantization.pt2e.export_utils",
+    "torchao.quantization.pt2e.qat_utils",
+    "torchao.quantization.pt2e.reference_representation_rewrite",
+    "litert_torch.quantize.pt2e_quantizer_utils",
+)
+
+
+def _patch_pattern_export() -> None:
+    """Make torchao's pattern matcher work on torch >= 2.12.
+
+    ``_get_aten_graph_module_for_pattern`` passes a plain function to
+    ``torch.export.export``, which torch 2.12 rejects ("Expected `mod` to be
+    an instance of `torch.nn.Module`").  Every QAT conv+BN annotation and the
+    conv+BN fold at convert time go through it, so without this shim the QAT
+    config cannot be built at all.  Idempotent.
+    """
+    try:
+        utils = importlib.import_module("torchao.quantization.pt2e.utils")
+    except ImportError:
+        return
+    original = utils._get_aten_graph_module_for_pattern
+    if getattr(original, "_nina_patched", False):
+        return
+
+    def patched(pattern, example_inputs, is_cuda=False, **kwargs):
+        if not isinstance(pattern, nn.Module):
+            pattern = _PatternModule(pattern)
+        return original(pattern, example_inputs, is_cuda, **kwargs)
+
+    patched._nina_patched = True
+    for module_name in _PATTERN_HELPER_MODULES:
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError:
+            continue
+        if hasattr(module, "_get_aten_graph_module_for_pattern"):
+            module._get_aten_graph_module_for_pattern = patched
+
+
 def _pt2e_api():
     """Return ``(prepare_pt2e, prepare_qat_pt2e, convert_pt2e)``.
 
@@ -175,6 +227,7 @@ def _pt2e_api():
     Raises:
         ImportError: If neither location provides them.
     """
+    _patch_pattern_export()
     for module_name in (
         "torchao.quantization.pt2e.quantize_pt2e",
         "torch.ao.quantization.quantize_pt2e",
@@ -194,13 +247,16 @@ def _pt2e_api():
     )
 
 
-def build_quantizer(per_channel: bool = True):
+def build_quantizer(per_channel: bool = True, qat: bool = False):
     """Build the TFLite PT2E quantizer.
 
     Args:
         per_channel: Per-output-channel symmetric int8 weights when True,
             per-tensor when False.  Per-channel is more accurate; per-tensor
             produces a slightly smaller artifact.
+        qat: Build the QAT config — fake-quantize modules instead of plain
+            observers, plus the QAT-only conv+BN patterns.  Without it a
+            "QAT" fine-tune trains against no quantization noise at all.
 
     Returns:
         A configured PT2E quantizer.
@@ -208,6 +264,7 @@ def build_quantizer(per_channel: bool = True):
     Raises:
         ImportError: If no PT2E quantizer implementation is installed.
     """
+    _patch_pattern_export()
     for module_name, class_name in (
         ("litert_torch.quantize.pt2e_quantizer", "PT2EQuantizer"),
         ("ai_edge_torch.quantize.pt2e_quantizer", "TFLiteQuantizer"),
@@ -218,7 +275,9 @@ def build_quantizer(per_channel: bool = True):
             continue
         quantizer = getattr(module, class_name)()
         quantizer.set_global(
-            module.get_symmetric_quantization_config(is_per_channel=per_channel)
+            module.get_symmetric_quantization_config(
+                is_per_channel=per_channel, is_qat=qat
+            )
         )
         return quantizer
     raise ImportError(
@@ -292,7 +351,10 @@ def _export_graph(
 
 
 def prepare_for_ptq(
-    model: NormalizedFireNet, example: torch.Tensor, per_channel: bool = True
+    model: NormalizedFireNet,
+    example: torch.Tensor,
+    per_channel: bool = True,
+    quantizer: object | None = None,
 ) -> tuple[nn.Module, object]:
     """Export and prepare the model for post-training static quantization.
 
@@ -300,18 +362,23 @@ def prepare_for_ptq(
         model: Wrapped model in ``eval()`` mode.
         example: Representative input ``(1, 3, H, W)`` in [0, 1].
         per_channel: Weight quantization granularity.
+        quantizer: Pre-configured quantizer (e.g. with modules excluded);
+            defaults to :func:`build_quantizer`.
 
     Returns:
         ``(prepared_model, quantizer)``.  The quantizer must be handed to
         :func:`export_tflite`, which needs it to emit the quantized graph.
     """
     prepare_pt2e, _, _ = _pt2e_api()
-    quantizer = build_quantizer(per_channel)
+    quantizer = quantizer or build_quantizer(per_channel)
     return prepare_pt2e(_export_graph(model, example), quantizer), quantizer
 
 
 def prepare_for_qat(
-    model: NormalizedFireNet, example: torch.Tensor, per_channel: bool = True
+    model: NormalizedFireNet,
+    example: torch.Tensor,
+    per_channel: bool = True,
+    quantizer: object | None = None,
 ) -> tuple[nn.Module, object]:
     """Export and prepare the model for quantization-aware training.
 
@@ -322,13 +389,15 @@ def prepare_for_qat(
         model: Wrapped model in ``eval()`` mode, all params trainable.
         example: Representative input ``(1, 3, H, W)`` in [0, 1].
         per_channel: Weight quantization granularity.
+        quantizer: Pre-configured quantizer; defaults to
+            :func:`build_quantizer`.
 
     Returns:
         ``(prepared_model, quantizer)``.  Switch the model to train mode with
         :func:`set_mode` before fine-tuning.
     """
     _, prepare_qat_pt2e, _ = _pt2e_api()
-    quantizer = build_quantizer(per_channel)
+    quantizer = quantizer or build_quantizer(per_channel, qat=True)
     # torch.export specialises any dimension whose example size is 1, so a
     # batch-1 example cannot produce a dynamic batch dim ("Constraints
     # violated (batch)").  Capture with batch 2; the range still allows 1.
@@ -370,6 +439,13 @@ def convert(model: nn.Module) -> nn.Module:
     tensor<16x3x3x3xi8>").  Leaving the quantize nodes in the graph preserves
     the quantization parameters the converter needs.
 
+    The model is switched to eval mode *before* conversion, since a QAT model
+    leaves its fine-tune in train mode and the PT2E recipe converts from eval.
+
+    The converted graph still deviates somewhat from the fake-quant graph
+    (val score correlation ~0.91–0.95 after QAT); ``run_quantize`` records
+    this as ``conversion_parity``.  See docs/PLAN_int8_fix.md.
+
     Args:
         model: Prepared PTQ or QAT model.
 
@@ -378,6 +454,7 @@ def convert(model: nn.Module) -> nn.Module:
     """
     _, _, convert_pt2e = _pt2e_api()
 
+    set_mode(model, training=False)
     return set_mode(convert_pt2e(model, fold_quantize=False), training=False)
 
 
