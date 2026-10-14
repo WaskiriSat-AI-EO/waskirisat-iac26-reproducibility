@@ -20,7 +20,9 @@ jobs:
           cache: "pip"
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        # CPU-only torch wheels: the default index now resolves to CUDA builds that
+        # exhaust the runner's disk space.
+        run: pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
 
       - name: Install CI tools
         run: pip install ruff mypy
