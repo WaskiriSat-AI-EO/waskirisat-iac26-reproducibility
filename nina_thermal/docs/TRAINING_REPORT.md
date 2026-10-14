@@ -2,7 +2,7 @@
 
 **WaskiriSat / NINA payload — fire detection model**
 **Date:** 2026-08-31 · **Branch:** `feat/enhance-thermal-pipeline`
-**Artifacts:** `models/nina_thermal_frp20000/`
+**Artifacts:** `models/thermal/frp20000/`
 
 ---
 
@@ -269,7 +269,7 @@ hardware.
 ## 8. Artifacts
 
 ```
-models/nina_thermal_frp20000/
+models/thermal/frp20000/
 ├── mobilenetv3s_fire_best.pt        3.85 MB   fp32 checkpoint (state dict)
 ├── mobilenetv3s_fire_int8.tflite    1.45 MB   int8 TFLite, QAT 40 epochs
 ├── mobilenetv3s_fire_int8.sha256              6e486fc771f9c7a9…
@@ -281,11 +281,11 @@ models/nina_thermal_frp20000/
 
 ```bash
 python -m nina_thermal.training.train_thermal \
-    --frp_threshold 20000 --out_dir models/nina_thermal_frp20000
+    --frp_threshold 20000 --out_dir models/thermal/frp20000
 
 python -m nina_thermal.quantization.pipelines.run_quantize \
-    --checkpoint models/nina_thermal_frp20000/mobilenetv3s_fire_best.pt \
-    --out_dir models/nina_thermal_frp20000 --frp_threshold 20000 \
+    --checkpoint models/thermal/frp20000/mobilenetv3s_fire_best.pt \
+    --out_dir models/thermal/frp20000 --frp_threshold 20000 \
     --epochs 40 --lr 5e-5 --batch_size 16
 ```
 

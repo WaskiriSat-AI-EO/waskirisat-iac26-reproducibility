@@ -1,0 +1,9 @@
+# Replace the placeholders with GitHub usernames.
+/nina_cloud/    @LEYLA_GH
+/nina_thermal/  @OSVALDO_GH
+/hil/           @MISAEL_GH
+/models/cloud/  @LEYLA_GH
+/models/thermal/ @OSVALDO_GH
+/reproduce/     @ChristianConchari
+/docs/          @ChristianConchari
+/README.md      @ChristianConchari

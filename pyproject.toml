@@ -4,6 +4,7 @@
 [tool.ruff]
 target-version = "py313"
 line-length = 88
+extend-exclude = ["hil"]
 
 [tool.ruff.lint]
 # Pinned to ruff's historical stable default (real-bug rules: pyflakes +
@@ -36,3 +37,8 @@ module = [
     "nina_thermal.quantization.qat",
 ]
 ignore_errors = true
+
+# hil/ holds the delivered OpenMV/MicroPython sources verbatim (they must match
+# the code that produced the published results), so formatters and linters skip it.
+[tool.black]
+extend-exclude = "hil/"

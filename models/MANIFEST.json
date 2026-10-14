@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "note": "Binaries are NOT stored in git. Publish them as a Release/Zenodo asset and record the sha256 here.",
+  "artifacts": [
+    {
+      "id": "cloud_int8",
+      "payload": "cloud",
+      "format": "tflite-int8",
+      "file": "cloud_detection.tflite",
+      "sha256": "f528086c23c0e997b906fea87eb02ceec6e2a1d59a596fa6e71c0a6493946d5e",
+      "size_bytes": 1941072,
+      "source": "delivered with HIL Test 1/2 (2026-09-05)",
+      "owner": "Leyla",
+      "url": null,
+      "open_items": ["confirm width multiplier (0.75 per tflite graph) and training commit/config", "attach FP32 checkpoint"]
+    },
+    {
+      "id": "thermal_int8",
+      "payload": "thermal",
+      "format": "tflite-int8",
+      "file": "mobilenetv3s_fire_int8.tflite",
+      "sha256": "6e486fc771f9c7a984d281208980692e1c31340241984f2ff487db5ada1201e8",
+      "size_bytes": 1452472,
+      "source": "models/nina_thermal_frp20000 (matches fire_detection.tflite used in HIL)",
+      "owner": "Osvaldo",
+      "url": null,
+      "open_items": ["attach FP32 checkpoint", "gate FAILED 3/4 criteria: publish with this caveat"]
+    }
+  ]
+}

@@ -220,7 +220,8 @@ sentinel_data_raw/*
 *.npy
 *.SEN3/
 **/*.SEN3/
-data/
+data/*
+!data/manifests/
 
 # Large source ROI files — commit only *_simplified.geojson derivatives
 nina_thermal/resources/bo_nina_roi.geojson
