@@ -1,305 +1,121 @@
-# WaskiriSat — AI Payload Development
+# WaskiriSat — AI payload: models, data pipelines and reproducibility
 
-> **Bolivia's first CubeSat** — autonomous wildfire detection and image quality control from a 525 km LEO orbit.
+Code, models and verification artifacts behind the IAC-26 paper
+**"Onboard Edge AI for Wildfire Monitoring …"** (paper ID 111635, session B4.4) on the
+two AI payloads of WaskiriSat, Bolivia's first CubeSat (525 km sun-synchronous orbit).
+Paper: _link / DOI to be added when indexed_.
 
-[![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)](https://python.org)
-[![License](https://img.shields.io/badge/License-BSD%203--Clause-22c55e)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-148%20passing-22c55e?logo=pytest&logoColor=white)](nina_thermal/datagen/tests/)
-[![Orbit](https://img.shields.io/badge/Orbit-SSO%20525%20km-6366f1)](https://en.wikipedia.org/wiki/Sun-synchronous_orbit)
-[![Institution](https://img.shields.io/badge/UCB%20San%20Pablo-BIRDS%20%2F%20KyuTech-0ea5e9)](https://www.ucb.edu.bo)
+| Payload | Sensor | Input | Task | Code |
+|---|---|---|---|---|
+| **NINA** — thermal | FLIR Lepton 3.5 | 160×120, 3,563 m/px | Wildfire hotspot detection | [`nina_thermal/`](nina_thermal/) |
+| **IQC** — visible | PAG7936 RGB | 1280×800, 562.5 m/px | Cloud / clear screening for downlink | [`nina_cloud/`](nina_cloud/) |
 
----
+Everything is **pre-flight**: datasets are synthetic proxies built by degrading calibrated
+Sentinel-2/-3 and NASA FIRMS products to the flight sensors' characteristics. The paper's
+claims are graded by evidence tier (T1–T4) and verification rung (V0–V7); see
+[`docs/evidence-and-ladder.md`](docs/evidence-and-ladder.md) and the known limits in
+[`docs/limitations.md`](docs/limitations.md).
 
-## Mission
-
-Bolivia loses millions of hectares to fire every year in the Chiquitanía and Beni regions — with no sovereign space-based monitoring capability. **WaskiriSat** changes that.
-
-This repository is the AI/ML workspace for WaskiriSat's two onboard payloads: physics-based training dataset generation, model development, and the pre-launch model registry. All work is pre-flight — the pipelines produce synthetic proxy datasets by downscaling calibrated satellite imagery to match the exact sensor characteristics of the hardware flying onboard.
-
----
-
-## Payloads
-
-| | Payload | Sensor | Resolution | Task |
-|---|---------|--------|-----------|------|
-| 🔥 | **NINA** — Neural Infrared Anomaly Observer | FLIR Lepton 3.5 | 160×120 px · 3,563 m/px GSD | Wildfire hotspot detection |
-| ☁️ | **IQC** — Image Quality Control | PAG7936 RGB | 1280×800 px · 562.5 m/px GSD | Cloud classification for downlink prioritisation |
-
----
-
-## Tech Stack
-
-**Language & ML**
-
-[![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)](https://python.org)
-[![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org)
-[![NumPy](https://img.shields.io/badge/NumPy-013243?logo=numpy&logoColor=white)](https://numpy.org)
-[![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?logo=opencv&logoColor=white)](https://opencv.org)
-
-**Earth Observation & Geospatial**
-
-[![Copernicus](https://img.shields.io/badge/Copernicus%20CDSE-0066CC?logo=esa&logoColor=white)](https://dataspace.copernicus.eu)
-[![Sentinel-3](https://img.shields.io/badge/Sentinel--3%20SLSTR-1a73e8)](https://sentinels.copernicus.eu/web/sentinel/missions/sentinel-3)
-[![Sentinel-2](https://img.shields.io/badge/Sentinel--2%20MSI-1a73e8)](https://sentinels.copernicus.eu/web/sentinel/missions/sentinel-2)
-[![FIRMS](https://img.shields.io/badge/NASA%20FIRMS-e84b3a)](https://firms.modaps.eosdis.nasa.gov)
-[![Rasterio](https://img.shields.io/badge/Rasterio-4B8BBE)](https://rasterio.readthedocs.io)
-[![GeoPandas](https://img.shields.io/badge/GeoPandas-139C5A)](https://geopandas.org)
-
-**Quality**
-
-[![pytest](https://img.shields.io/badge/pytest-148%20tests-0A9EDC?logo=pytest&logoColor=white)](https://pytest.org)
-[![Black](https://img.shields.io/badge/Black-formatted-000000)](https://black.readthedocs.io)
-
----
-
-## Architecture
-
-```mermaid
-flowchart LR
-    subgraph sources["Data Sources (Copernicus CDSE)"]
-        S3["Sentinel-3 SLSTR L1B\n1,000 m/px · 10.85 µm"]
-        S2["Sentinel-2 MSI L2A\n10 m/px · RGB"]
-        FIRMS["NASA FIRMS\nActive Fire"]
-    end
-
-    subgraph nt["nina_thermal · Fire Detection"]
-        direction TB
-        NT_DG["datagen/\n7-stage pipeline\n→ 160×120 px patches"]
-        NT_TR["training/\nFire classifier\n⚠ in progress"]
-        NT_EV["evaluation/\nPre-launch validation\n⚠ in progress"]
-        NT_DG --> NT_TR --> NT_EV
-    end
-
-    subgraph nc["nina_cloud · Cloud Classification"]
-        direction TB
-        NC_DG["datagen/\n7-stage pipeline\n→ 1280×800 px tiles"]
-        NC_TR["training/\nMobileNetV2 baseline"]
-        NC_EV["evaluation/\nPre-launch validation\n⚠ in progress"]
-        NC_DG --> NC_TR --> NC_EV
-    end
-
-    subgraph sh["shared/"]
-        SH["cdse_auth · cdse_download\noptics · pipeline_logging"]
-    end
-
-    subgraph out["models/"]
-        MR[".onnx registry\nversioned + checksums"]
-    end
-
-    S3 --> NT_DG
-    FIRMS --> NT_DG
-    S2 --> NC_DG
-    sh --> nt
-    sh --> nc
-    NT_EV --> MR
-    NC_EV --> MR
-```
-
----
-
-## Repository Layout
+## Repository map
 
 ```
-waskirisat-pl-aidev/
-├── nina_thermal/               # Bounded context: fire detection (NINA payload)
-│   ├── datagen/                # 7-stage SLSTR → synthetic Lepton patch pipeline
-│   ├── training/               # Fire classifier training  [WIP]
-│   ├── evaluation/             # Pre-launch validation suite  [WIP]
-│   ├── docs/                   # Scientific rationale & architecture spec
-│   └── resources/              # Bolivia ROI GeoJSON files
-├── nina_cloud/                 # Bounded context: cloud classification (IQC payload)
-│   ├── datagen/                # Parallel Sentinel-2 → PAG7936 tile pipeline
-│   ├── training/               # MobileNetV2 baseline
-│   └── evaluation/             # Pre-launch validation suite  [WIP]
-├── shared/                     # Cross-context utilities
-│   ├── cdse_auth.py            # Copernicus OAuth2
-│   ├── cdse_download.py        # Scene acquisition
-│   ├── optics.py               # PSF blur (shared by both sensors)
-│   └── pipeline_logging.py     # Structured run logging
-├── models/                     # Artifact registry (.onnx + checksums)
-├── data/                       # Pipeline outputs — gitignored (~72 GB)
-├── requirements.txt
-└── .env.template               # CDSE credentials template
+nina_thermal/   NINA fire classifier: datagen → training → quantization → evaluation   (owner: Osvaldo)
+nina_cloud/     IQC cloud classifier: datagen → training → quantization → evaluation   (owner: Leyla)
+hil/            Surrogate hardware-in-the-loop (OpenMV H7 Plus + ESP32 OBC): code and raw results (owner: Misael)
+models/         Published artifacts; MANIFEST.json holds the sha256 of every binary
+reproduce/      One script per paper table/figure, compared against the paper's values
+shared/         Utilities used by both payloads (CDSE access, optics, seeding, logging)
+data/manifests/ Versioned dataset manifests and the scene/split registry (data itself is not in git)
+docs/           Evidence taxonomy, limitations, model/dataset card templates
 ```
 
----
-
-## Quickstart
+## Quick start
 
 ```bash
-git clone <repo-url>
+git clone git@github.com:WaskiriSat-AI-EO/waskirisat-pl-aidev.git
 cd waskirisat-pl-aidev
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-cp .env.template .env           # add CDSE_USER and CDSE_PASSWORD
+python3.13 -m venv .venv && source .venv/bin/activate   # fish: source .venv/bin/activate.fish
+pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+make test          # unit tests
+make reproduce     # recompute every paper item and compare with the paper
 ```
 
-> **Copernicus credentials** are free at [dataspace.copernicus.eu](https://dataspace.copernicus.eu).
+`make reproduce` prints PASS / FAIL / PENDING per item. Tables 7 and 8 and the Test 2 summary
+already reproduce from the raw HIL results committed in `hil/results/`. Items still marked
+PENDING are waiting for their owner; the map is in [`reproduce/paper_map.md`](reproduce/paper_map.md).
 
----
+## Reproducing the paper
 
-## Running the Pipelines
-
-Both pipelines follow the same 7-stage sequence. Run each stage from the repo root.
-
-### NINA Thermal — Fire Detection Dataset
-
-```bash
-# Stage 1 — Download Sentinel-3 SLSTR granules from CDSE
-python -m nina_thermal.datagen.pipelines.run_acquisition \
-    --roi nina_thermal/resources/bo_nina_roi_simplified.geojson \
-    --start 20230601 --end 20230930 \
-    --output_dir data/01_raw
-
-# Stage 2 — Extract brightness temperature channels to .npy
-python -m nina_thermal.datagen.pipelines.run_extraction \
-    --input_dir data/01_raw --output_dir data/02_extracted
-
-# Stage 3 — Aggregate to Lepton GSD, tile into 160×120 patches
-python -m nina_thermal.datagen.pipelines.run_processing \
-    --input_dir data/02_extracted --output_dir data/03_patches \
-    --roi nina_thermal/resources/bo_nina_roi_simplified.geojson \
-    --firms_dir data/firms
-
-# Stage 4 — Simulate FLIR Lepton 3.5 sensor degradation
-python -m nina_thermal.datagen.pipelines.run_simulation \
-    --input_dir data/03_patches --output_dir data/04_dataset
-
-# Stage 5 — Assign granule-level train/val/test splits
-python -m nina_thermal.datagen.pipelines.run_split \
-    --dataset_dir data/04_dataset
-
-# Stage 6 — Balance fire/no-fire classes (target: 20% fire)
-python -m nina_thermal.datagen.pipelines.run_balance \
-    --dataset_dir data/04_dataset
-
-# Stage 7 — Generate dataset_summary.json
-python -m nina_thermal.datagen.pipelines.run_report \
-    --dataset_dir data/04_dataset
-```
-
-### NINA Cloud — Cloud Classification Dataset
-
-```bash
-python -m nina_cloud.datagen.pipelines.run_acquisition  --roi nina_thermal/resources/bo_nina_roi_simplified.geojson --start 20230601 --end 20230930 --output_dir data/cloud/01_raw
-python -m nina_cloud.datagen.pipelines.run_extraction   --input_dir data/cloud/01_raw   --output_dir data/cloud/02_extracted
-python -m nina_cloud.datagen.pipelines.run_processing   --input_dir data/cloud/02_extracted --output_dir data/cloud/03_tiles
-python -m nina_cloud.datagen.pipelines.run_simulation   --input_dir data/cloud/03_tiles  --output_dir data/cloud/04_dataset
-python -m nina_cloud.datagen.pipelines.run_split        --dataset_dir data/cloud/04_dataset
-python -m nina_cloud.datagen.pipelines.run_balance      --dataset_dir data/cloud/04_dataset
-python -m nina_cloud.datagen.pipelines.run_report       --dataset_dir data/cloud/04_dataset
-```
-
----
-
-## Incremental & Multi-Operator Dataset Accumulation
-
-The NINA Cloud dataset is built incrementally across many runs, potentially by
-multiple operators.  The pipeline is designed to be safe to run repeatedly
-without data corruption or split instability.
-
-### How it works
-
-**Split assignment is deterministic and permanent.**
-Each scene is assigned `train / val / test` via a hash of its scene ID the
-first time it is acquired.  Adding more scenes or re-running the pipeline never
-moves a scene to a different split.  The mapping is stored in
-`data/cloud/scene_registry.json`.
-
-**Profile policy saves ~50 % storage.**
-Simulation generates profile B only for train/val scenes (the profile used for
-training).  Test scenes get all three profiles (A, B, C) for cross-degradation
-robustness evaluation.  Pass `--profiles A,B,C` to override for all scenes.
-
-**Balancing is train-only.**
-`run_balance` undersamples clear patches in the train split to reach 50/50
-cloud:clear.  Val and test keep their natural class distribution so evaluation
-metrics reflect real deployment conditions.
-
-### Dataset size target
-
-| | Unique tiles | Images (×profiles) |
+| Paper item | Command | Status |
 |---|---|---|
-| Minimum viable | ~1,000 | ~1,300 |
-| Recommended | ~3,000–5,000 | ~4,000–6,500 |
-| Diminishing returns beyond | ~10,000 | ~13,000 |
+| Tables 5, 6, §4 thresholds | `make table5 table6 parity` | pending (payload owners) |
+| Tables 7, 8, §6.6 | `make table7 table8 test2-summary` | reproduces |
+| Figures 1, 2 | `make figures` | script available |
+| Binary integrity | `make verify-models` | needs the published binaries |
 
-Acquire ~60–80 S2 scenes (mixed clear/cloudy) to reach the recommended target.
+Models (`.tflite`, checkpoints) and the full datasets are **not stored in git**. They are
+published outside the repository (Zenodo / GitHub Release); `models/MANIFEST.json` records
+the expected sha256 of each artifact and `make verify-models` checks them. Links will be added
+here once published.
 
-### Operator workflow (with DVC + Google Drive)
+## Rebuilding the datasets
 
-**First-time setup** (one operator, once):
+Both pipelines run the same seven stages from the repo root. Copernicus credentials are free at
+[dataspace.copernicus.eu](https://dataspace.copernicus.eu); copy `.env.template` to `.env` and fill in
+`CDSE_USER` / `CDSE_PASSWORD`.
 
-```bash
-# Configure the shared remote (requires your Google Drive folder ID)
-dvc remote add -d gdrive gdrive://<your-gdrive-folder-id>
-dvc remote modify gdrive gdrive_acknowledge_abuse true
-git add .dvc/config && git commit -m "ci: configure DVC Google Drive remote"
-git push
-```
-
-**Each acquisition run** (any operator):
+### NINA thermal (Sentinel-3 SLSTR + FIRMS → Lepton 3.5 patches)
 
 ```bash
-git pull                          # get latest code
-dvc pull                          # sync registry + dataset from Drive
-export CDSE_USER=...
-export CDSE_PASSWORD=...
-export NINA_OPERATOR=yourname     # recorded in registry for provenance
-
-python -m nina_cloud.datagen.pipelines.run_acquisition \
-    --roi nina_thermal/resources/bo_nina_roi_simplified.geojson \
-    --start 20230601 --end 20230930 \
-    --output_dir data/cloud/01_raw
-
-# ... run extraction, processing, simulation, split, balance, report ...
-
-dvc add data/cloud/scene_registry.json data/cloud/04_dataset
-dvc push                          # upload to Google Drive
-git add data/cloud/scene_registry.json.dvc data/cloud/04_dataset.dvc
-git commit -m "data: add N new scenes (operator: yourname)"
-git push
+python -m nina_thermal.datagen.pipelines.run_acquisition --roi nina_thermal/resources/bo_nina_roi_simplified.geojson --start 20230601 --end 20230930 --output_dir data/01_raw
+python -m nina_thermal.datagen.pipelines.run_extraction  --input_dir data/01_raw --output_dir data/02_extracted
+python -m nina_thermal.datagen.pipelines.run_processing  --input_dir data/02_extracted --output_dir data/03_patches --roi nina_thermal/resources/bo_nina_roi_simplified.geojson --firms_dir data/firms
+python -m nina_thermal.datagen.pipelines.run_simulation  --input_dir data/03_patches --output_dir data/04_dataset
+python -m nina_thermal.datagen.pipelines.run_split       --dataset_dir data/04_dataset
+python -m nina_thermal.datagen.pipelines.run_balance     --dataset_dir data/04_dataset
+python -m nina_thermal.datagen.pipelines.run_report      --dataset_dir data/04_dataset
 ```
 
-Scenes already in the registry are automatically skipped — no duplicates,
-no split corruption.
-
----
-
-## Tests
+### IQC cloud (Sentinel-2 → PAG7936 tiles)
 
 ```bash
-pytest                                   # all 148 tests
-pytest nina_thermal/datagen/tests/ -v    # thermal pipeline only
-pytest nina_cloud/datagen/tests/ -v      # cloud pipeline only
+python -m nina_cloud.datagen.pipelines.run_acquisition --roi nina_thermal/resources/bo_nina_roi_simplified.geojson --start 20230601 --end 20230930 --output_dir data/cloud/01_raw
+python -m nina_cloud.datagen.pipelines.run_extraction  --input_dir data/cloud/01_raw --output_dir data/cloud/02_extracted
+python -m nina_cloud.datagen.pipelines.run_processing  --input_dir data/cloud/02_extracted --output_dir data/cloud/03_tiles
+python -m nina_cloud.datagen.pipelines.run_simulation  --input_dir data/cloud/03_tiles --output_dir data/cloud/04_dataset
+python -m nina_cloud.datagen.pipelines.run_split       --dataset_dir data/cloud/04_dataset
+python -m nina_cloud.datagen.pipelines.run_balance     --dataset_dir data/cloud/04_dataset
+python -m nina_cloud.datagen.pipelines.run_report      --dataset_dir data/cloud/04_dataset
 ```
 
----
+Training, quantization and evaluation entry points are documented per payload in
+[`nina_thermal/README.md`](nina_thermal/README.md) and [`nina_cloud/README.md`](nina_cloud/README.md).
 
-## How to Contribute
+### Incremental, multi-operator acquisition (cloud)
 
-This is a pre-launch project — **physical correctness is non-negotiable**. Every processing decision is traceable to a sensor datasheet or radiometric reference. Before contributing, read [`nina_thermal/docs/CLAUDE_CODE_BRIEF.md`](nina_thermal/docs/CLAUDE_CODE_BRIEF.md) to understand the constraints.
+Split assignment is deterministic and permanent: each scene is hashed to `train` / `val` / `test`
+the first time it is registered, and the mapping lives in the scene registry. Re-running or adding
+scenes never moves a scene between splits. Profile B is simulated for train/val scenes; test scenes get
+A, B and C. Balancing (50/50 cloud:clear) applies to the train split only.
 
-### Open contribution areas
+To share the registry between operators, commit it as `data/manifests/scene_registry.json` and pass
+`--registry data/manifests/scene_registry.json` to the acquisition, split and simulation stages. Always
+`git pull` before acquiring so already-registered scenes are skipped, set `NINA_OPERATOR` to record
+provenance, and commit the updated registry afterwards.
 
-| Area | Location | Status |
-|------|----------|--------|
-| 🔥 **Thermal fire classifier** | `nina_thermal/training/` | Empty — needs to be built |
-| ☁️ **Cloud classifier improvements** | `nina_cloud/training/` | MobileNetV2 baseline exists |
-| 📊 **Pre-launch evaluation suite** | `nina_thermal/evaluation/` `nina_cloud/evaluation/` | Empty — needs design |
-| 🔬 **Datagen improvements** | `nina_thermal/datagen/` `nina_cloud/datagen/` | Noise models, spectral corrections, labeling |
+## Hardware-in-the-loop (V5)
 
-### Steps
+[`hil/`](hil/) contains the OpenMV H7 Plus payload code, the ESP32 stand-in OBC firmware and the raw
+results of Test 1 (surrogate execution) and Test 2 (OBC-driven integration). The code is kept exactly
+as it ran. See [`hil/README.md`](hil/README.md).
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feat/your-feature`
-3. Write tests alongside your code — the pipelines have 148 tests as a baseline
-4. Open a pull request with a description of the physical justification for any parameter changes
+## Contributing
 
----
+Read [`CONTRIBUTING.md`](CONTRIBUTING.md). Each area has an owner and a delivery checklist in its README;
+open work is tracked in the `iac26-repro` milestone.
 
-## Affiliation
+## Affiliation and license
 
-**Universidad Católica Boliviana "San Pablo"** · [BIRDS Program](https://birds-project.com) · **Kyushu Institute of Technology**
-
-WaskiriSat contributes Bolivia's first space-based Earth observation capability for wildfire monitoring — open data, open models, open source.
+Universidad Católica Boliviana "San Pablo" · BIRDS Program · Kyushu Institute of Technology.
+Code is BSD 3-Clause ([`LICENSE`](LICENSE)). Licenses for models and derived datasets, and the required
+attribution for Copernicus and NASA FIRMS data, are documented in the model and dataset cards.

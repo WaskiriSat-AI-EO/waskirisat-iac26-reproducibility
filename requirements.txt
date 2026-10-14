@@ -28,7 +28,6 @@ scikit-learn==1.9.0
 sentinelsat==1.2.1
 tqdm==4.67.1
 urllib3==2.5.0
-dvc[gdrive]>=3.0
 pytest==9.0.2
 # ── ML / Quantization (nina_cloud training + quantization pipeline) ────────────
 torch>=2.12.0
