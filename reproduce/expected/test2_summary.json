@@ -1,0 +1,26 @@
+{
+  "mission_completed": {
+    "value": true,
+    "tol": 0
+  },
+  "committed_samples": {
+    "value": 185,
+    "tol": 0
+  },
+  "frames": {
+    "value": 117840,
+    "tol": 0
+  },
+  "integrity_errors": {
+    "value": 0,
+    "tol": 0
+  },
+  "compared_with_test1": {
+    "value": 185,
+    "tol": 0
+  },
+  "identical_to_test1": {
+    "value": 185,
+    "tol": 0
+  }
+}

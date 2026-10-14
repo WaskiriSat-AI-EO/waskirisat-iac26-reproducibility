@@ -1,0 +1,90 @@
+{
+  "thermal.fp32.B.recall": {
+    "value": 0.778,
+    "tol": 0.0005
+  },
+  "thermal.fp32.B.precision": {
+    "value": 0.651,
+    "tol": 0.0005
+  },
+  "thermal.fp32.B.roc_auc": {
+    "value": 0.787,
+    "tol": 0.0005
+  },
+  "thermal.fp32.B.pr_auc": {
+    "value": 0.702,
+    "tol": 0.0005
+  },
+  "thermal.int8.B.recall": {
+    "value": 0.972,
+    "tol": 0.0005
+  },
+  "thermal.int8.B.precision": {
+    "value": 0.547,
+    "tol": 0.0005
+  },
+  "thermal.int8.B.roc_auc": {
+    "value": 0.694,
+    "tol": 0.0005
+  },
+  "thermal.int8.B.pr_auc": {
+    "value": 0.539,
+    "tol": 0.0005
+  },
+  "cloud.int8.A.recall": {
+    "value": 0.671,
+    "tol": 0.0005
+  },
+  "cloud.int8.A.precision": {
+    "value": 1.0,
+    "tol": 0.0005
+  },
+  "cloud.int8.A.roc_auc": {
+    "value": 0.976,
+    "tol": 0.0005
+  },
+  "cloud.int8.A.pr_auc": {
+    "value": 0.972,
+    "tol": 0.0005
+  },
+  "cloud.int8.B.recall": {
+    "value": 0.861,
+    "tol": 0.0005
+  },
+  "cloud.int8.B.precision": {
+    "value": 0.978,
+    "tol": 0.0005
+  },
+  "cloud.int8.B.roc_auc": {
+    "value": 0.98,
+    "tol": 0.0005
+  },
+  "cloud.int8.B.pr_auc": {
+    "value": 0.977,
+    "tol": 0.0005
+  },
+  "cloud.int8.C.recall": {
+    "value": 0.577,
+    "tol": 0.0005
+  },
+  "cloud.int8.C.precision": {
+    "value": 0.994,
+    "tol": 0.0005
+  },
+  "cloud.int8.C.roc_auc": {
+    "value": 0.977,
+    "tol": 0.0005
+  },
+  "cloud.int8.C.pr_auc": {
+    "value": 0.97,
+    "tol": 0.0005
+  },
+  "thermal.fp32.B.roc_auc_ci90_low": {
+    "value": 0.644,
+    "tol": 0.0005
+  },
+  "thermal.fp32.B.roc_auc_ci90_high": {
+    "value": 0.943,
+    "tol": 0.0005
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "thermal.train.frames": {
+    "value": 219,
+    "tol": 0
+  },
+  "thermal.train.granules": {
+    "value": 72,
+    "tol": 0
+  },
+  "thermal.train.positive": {
+    "value": 67,
+    "tol": 0
+  },
+  "thermal.train.negative": {
+    "value": 152,
+    "tol": 0
+  },
+  "thermal.train.positive_rate": {
+    "value": 0.306,
+    "tol": 0.0005
+  },
+  "thermal.val.frames": {
+    "value": 36,
+    "tol": 0
+  },
+  "thermal.val.granules": {
+    "value": 11,
+    "tol": 0
+  },
+  "thermal.val.positive": {
+    "value": 17,
+    "tol": 0
+  },
+  "thermal.val.negative": {
+    "value": 19,
+    "tol": 0
+  },
+  "thermal.val.positive_rate": {
+    "value": 0.472,
+    "tol": 0.0005
+  },
+  "thermal.test.frames": {
+    "value": 82,
+    "tol": 0
+  },
+  "thermal.test.granules": {
+    "value": 21,
+    "tol": 0
+  },
+  "thermal.test.positive": {
+    "value": 36,
+    "tol": 0
+  },
+  "thermal.test.negative": {
+    "value": 46,
+    "tol": 0
+  },
+  "thermal.test.positive_rate": {
+    "value": 0.439,
+    "tol": 0.0005
+  },
+  "cloud.val_profile_b.frames": {
+    "value": 998,
+    "tol": 0
+  },
+  "cloud.val_profile_b.positive": {
+    "value": 530,
+    "tol": 0
+  },
+  "cloud.val_profile_b.negative": {
+    "value": 468,
+    "tol": 0
+  },
+  "cloud.test_profile_a.frames": {
+    "value": 1408,
+    "tol": 0
+  },
+  "cloud.test_profile_a.positive": {
+    "value": 574,
+    "tol": 0
+  },
+  "cloud.test_profile_a.negative": {
+    "value": 834,
+    "tol": 0
+  },
+  "cloud.test_profile_b.frames": {
+    "value": 1408,
+    "tol": 0
+  },
+  "cloud.test_profile_b.positive": {
+    "value": 574,
+    "tol": 0
+  },
+  "cloud.test_profile_b.negative": {
+    "value": 834,
+    "tol": 0
+  },
+  "cloud.test_profile_c.frames": {
+    "value": 1408,
+    "tol": 0
+  },
+  "cloud.test_profile_c.positive": {
+    "value": 574,
+    "tol": 0
+  },
+  "cloud.test_profile_c.negative": {
+    "value": 834,
+    "tol": 0
+  }
+}

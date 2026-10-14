@@ -1,0 +1,14 @@
+{
+  "cloud.int8.threshold": {
+    "value": 0.934,
+    "tol": 0.0005
+  },
+  "thermal.fp32.threshold": {
+    "value": 0.456,
+    "tol": 0.0005
+  },
+  "thermal.int8.threshold": {
+    "value": 0.181,
+    "tol": 0.0005
+  }
+}
