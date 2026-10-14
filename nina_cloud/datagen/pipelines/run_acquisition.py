@@ -6,8 +6,8 @@ scenes to ensure balanced label representation in the downstream dataset.
 Scene deduplication for multi-operator / incremental runs
 ---------------------------------------------------------
 Before downloading, the scene registry is checked.  Scenes already
-registered by another operator are skipped — ``dvc pull`` the registry
-first so you have the latest state.  After a successful download (or if the
+registered by another operator are skipped — ``git pull`` first so you have
+the latest registry (it is shared as ``data/manifests/scene_registry.json``).  After a successful download (or if the
 .SAFE directory already exists locally) the scene is registered with a
 deterministic split assignment (train / val / test) that never changes.
 

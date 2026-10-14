@@ -8,7 +8,7 @@
 | Labels | <how derived, from which independent product> |
 | Splits | <unit of split (granule/scene), rule, registry file> |
 | Manifests | `data/manifests/<files>` |
-| Full data | <Zenodo/DVC URL> |
+| Full data | <Zenodo / GitHub Release URL> |
 
 ## Composition
 | Partition | Frames/tiles | Units (granules/scenes) | Positive | Negative | Positive rate |
