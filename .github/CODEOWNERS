@@ -1,9 +1,9 @@
-# Replace the placeholders with GitHub usernames.
-/nina_cloud/    @LEYLA_GH
-/nina_thermal/  @OSVALDO_GH
-/hil/           @MISAEL_GH
-/models/cloud/  @LEYLA_GH
-/models/thermal/ @OSVALDO_GH
+# Code owners for the IAC-26 reproducibility repo.
+/nina_cloud/    @leyla430
+/nina_thermal/  @Gattosva50
+/hil/           @MisaelMQ
+/models/cloud/  @leyla430
+/models/thermal/ @Gattosva50
 /reproduce/     @ChristianConchari
 /docs/          @ChristianConchari
 /README.md      @ChristianConchari
