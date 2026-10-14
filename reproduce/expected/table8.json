@@ -1,0 +1,34 @@
+{
+  "thermal.device_path.agreement": {
+    "value": 94,
+    "tol": 0
+  },
+  "thermal.device_path.n": {
+    "value": 100,
+    "tol": 0
+  },
+  "thermal.device_path.correlation": {
+    "value": 0.956,
+    "tol": 0.0005
+  },
+  "thermal.device_path.bias": {
+    "value": 0.001,
+    "tol": 0.0005
+  },
+  "cloud.device_path.agreement": {
+    "value": 69,
+    "tol": 0
+  },
+  "cloud.device_path.n": {
+    "value": 100,
+    "tol": 0
+  },
+  "cloud.device_path.correlation": {
+    "value": 0.605,
+    "tol": 0.0005
+  },
+  "cloud.device_path.bias": {
+    "value": 0.243,
+    "tol": 0.0005
+  }
+}

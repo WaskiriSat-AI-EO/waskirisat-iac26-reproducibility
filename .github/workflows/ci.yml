@@ -36,3 +36,6 @@ jobs:
 
       - name: Tests
         run: pytest --tb=short -q
+
+      - name: Reproduce paper items (HIL tables from committed raw results)
+        run: python -m reproduce.check

@@ -1,0 +1,19 @@
+# Copy to paper.yaml and fill in with the exact values of the run behind the paper.
+# Every key is read by `reproduce/` or documented in the paper; leave nothing implicit.
+payload: cloud
+code_commit: null          # sha of the code that produced the delivered model
+seed: null
+model:
+  backbone: null           # e.g. mobilenet_v2
+  width_multiplier: 0.75   # paper value (read from the tflite graph)
+  input_shape: [224, 224, 3]
+  preprocessing: null      # training-time normalisation and resize, exactly
+training:
+  epochs: null
+  loss: null               # incl. pos_weight
+  optimizer: null
+quantization:
+  method: ptq              # paper: cloud artifact is post-training quantized
+  calibration_samples: null
+threshold:
+  int8: 0.934              # paper value; document derivation in the report

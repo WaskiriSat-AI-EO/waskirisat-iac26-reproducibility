@@ -1,0 +1,50 @@
+{
+  "thermal.inference_ms_mean": {
+    "value": 670.4,
+    "tol": 0.05
+  },
+  "thermal.arena_bytes": {
+    "value": 807504,
+    "tol": 0
+  },
+  "thermal.min_free_heap_bytes": {
+    "value": 1715424,
+    "tol": 0
+  },
+  "cloud.inference_ms_mean": {
+    "value": 1746.6,
+    "tol": 0.05
+  },
+  "cloud.arena_bytes": {
+    "value": 1622736,
+    "tol": 0
+  },
+  "cloud.min_free_heap_bytes": {
+    "value": 504960,
+    "tol": 0
+  },
+  "thermal.model_size_bytes": {
+    "value": 1452472,
+    "tol": 0
+  },
+  "cloud.model_size_bytes": {
+    "value": 1941072,
+    "tol": 0
+  },
+  "thermal.images": {
+    "value": 100,
+    "tol": 0
+  },
+  "cloud.images": {
+    "value": 100,
+    "tol": 0
+  },
+  "thermal.image_errors": {
+    "value": 0,
+    "tol": 0
+  },
+  "cloud.image_errors": {
+    "value": 0,
+    "tol": 0
+  }
+}

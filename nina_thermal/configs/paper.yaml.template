@@ -1,0 +1,18 @@
+# Copy to paper.yaml and fill in with the exact values of the run behind the paper.
+payload: thermal
+code_commit: null
+seed: null
+labels:
+  frp_threshold: 20000
+model:
+  backbone: mobilenet_v3_small
+  input_shape: [3, 120, 160]   # NCHW float32, grayscale duplicated to 3 channels
+training:
+  epochs: null
+  loss: null
+quantization:
+  method: qat
+  qat_epochs: 40
+threshold:
+  fp32: 0.456
+  int8: 0.181
