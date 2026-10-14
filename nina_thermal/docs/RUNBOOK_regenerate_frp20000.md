@@ -1,4 +1,4 @@
-# Runbook — regenerate `models/nina_thermal_frp20000/` with the new reporting
+# Runbook — regenerate `models/thermal/frp20000/` with the new reporting
 
 **For:** Osvaldo (the FRP20000 dataset + checkpoint live on your machine; they
 are gitignored and too heavy to move, so the pipeline runs where the data is).
@@ -6,7 +6,7 @@ are gitignored and too heavy to move, so the pipeline runs where the data is).
 **Prerequisite:** PRs #8 → #9 → #10 → #11 merged to `main`.
 
 **What this does NOT require:** re-training. Your existing
-`models/nina_thermal_frp20000/mobilenetv3s_fire_best.pt` is still valid — the
+`models/thermal/frp20000/mobilenetv3s_fire_best.pt` is still valid — the
 merged PRs add tests, an evaluation module, a baseline module and doc fixes;
 they do not change `train_thermal.py`'s training logic or the on-disk filename
 convention.
@@ -33,10 +33,10 @@ Your 4 data roots must be present as
 
 ```bash
 python -m nina_thermal.training.pipelines.run_baseline \
-    --label datagen --out_dir models/nina_thermal_frp20000
+    --label datagen --out_dir models/thermal/frp20000
 
 python -m nina_thermal.training.pipelines.run_baseline \
-    --label frp --frp_threshold 20000 --out_dir models/nina_thermal_frp20000
+    --label frp --frp_threshold 20000 --out_dir models/thermal/frp20000
 ```
 
 Writes `baseline_report_datagen.json` and `baseline_report_frp.json`.
@@ -59,15 +59,15 @@ The `train`+`val` granules only are read; the test split is never touched here.
 
 ```bash
 python -m nina_thermal.evaluation.pipelines.run_evaluate \
-    --checkpoint models/nina_thermal_frp20000/mobilenetv3s_fire_best.pt \
+    --checkpoint models/thermal/frp20000/mobilenetv3s_fire_best.pt \
     --frp_threshold 20000 \
-    --out_dir models/nina_thermal_frp20000 \
+    --out_dir models/thermal/frp20000 \
     --figures
 ```
 
 Writes `evaluation_summary.json`, `predictions.json`, and `figures/*.png`.
 Reads `selected_threshold` and `beta` from
-`models/nina_thermal_frp20000/training_report.json`.
+`models/thermal/frp20000/training_report.json`.
 
 Expected: `nominal.roc_auc` within the CI of the 0.787 in `TRAINING_REPORT.md`,
 and every headline metric (`recall`, `precision`, `fbeta`, `roc_auc`) now
@@ -88,9 +88,9 @@ automatically) → `run_split` → `run_balance` on the test granules, from
 
 ```bash
 python -m nina_thermal.quantization.pipelines.run_quantize \
-    --checkpoint models/nina_thermal_frp20000/mobilenetv3s_fire_best.pt \
+    --checkpoint models/thermal/frp20000/mobilenetv3s_fire_best.pt \
     --frp_threshold 20000 \
-    --out_dir models/nina_thermal_frp20000 \
+    --out_dir models/thermal/frp20000 \
     --epochs 40 --lr 5e-5
 ```
 
@@ -115,8 +115,8 @@ violations in `TRAINING_REPORT.md` and, if needed, raise `--epochs` /
 
 ```bash
 git checkout -b chore/nina-thermal-frp20000-refresh
-git add models/nina_thermal_frp20000/*.json \
-        models/nina_thermal_frp20000/*.sha256 \
+git add models/thermal/frp20000/*.json \
+        models/thermal/frp20000/*.sha256 \
         nina_thermal/docs/TRAINING_REPORT.md \
         nina_thermal/docs/figures/
 git commit -m "chore(nina-thermal): regenerate FRP20000 reports with CIs + acceptance gate"
