@@ -34,6 +34,7 @@ import logging
 import os
 import shutil
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -62,6 +63,8 @@ logger = logging.getLogger(__name__)
 _SEARCH_LIMIT = 5000
 INVENTORY_FILE = "granule_inventory.txt"
 _MIN_ROI_SPAN_DEG = 1.0
+_DOWNLOAD_ATTEMPTS = 3
+_RETRY_WAIT_S = 30
 _EXTRACTED_SUFFIXES = ("F2_BT", "S8_BT", "lat", "lon")
 
 
@@ -356,18 +359,38 @@ def main(argv=None) -> int:
             continue
 
         if not sen3_dir.is_dir():
-            token = get_access_token()
-            if not token:
-                logger.error("Token refresh failed at product %d — aborting.", i)
-                break
-            ok = download_and_extract(
-                access_token=token,
-                product_id=pid,
-                product_name=name,
-                output_dir=output_dir,
-                delete_zip=True,
-            )
-            if not ok or not sen3_dir.is_dir():
+            ok = False
+            for attempt in range(1, _DOWNLOAD_ATTEMPTS + 1):
+                token = get_access_token()
+                if not token:
+                    logger.error("Token refresh failed at product %d.", i)
+                    break
+                ok = (
+                    download_and_extract(
+                        access_token=token,
+                        product_id=pid,
+                        product_name=name,
+                        output_dir=output_dir,
+                        delete_zip=True,
+                    )
+                    and sen3_dir.is_dir()
+                )
+                if ok:
+                    break
+                # The partial ZIP is removed on failure, so a retry starts
+                # clean.  CDSE drops ~5% of long downloads (IncompleteRead).
+                _remove_partial(output_dir, name)
+                if attempt < _DOWNLOAD_ATTEMPTS:
+                    wait = _RETRY_WAIT_S * attempt
+                    logger.warning(
+                        "Download attempt %d/%d failed for %s — retrying in %ds.",
+                        attempt,
+                        _DOWNLOAD_ATTEMPTS,
+                        name,
+                        wait,
+                    )
+                    time.sleep(wait)
+            if not ok:
                 logger.warning("Download failed for %s — skipped.", name)
                 failed += 1
                 continue
@@ -409,6 +432,14 @@ def _sensing_start(product: dict) -> str:
 def _sen3_dirname(name: str) -> str:
     """CDSE names already end in ``.SEN3``; older code appended it twice."""
     return name if name.endswith(".SEN3") else f"{name}.SEN3"
+
+
+def _remove_partial(output_dir: Path, name: str) -> None:
+    """Delete a failed download's leftovers so the next attempt starts clean."""
+    (output_dir / f"{name}.zip").unlink(missing_ok=True)
+    sen3_dir = output_dir / _sen3_dirname(name)
+    if sen3_dir.is_dir():
+        shutil.rmtree(sen3_dir)
 
 
 def _is_extracted(extract_dir: Path, name: str) -> bool:

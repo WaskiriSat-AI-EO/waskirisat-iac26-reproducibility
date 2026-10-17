@@ -131,6 +131,11 @@ def _fake_extract(sen3_dir, output_dir, prefix=None):
 
 
 def _run(tmp_path, products, extra, download=_fake_download):
+    with patch(f"{MOD}.time.sleep"):
+        return _run_inner(tmp_path, products, extra, download)
+
+
+def _run_inner(tmp_path, products, extra, download):
     argv = [
         "--roi",
         ROI,

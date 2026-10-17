@@ -2,7 +2,7 @@
 
 **For:** Osvaldo (CDSE/FIRMS credentials and all data roots live on this machine).
 **Written:** 2026-10-17 · **Status:** Step 1 done (2026-10-17, branch
-`feat/v4-data-expansion`); Steps 2–6 not started. All commands below exist and
+`feat/v4-data-expansion`); Step 2 pilot done (§3.1); Steps 3–6 not started. All commands below exist and
 were checked with `--help`. Step 1 was verified live against CDSE and FIRMS (§2.1).
 **Starts from:** `TRAINING_REPORT_v3.md` (v3_bc fp32 + v3_bc_qat_sel int8).
 **Goal:** roughly double the labeled pool. Prioritize months that contain both
@@ -158,11 +158,35 @@ python -m nina_thermal.datagen.pipelines.run_fetch_firms \
 
 Then run §6 (per-root pipeline) and §7 (QC) for `data_202409b`.
 
+**Start only one download per root.** Two runs on the same root delete each
+other's partial ZIPs. Before starting or re-running:
+`pgrep -f "^python -m nina_thermal.datagen.pipelines.run_acquisition"`.
+
 **Record from the pilot** (they size everything that follows):
 
 - minutes per granule (download + extract), which gives hours per batch
 - labeled patches per granule and the fire / no-fire / ambiguous split
 - whether days 10–30 give no-fire patches in a month that was all-fire
+
+### 3.1 Pilot result (2026-10-17) ✅
+
+| | value |
+|---|---|
+| granules | 60 / 60 (6 failed on the first pass: 3 from an accidental double start, 3 dropped connections; all recovered by re-running; retries are now automatic) |
+| time | 2 h 10 min + 10 min re-run → **≈ 2.2 min per granule** |
+| patches (with `--roi`) | 228 from 59 granules (1 fully masked) |
+| labels | **115 fire / 24 no-fire / 89 ambiguous** → 2.3 labeled patches per granule (v3: 2.6) |
+| 2024-09 total | 222 fire / 40 no-fire (days 1–9 alone: 107 / 16) |
+| merged pool | 883 → **1,022 labeled** (fire 316 → 431, no-fire 567 → 591) |
+| checks | 0 duplicate granules; v3 reconciliation unchanged (19 granules / 58 patches); `no_frp_data` 0 |
+
+What this means for the batches:
+
+- **Peak-season months add mostly fire.** Days 10–30 of Sep 2024 gave 4.8 fire
+  for every no-fire. No-fire is now the scarce class, so Batch 2 priorities 1–2
+  (July, October: shoulder months) matter more than more Aug–Sep.
+- **Sizing:** +139 labeled per 60 granules. Doubling the v3 pool (+~900
+  labeled) needs ~400 granules ≈ 15 h of downloading.
 
 If more than 60% of patches end up ambiguous, consider a FIRMS pre-screen
 (rank granules by expected summed FRP from their CDSE footprint before
@@ -270,7 +294,8 @@ ROOT=data_202409b   # each new root
 #     --input_dir $ROOT/01_raw --output_dir $ROOT/02_extracted
 
 python -m nina_thermal.datagen.pipelines.run_processing \
-    --input_dir $ROOT/02_extracted --output_dir $ROOT/03_patches --firms_dir $ROOT/firms
+    --input_dir $ROOT/02_extracted --output_dir $ROOT/03_patches --firms_dir $ROOT/firms \
+    --roi nina_thermal/resources/bo_nina_roi_simplified.geojson
 
 python -m nina_thermal.datagen.pipelines.run_simulation \
     --input_dir $ROOT/03_patches --output_dir $ROOT/04_dataset
@@ -282,13 +307,19 @@ python -m nina_thermal.datagen.pipelines.run_balance --dataset_dir $ROOT/04_data
 python -m nina_thermal.datagen.pipelines.run_simulation \
     --input_dir $ROOT/03_patches --output_dir $ROOT/04_dataset_ac \
     --profiles A,C --agc_modes fixed
-cp -n $ROOT/04_dataset_ac/images/*_fixed_A.png $ROOT/04_dataset_ac/images/*_fixed_C.png \
+cp --update=none $ROOT/04_dataset_ac/images/*_fixed_A.png $ROOT/04_dataset_ac/images/*_fixed_C.png \
     $ROOT/04_dataset/images/
 ```
 
+**`--roi` on `run_processing` is required.** The v3 roots were processed with
+it (logs in `data/logs/run_*/run_processing_*.log`), so only patches centred in
+Bolivia are kept. Without it a granule yields ~10 patches instead of ~3–4,
+reaching Brazil and Paraguay (lon −48°): a different distribution from v3, and
+partly outside the FIRMS bbox (`no_frp_data`). Found in the pilot (§3.1).
+
 The loader finds images by name (`{patch}_{agc}_{profile}.png` under
 `04_dataset/images/`), so copied A/C images are picked up. Splits come from
-`04_dataset/balanced_manifest.json` only. `cp -n` leaves the existing test
+`04_dataset/balanced_manifest.json` only. `cp --update=none` leaves the existing test
 A/C images untouched (simulation is deterministic per patch, so they are
 identical anyway).
 
@@ -299,7 +330,7 @@ that v4 can train on A+B+C (open issue #4):
 for ROOT in data data_202408 data_202409 data_202509 data_202208 data_202302 data_202309; do
   python -m nina_thermal.datagen.pipelines.run_simulation \
       --input_dir $ROOT/03_patches --output_dir $ROOT/04_dataset_a --profiles A --agc_modes fixed
-  cp -n $ROOT/04_dataset_a/images/*_fixed_A.png $ROOT/04_dataset/images/
+  cp --update=none $ROOT/04_dataset_a/images/*_fixed_A.png $ROOT/04_dataset/images/
 done
 ```
 
@@ -425,7 +456,7 @@ are currently untracked).
 |---|---|---|
 | 1 | acquisition code changes A1–A5 + tests ✅ | done |
 | 3 | `data_extra` (no download) | can run during Step 1 once A5 (FIRMS) exists |
-| 2 | pilot `data_202409b` | blocks batch sizing |
+| 2 | pilot `data_202409b` ✅ | done (§3.1) |
 | — | render profile A for the 7 v3 roots | anytime |
 | 4 | Batch 1 → **train v4a (checkpoint 1)** | |
 | 4 | Batch 2 (background, days) | |
