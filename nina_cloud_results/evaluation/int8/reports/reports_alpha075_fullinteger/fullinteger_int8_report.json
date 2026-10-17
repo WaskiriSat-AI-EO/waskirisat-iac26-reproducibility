@@ -1,0 +1,118 @@
+{
+  "model_type": "Full Integer INT8 TFLite",
+  "model_path": "C:\\Users\\Leyla\\Desktop\\0_5K_CLOUD\\waskirisat-pl-aidev\\data\\cloud\\training_mobilenetv2_alpha075_fullinteger\\mobilenetv2_alpha075_fullinteger_int8.tflite",
+  "model_size_mb": 1.8511505126953125,
+  "input_dtype": "<class 'numpy.int8'>",
+  "output_dtype": "<class 'numpy.int8'>",
+  "input_quantization": [
+    1.0,
+    -128
+  ],
+  "output_quantization": [
+    0.00390625,
+    -128
+  ],
+  "threshold_source": "VALIDATION B",
+  "recall_target": 0.95,
+  "threshold": 0.93359375,
+  "metrics": {
+    "val_B": {
+      "num_images": 998,
+      "threshold": 0.93359375,
+      "accuracy": 0.9579158316633266,
+      "precision_cloud": 0.9692307692307692,
+      "recall_cloud": 0.9509433962264151,
+      "specificity_clear": 0.9658119658119658,
+      "f1_cloud": 0.96,
+      "roc_auc": 0.9897476434707642,
+      "pr_auc": 0.9925578832626343,
+      "confusion_matrix": {
+        "TN_clear_correct": 452,
+        "FP_clear_as_cloud": 16,
+        "FN_cloud_as_clear": 26,
+        "TP_cloud_correct": 504
+      }
+    },
+    "test_A": {
+      "num_images": 1408,
+      "threshold": 0.93359375,
+      "accuracy": 0.8657670454545454,
+      "precision_cloud": 1.0,
+      "recall_cloud": 0.6707317073170732,
+      "specificity_clear": 1.0,
+      "f1_cloud": 0.8029197080291971,
+      "roc_auc": 0.975849986076355,
+      "pr_auc": 0.9718518853187561,
+      "confusion_matrix": {
+        "TN_clear_correct": 834,
+        "FP_clear_as_cloud": 0,
+        "FN_cloud_as_clear": 189,
+        "TP_cloud_correct": 385
+      }
+    },
+    "test_B": {
+      "num_images": 1408,
+      "threshold": 0.93359375,
+      "accuracy": 0.9353693181818182,
+      "precision_cloud": 0.9782178217821782,
+      "recall_cloud": 0.8606271777003485,
+      "specificity_clear": 0.986810551558753,
+      "f1_cloud": 0.9156626506024097,
+      "roc_auc": 0.979775071144104,
+      "pr_auc": 0.976754903793335,
+      "confusion_matrix": {
+        "TN_clear_correct": 823,
+        "FP_clear_as_cloud": 11,
+        "FN_cloud_as_clear": 80,
+        "TP_cloud_correct": 494
+      }
+    },
+    "test_C": {
+      "num_images": 1408,
+      "threshold": 0.93359375,
+      "accuracy": 0.8259943181818182,
+      "precision_cloud": 0.993993993993994,
+      "recall_cloud": 0.5766550522648084,
+      "specificity_clear": 0.9976019184652278,
+      "f1_cloud": 0.7298787210584344,
+      "roc_auc": 0.9766395688056946,
+      "pr_auc": 0.9701610803604126,
+      "confusion_matrix": {
+        "TN_clear_correct": 832,
+        "FP_clear_as_cloud": 2,
+        "FN_cloud_as_clear": 243,
+        "TP_cloud_correct": 331
+      }
+    },
+    "test_global_ABC": {
+      "num_images": 4224,
+      "threshold": 0.93359375,
+      "accuracy": 0.8757102272727273,
+      "precision_cloud": 0.9893704006541292,
+      "recall_cloud": 0.70267131242741,
+      "specificity_clear": 0.9948041566746603,
+      "f1_cloud": 0.8217317487266552,
+      "roc_auc": 0.9718610644340515,
+      "pr_auc": 0.9662823677062988,
+      "confusion_matrix": {
+        "TN_clear_correct": 2489,
+        "FP_clear_as_cloud": 13,
+        "FN_cloud_as_clear": 512,
+        "TP_cloud_correct": 1210
+      }
+    }
+  },
+  "inference_benchmark": {
+    "warmup_runs": 30,
+    "measured_runs": 300,
+    "batch_size": 1,
+    "num_threads": 1,
+    "mean_ms": 2.992641666672474,
+    "median_ms": 2.9521999999815307,
+    "std_ms": 0.5291602382572322,
+    "p95_ms": 3.1136600000991166,
+    "min_ms": 2.7033999995182967,
+    "max_ms": 9.71049999952811,
+    "fps_from_mean": 334.1529362290483
+  }
+}

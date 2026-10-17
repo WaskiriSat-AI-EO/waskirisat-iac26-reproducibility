@@ -1,0 +1,106 @@
+{
+  "model_type": "FP32 Keras",
+  "model_path": "C:\\Users\\Leyla\\Desktop\\0_5K_CLOUD\\waskirisat-pl-aidev\\data\\cloud\\training_mobilenetv2_robusto_v2\\mobilenetv2_best.keras",
+  "model_size_mb": 22.60873317718506,
+  "threshold_source": "VALIDATION B",
+  "threshold": 0.4986891448497772,
+  "metrics": {
+    "val_B": {
+      "num_images": 998,
+      "threshold": 0.4986891448497772,
+      "accuracy": 0.9809619238476954,
+      "precision_cloud": 0.9980506822612085,
+      "recall_cloud": 0.9660377358490566,
+      "specificity_clear": 0.9978632478632479,
+      "f1_cloud": 0.9817833173537872,
+      "roc_auc": 0.9991191029548645,
+      "pr_auc": 0.9992344379425049,
+      "confusion_matrix": {
+        "TN_clear_correct": 467,
+        "FP_clear_as_cloud": 1,
+        "FN_cloud_as_clear": 18,
+        "TP_cloud_correct": 512
+      }
+    },
+    "test_A": {
+      "num_images": 1408,
+      "threshold": 0.4986891448497772,
+      "accuracy": 0.9417613636363636,
+      "precision_cloud": 0.9113712374581939,
+      "recall_cloud": 0.9494773519163763,
+      "specificity_clear": 0.9364508393285371,
+      "f1_cloud": 0.9300341296928327,
+      "roc_auc": 0.9864919185638428,
+      "pr_auc": 0.9848244190216064,
+      "confusion_matrix": {
+        "TN_clear_correct": 781,
+        "FP_clear_as_cloud": 53,
+        "FN_cloud_as_clear": 29,
+        "TP_cloud_correct": 545
+      }
+    },
+    "test_B": {
+      "num_images": 1408,
+      "threshold": 0.4986891448497772,
+      "accuracy": 0.9296875,
+      "precision_cloud": 0.9958246346555324,
+      "recall_cloud": 0.8310104529616724,
+      "specificity_clear": 0.9976019184652278,
+      "f1_cloud": 0.905982905982906,
+      "roc_auc": 0.9923430681228638,
+      "pr_auc": 0.9904884696006775,
+      "confusion_matrix": {
+        "TN_clear_correct": 832,
+        "FP_clear_as_cloud": 2,
+        "FN_cloud_as_clear": 97,
+        "TP_cloud_correct": 477
+      }
+    },
+    "test_C": {
+      "num_images": 1408,
+      "threshold": 0.4986891448497772,
+      "accuracy": 0.8330965909090909,
+      "precision_cloud": 0.9941690962099126,
+      "recall_cloud": 0.5940766550522648,
+      "specificity_clear": 0.9976019184652278,
+      "f1_cloud": 0.7437295528898582,
+      "roc_auc": 0.9148190021514893,
+      "pr_auc": 0.912390947341919,
+      "confusion_matrix": {
+        "TN_clear_correct": 832,
+        "FP_clear_as_cloud": 2,
+        "FN_cloud_as_clear": 233,
+        "TP_cloud_correct": 341
+      }
+    },
+    "test_global_ABC": {
+      "num_images": 4224,
+      "threshold": 0.4986891448497772,
+      "accuracy": 0.9015151515151515,
+      "precision_cloud": 0.9598591549295775,
+      "recall_cloud": 0.7915214866434379,
+      "specificity_clear": 0.9772182254196643,
+      "f1_cloud": 0.8676002546148951,
+      "roc_auc": 0.9636486768722534,
+      "pr_auc": 0.9584819078445435,
+      "confusion_matrix": {
+        "TN_clear_correct": 2445,
+        "FP_clear_as_cloud": 57,
+        "FN_cloud_as_clear": 359,
+        "TP_cloud_correct": 1363
+      }
+    }
+  },
+  "inference_benchmark": {
+    "warmup_runs": 30,
+    "measured_runs": 300,
+    "batch_size": 1,
+    "mean_ms": 118.98059966680496,
+    "median_ms": 87.4213500010228,
+    "std_ms": 59.87871014063496,
+    "p95_ms": 253.10212999866053,
+    "min_ms": 80.0240999997186,
+    "max_ms": 285.51530000186176,
+    "fps_from_mean": 8.404731551197546
+  }
+}

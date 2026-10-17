@@ -1,0 +1,66 @@
+{
+  "model": "C:\\Users\\Leyla\\Desktop\\0_5K_CLOUD\\waskirisat-pl-aidev\\data\\cloud\\training_mobilenetv2_alpha075\\mobilenetv2_best.keras",
+  "threshold_source": "VALIDATION B",
+  "threshold": 0.29447251558303833,
+  "test_used_for_tuning": false,
+  "unique_test_tiles": 1408,
+  "physical_test_images": 4224,
+  "results": {
+    "test_A": {
+      "num_images": 1408,
+      "accuracy": 0.9389204545454546,
+      "precision_cloud": 0.9728682170542635,
+      "recall_cloud": 0.8745644599303136,
+      "specificity_clear": 0.9832134292565947,
+      "f1_cloud": 0.9211009174311926,
+      "confusion_matrix": {
+        "TN_clear_correct": 820,
+        "FP_clear_as_cloud": 14,
+        "FN_cloud_as_clear": 72,
+        "TP_cloud_correct": 502
+      }
+    },
+    "test_B": {
+      "num_images": 1408,
+      "accuracy": 0.9382102272727273,
+      "precision_cloud": 0.9959266802443992,
+      "recall_cloud": 0.8519163763066202,
+      "specificity_clear": 0.9976019184652278,
+      "f1_cloud": 0.9183098591549296,
+      "confusion_matrix": {
+        "TN_clear_correct": 832,
+        "FP_clear_as_cloud": 2,
+        "FN_cloud_as_clear": 85,
+        "TP_cloud_correct": 489
+      }
+    },
+    "test_C": {
+      "num_images": 1408,
+      "accuracy": 0.8558238636363636,
+      "precision_cloud": 0.979328165374677,
+      "recall_cloud": 0.6602787456445993,
+      "specificity_clear": 0.9904076738609112,
+      "f1_cloud": 0.7887617065556711,
+      "confusion_matrix": {
+        "TN_clear_correct": 826,
+        "FP_clear_as_cloud": 8,
+        "FN_cloud_as_clear": 195,
+        "TP_cloud_correct": 379
+      }
+    },
+    "test_global_ABC": {
+      "num_images": 4224,
+      "accuracy": 0.9109848484848485,
+      "precision_cloud": 0.9827833572453372,
+      "recall_cloud": 0.7955865272938444,
+      "specificity_clear": 0.9904076738609112,
+      "f1_cloud": 0.8793324775353016,
+      "confusion_matrix": {
+        "TN_clear_correct": 2478,
+        "FP_clear_as_cloud": 24,
+        "FN_cloud_as_clear": 352,
+        "TP_cloud_correct": 1370
+      }
+    }
+  }
+}

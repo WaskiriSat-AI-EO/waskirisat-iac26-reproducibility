@@ -1,0 +1,346 @@
+{
+  "S2A_MSIL2A_20200104T143721_N0500_R096_T19KHU_20230619T005834.SAFE": {
+    "split": "train",
+    "cloud_mode": "clear",
+    "registered_at": "2026-08-06T23:18:23.130782+00:00",
+    "last_seen_at": "2026-08-06T23:18:23.130782+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2A_MSIL2A_20200105T141041_N0500_R110_T20KPF_20230421T215036.SAFE": {
+    "split": "train",
+    "cloud_mode": "clear",
+    "registered_at": "2026-08-06T23:18:38.142765+00:00",
+    "last_seen_at": "2026-08-06T23:18:38.142765+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2A_MSIL2A_20200105T141041_N0500_R110_T20KQE_20230421T215036.SAFE": {
+    "split": "train",
+    "cloud_mode": "clear",
+    "registered_at": "2026-08-06T23:23:13.385643+00:00",
+    "last_seen_at": "2026-08-06T23:23:13.385643+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2A_MSIL2A_20200105T141041_N0500_R110_T20KPE_20230421T215036.SAFE": {
+    "split": "val",
+    "cloud_mode": "clear",
+    "registered_at": "2026-08-06T23:24:04.922586+00:00",
+    "last_seen_at": "2026-08-06T23:24:04.922586+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2A_MSIL2A_20200105T141041_N0500_R110_T20KPD_20230421T215036.SAFE": {
+    "split": "train",
+    "cloud_mode": "clear",
+    "registered_at": "2026-08-06T23:25:40.126792+00:00",
+    "last_seen_at": "2026-08-06T23:25:40.126792+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2A_MSIL2A_20200105T141041_N0500_R110_T20KQD_20230421T215036.SAFE": {
+    "split": "val",
+    "cloud_mode": "clear",
+    "registered_at": "2026-08-06T23:27:10.787072+00:00",
+    "last_seen_at": "2026-08-06T23:27:10.787072+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2A_MSIL2A_20200105T141041_N0500_R110_T20KRF_20230421T215036.SAFE": {
+    "split": "train",
+    "cloud_mode": "clear",
+    "registered_at": "2026-08-06T23:31:05.833428+00:00",
+    "last_seen_at": "2026-08-06T23:31:05.833428+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2A_MSIL2A_20200105T141041_N0500_R110_T20KQF_20230421T215036.SAFE": {
+    "split": "train",
+    "cloud_mode": "clear",
+    "registered_at": "2026-08-06T23:32:43.713378+00:00",
+    "last_seen_at": "2026-08-06T23:32:43.713378+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20200106T142729_N0500_R053_T19KHU_20230502T114550.SAFE": {
+    "split": "test",
+    "cloud_mode": "clear",
+    "registered_at": "2026-08-06T23:34:41.879227+00:00",
+    "last_seen_at": "2026-08-06T23:34:41.879227+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20200106T142729_N0500_R053_T20KKD_20230502T114550.SAFE": {
+    "split": "val",
+    "cloud_mode": "clear",
+    "registered_at": "2026-08-06T23:36:49.899537+00:00",
+    "last_seen_at": "2026-08-06T23:36:49.899537+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20200106T142729_N0500_R053_T20KLD_20230502T114550.SAFE": {
+    "split": "train",
+    "cloud_mode": "clear",
+    "registered_at": "2026-08-06T23:38:28.611817+00:00",
+    "last_seen_at": "2026-08-06T23:38:28.611817+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20200106T142729_N0500_R053_T20KME_20230502T114550.SAFE": {
+    "split": "train",
+    "cloud_mode": "clear",
+    "registered_at": "2026-08-06T23:39:25.322847+00:00",
+    "last_seen_at": "2026-08-06T23:39:25.322847+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20200106T142729_N0500_R053_T20KLE_20230502T114550.SAFE": {
+    "split": "train",
+    "cloud_mode": "clear",
+    "registered_at": "2026-08-06T23:41:27.426723+00:00",
+    "last_seen_at": "2026-08-06T23:41:27.426723+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20200106T142729_N0500_R053_T19KHV_20230502T114550.SAFE": {
+    "split": "test",
+    "cloud_mode": "clear",
+    "registered_at": "2026-08-06T23:46:26.925682+00:00",
+    "last_seen_at": "2026-08-06T23:46:26.925682+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20200106T142729_N0500_R053_T19KGU_20230502T114550.SAFE": {
+    "split": "train",
+    "cloud_mode": "clear",
+    "registered_at": "2026-08-06T23:47:22.830220+00:00",
+    "last_seen_at": "2026-08-06T23:47:22.830220+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20200106T142729_N0500_R053_T20LNL_20230501T102953.SAFE": {
+    "split": "train",
+    "cloud_mode": "clear",
+    "registered_at": "2026-08-06T23:50:00.033845+00:00",
+    "last_seen_at": "2026-08-06T23:50:00.033845+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20201002T142739_N0500_R053_T19KGU_20230331T032339.SAFE": {
+    "split": "test",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-07T02:04:54.708587+00:00",
+    "last_seen_at": "2026-08-07T02:04:54.708587+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20201002T142739_N0500_R053_T19KGV_20230331T032339.SAFE": {
+    "split": "train",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-07T02:05:15.959167+00:00",
+    "last_seen_at": "2026-08-07T02:05:15.959167+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20201005T143729_N0500_R096_T20LKM_20230307T033707.SAFE": {
+    "split": "test",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-07T02:05:30.557254+00:00",
+    "last_seen_at": "2026-08-07T02:05:30.557254+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20201005T143729_N0500_R096_T20LKN_20230415T225327.SAFE": {
+    "split": "val",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-07T02:05:47.444352+00:00",
+    "last_seen_at": "2026-08-07T02:05:47.444352+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20201005T143729_N0500_R096_T20LKM_20230415T225327.SAFE": {
+    "split": "test",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-07T02:07:25.557073+00:00",
+    "last_seen_at": "2026-08-07T02:07:25.557073+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20201005T143729_N0500_R096_T20LKN_20230307T033707.SAFE": {
+    "split": "train",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-07T02:08:59.880141+00:00",
+    "last_seen_at": "2026-08-07T02:08:59.880141+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20201006T141049_N0500_R110_T21LTC_20230414T013435.SAFE": {
+    "split": "train",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-07T02:10:19.926390+00:00",
+    "last_seen_at": "2026-08-07T02:10:19.926390+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20201006T141049_N0500_R110_T20KPD_20230414T013435.SAFE": {
+    "split": "train",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-07T02:12:33.357455+00:00",
+    "last_seen_at": "2026-08-07T02:12:33.357455+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20201006T141049_N0500_R110_T21KTB_20230414T013435.SAFE": {
+    "split": "train",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-07T02:13:47.018608+00:00",
+    "last_seen_at": "2026-08-07T02:13:47.018608+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20201006T141049_N0500_R110_T20LRH_20230414T013435.SAFE": {
+    "split": "test",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-07T02:15:01.132462+00:00",
+    "last_seen_at": "2026-08-07T02:15:01.132462+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20201006T141049_N0500_R110_T20KQE_20230414T013435.SAFE": {
+    "split": "val",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-07T02:16:26.327292+00:00",
+    "last_seen_at": "2026-08-07T02:16:26.327292+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20201006T141049_N0500_R110_T20KRG_20230414T013435.SAFE": {
+    "split": "train",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-07T02:17:39.512569+00:00",
+    "last_seen_at": "2026-08-07T02:17:39.512569+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20201006T141049_N0500_R110_T20KQG_20230414T013435.SAFE": {
+    "split": "test",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-07T02:18:48.039533+00:00",
+    "last_seen_at": "2026-08-07T02:18:48.039533+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20201006T141049_N0500_R110_T20KRF_20230414T013435.SAFE": {
+    "split": "train",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-07T02:20:20.671031+00:00",
+    "last_seen_at": "2026-08-07T02:20:20.671031+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20201006T141049_N0500_R110_T20LQJ_20230414T013435.SAFE": {
+    "split": "train",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-07T02:20:47.098969+00:00",
+    "last_seen_at": "2026-08-07T02:20:47.098969+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2A_MSIL2A_20211101T142741_N0500_R053_T19KHB_20221229T021127.SAFE": {
+    "split": "train",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-08T01:51:00.398313+00:00",
+    "last_seen_at": "2026-08-08T01:51:00.398313+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2A_MSIL2A_20211101T142741_N0500_R053_T20KKG_20221229T021127.SAFE": {
+    "split": "train",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-08T01:56:48.262963+00:00",
+    "last_seen_at": "2026-08-08T01:56:48.262963+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2A_MSIL2A_20211101T142741_N0500_R053_T20LML_20221229T021127.SAFE": {
+    "split": "test",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-08T02:01:36.884685+00:00",
+    "last_seen_at": "2026-08-08T02:01:36.884685+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2A_MSIL2A_20211101T142741_N0500_R053_T20KMF_20221229T021127.SAFE": {
+    "split": "train",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-08T02:05:16.609394+00:00",
+    "last_seen_at": "2026-08-08T02:05:16.609394+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2A_MSIL2A_20211101T142741_N0500_R053_T20KMG_20221229T021127.SAFE": {
+    "split": "train",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-08T02:08:04.431892+00:00",
+    "last_seen_at": "2026-08-08T02:08:04.431892+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2A_MSIL2A_20211101T142741_N0500_R053_T20LNK_20221229T021127.SAFE": {
+    "split": "train",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-08T02:09:40.765871+00:00",
+    "last_seen_at": "2026-08-08T02:09:40.765871+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20220201T141729_N0510_R010_T20KPF_20240509T115638.SAFE": {
+    "split": "train",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-09T15:22:53.295894+00:00",
+    "last_seen_at": "2026-08-09T15:22:53.295894+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20220201T141729_N0510_R010_T20KLD_20240509T115638.SAFE": {
+    "split": "train",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-09T15:23:06.781647+00:00",
+    "last_seen_at": "2026-08-09T15:23:06.781647+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20220201T141729_N0510_R010_T20KPG_20240509T115638.SAFE": {
+    "split": "test",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-09T15:24:35.249087+00:00",
+    "last_seen_at": "2026-08-09T15:24:35.249087+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20220201T141729_N0510_R010_T20KLC_20240509T115638.SAFE": {
+    "split": "train",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-09T15:25:06.985933+00:00",
+    "last_seen_at": "2026-08-09T15:25:06.985933+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20220201T141729_N0510_R010_T20KME_20240509T115638.SAFE": {
+    "split": "train",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-09T15:28:55.018364+00:00",
+    "last_seen_at": "2026-08-09T15:28:55.018364+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  },
+  "S2B_MSIL2A_20220201T141729_N0510_R010_T20LPJ_20240509T143511.SAFE": {
+    "split": "train",
+    "cloud_mode": "cloudy",
+    "registered_at": "2026-08-09T15:33:11.562467+00:00",
+    "last_seen_at": "2026-08-09T15:33:11.562467+00:00",
+    "operator": "leyla",
+    "status": "acquired"
+  }
+}

@@ -1,0 +1,109 @@
+{
+  "stage": "train_cloud",
+  "generated_at": "2026-08-09T21:56:00.892616+00:00",
+  "hyperparameters": {
+    "epochs": 10,
+    "batch_size": 16,
+    "lr": 0.001,
+    "weight_mode": "imbalance",
+    "mission_cost": 3.0,
+    "imbalance_ratio_clear_div_cloud": 0.9305506839705366,
+    "pos_weight": 0.9305506839705366,
+    "beta": 0.964651,
+    "seed": 42,
+    "recall_target": 0.99
+  },
+  "checkpoint": "mobilenetv2_cloud_best.pt",
+  "selected_threshold": 0.15626788139343262,
+  "degenerate_val": false,
+  "val_metrics_at_threshold": {
+    "recall": 0.990566,
+    "precision": 0.972222,
+    "specificity": 0.967949,
+    "fbeta": 0.980979,
+    "beta": 0.964651,
+    "confusion_matrix": {
+      "tp": 525,
+      "fp": 15,
+      "fn": 5,
+      "tn": 453
+    }
+  },
+  "precision_at_recall": {
+    "0.95": 0.994083,
+    "0.99": 0.972222
+  },
+  "per_epoch": [
+    {
+      "epoch": 1,
+      "train_loss": 0.167189,
+      "train_acc": 0.943859,
+      "val_loss": 0.176123,
+      "val_acc": 0.91483
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.102543,
+      "train_acc": 0.963663,
+      "val_loss": 0.084227,
+      "val_acc": 0.965932
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.11094,
+      "train_acc": 0.961664,
+      "val_loss": 0.31533,
+      "val_acc": 0.851703
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.095532,
+      "train_acc": 0.96548,
+      "val_loss": 0.260901,
+      "val_acc": 0.886774
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.085859,
+      "train_acc": 0.970203,
+      "val_loss": 0.12254,
+      "val_acc": 0.942886
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.08839,
+      "train_acc": 0.970567,
+      "val_loss": 0.157137,
+      "val_acc": 0.922846
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.083087,
+      "train_acc": 0.974382,
+      "val_loss": 0.115241,
+      "val_acc": 0.943888
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.083035,
+      "train_acc": 0.974382,
+      "val_loss": 0.103983,
+      "val_acc": 0.948898
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.076483,
+      "train_acc": 0.973837,
+      "val_loss": 0.129776,
+      "val_acc": 0.937876
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.0832,
+      "train_acc": 0.971839,
+      "val_loss": 0.151499,
+      "val_acc": 0.930862
+    }
+  ],
+  "notes": "pos_weight semantics depend on weight_mode. mission reproduces the repository mission-cost logic; imbalance uses N_clear/N_cloud; combined multiplies both. beta=sqrt(pos_weight) for F-beta.  selected_threshold is the highest val threshold achieving recall >= recall_target (maximises precision under the recall floor).  Load this value in run_evaluate via --dataset_dir auto-detection or --threshold."
+}

@@ -1,0 +1,96 @@
+{
+  "model": "MobileNetV2",
+  "weights": "ImageNet",
+  "task": "clear_vs_cloud",
+  "classes": {
+    "0": "clear",
+    "1": "cloud"
+  },
+  "dataset_policy": {
+    "train": "B",
+    "validation": "B",
+    "test": "A+B+C",
+    "test_used_during_training": false,
+    "scene_leakage": 0
+  },
+  "augmentation_train_only": {
+    "horizontal_flip": true,
+    "vertical_flip": true,
+    "rotation_factor": 0.03,
+    "brightness_factor": 0.1,
+    "contrast_factor": 0.1
+  },
+  "phase1": {
+    "epochs_requested": 10,
+    "epochs_executed": 10,
+    "learning_rate": 0.0001,
+    "backbone_frozen": true,
+    "checkpoint": "C:\\Users\\Leyla\\Desktop\\0_5K_CLOUD\\waskirisat-pl-aidev\\data\\cloud\\training_mobilenetv2_alpha075\\phase1_head_best.keras",
+    "val_metrics_at_0_5": {
+      "accuracy": 0.9468938112258911,
+      "loss": 0.11777021735906601,
+      "pr_auc": 0.9970453381538391,
+      "precision": 0.9937888383865356,
+      "recall": 0.9056603908538818,
+      "roc_auc": 0.9958131909370422
+    }
+  },
+  "phase2": {
+    "epochs_requested": 8,
+    "epochs_executed": 8,
+    "learning_rate": 1e-05,
+    "unfreeze_last": 30,
+    "batchnorm_frozen": true,
+    "checkpoint": "C:\\Users\\Leyla\\Desktop\\0_5K_CLOUD\\waskirisat-pl-aidev\\data\\cloud\\training_mobilenetv2_alpha075\\phase2_finetune_best.keras",
+    "val_metrics_at_0_5": {
+      "accuracy": 0.9709419012069702,
+      "loss": 0.08355696499347687,
+      "pr_auc": 0.9988136291503906,
+      "precision": 0.9980119466781616,
+      "recall": 0.947169840335846,
+      "roc_auc": 0.9984498023986816
+    }
+  },
+  "selected_checkpoint": {
+    "stage": "phase2_finetune",
+    "path": "C:\\Users\\Leyla\\Desktop\\0_5K_CLOUD\\waskirisat-pl-aidev\\data\\cloud\\training_mobilenetv2_alpha075\\mobilenetv2_best.keras",
+    "selection_metric": "validation PR-AUC",
+    "val_metrics_at_0_5": {
+      "accuracy": 0.9709419012069702,
+      "loss": 0.08355696499347687,
+      "pr_auc": 0.9988136291503906,
+      "precision": 0.9980119466781616,
+      "recall": 0.947169840335846,
+      "roc_auc": 0.9984498023986816
+    }
+  },
+  "threshold_calibration": {
+    "source": "VALIDATION B only",
+    "recall_target": 0.95,
+    "selected_threshold": 0.29447251558303833,
+    "metrics": {
+      "threshold": 0.29447251558303833,
+      "accuracy": 0.9819639278557114,
+      "precision_cloud": 0.9980544747081712,
+      "recall_cloud": 0.9679245283018868,
+      "specificity_clear": 0.9978632478632479,
+      "f1_cloud": 0.9827586206896552,
+      "confusion_matrix": {
+        "TN_clear_correct": 467,
+        "FP_clear_as_cloud": 1,
+        "FN_cloud_as_clear": 17,
+        "TP_cloud_correct": 513
+      }
+    }
+  },
+  "training": {
+    "batch_size": 32,
+    "cloud_weight": 1.0,
+    "seed": 42,
+    "train_clear": 2653,
+    "train_cloud": 2851,
+    "val_clear": 468,
+    "val_cloud": 530
+  },
+  "note": "TEST A/B/C permanece aislado. Evaluarlo después con mobilenetv2_best.keras y selected_threshold."
+}
