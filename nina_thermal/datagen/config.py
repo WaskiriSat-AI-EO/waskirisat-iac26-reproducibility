@@ -206,3 +206,16 @@ SCRIPT_VERSION = "1.0.0"
 # ── NASA FIRMS API ───────────────────────────────────────────────────────
 FIRMS_API_BASE_URL = "https://firms.modaps.eosdis.nasa.gov/api/area/csv"
 FIRMS_API_MAX_CHUNKS = 5
+FIRMS_AVAILABILITY_URL = (
+    "https://firms.modaps.eosdis.nasa.gov/api/data_availability/csv"
+)
+# Area queried for training-label CSVs (``run_fetch_firms``).  It must contain
+# every 640 × 480 km patch footprint (lon −76.2…−52.7, lat −28.2…−5.6); the
+# Bolivia-only box used before v3 left 70% of "negatives" unqueried.
+FIRMS_LABEL_BBOX = (-77.0, -29.0, -52.0, -5.0)
+# One product per date, never NRT (NRT and SP rows are not de-duplicated
+# against each other and double-count FRP).
+FIRMS_LABEL_SOURCE = "VIIRS_SNPP_SP"
+FIRMS_OUTAGE_SOURCE = "VIIRS_NOAA20_SP"
+# Suomi-NPP VIIRS outages (inclusive), filled from NOAA-20.
+FIRMS_SNPP_OUTAGES = [("2022-07-20", "2022-08-10")]

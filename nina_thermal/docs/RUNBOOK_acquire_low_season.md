@@ -8,6 +8,10 @@ the live repo (CLI flags checked via `--help`, existing roots' actual granule
 dates confirmed from disk) but **not yet executed end-to-end** — this is the
 plan to run, not a record of a run.
 
+> **Superseded (2026-10-17) by `RUNBOOK_v4_data_expansion.md`.** The
+> `--roi nina_thermal/resources/bolivia_roi.geojson` below is a 0.1° test box,
+> not Bolivia: use `bo_nina_roi_simplified.geojson` (see the v4 runbook §0.4).
+
 **Prerequisite:** `main` branch, `.env` with `CDSE_USER` / `CDSE_PASSWORD` at
 the repo's parent directory (`load_dotenv()` walks up and finds it).
 

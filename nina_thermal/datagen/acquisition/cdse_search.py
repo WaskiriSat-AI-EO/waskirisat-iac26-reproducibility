@@ -5,9 +5,11 @@ Sentinel-3 SL_1_RBT___ products intersecting a given footprint and
 date range.
 """
 
+import glob
 import logging
+from collections import defaultdict
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set, Tuple
 
 import requests
 
@@ -117,3 +119,108 @@ def search_slstr_products(
         max_results,
     )
     return result
+
+
+# ── Product selection (no network) ───────────────────────────────────────────
+
+
+def granule_key(name: str) -> str:
+    """Normalise a product or ``.SEN3`` directory name for comparison.
+
+    CDSE product names already end in ``.SEN3``; inventory files list the
+    directory names, which are the same.  Stripping the suffix makes either
+    form (and a bare granule id) compare equal.
+    """
+    name = name.strip()
+    return name[: -len(".SEN3")] if name.endswith(".SEN3") else name
+
+
+def load_held_granules(globs: List[str]) -> Set[str]:
+    """Read every ``granule_inventory.txt`` matched by *globs*.
+
+    Args:
+        globs: Glob patterns, relative to the working directory or absolute
+            (e.g. ``"data*/01_raw/granule_inventory.txt"``).
+
+    Returns:
+        Set of normalised granule keys (see :func:`granule_key`).
+    """
+    held: Set[str] = set()
+    for pattern in globs:
+        paths = sorted(glob.glob(pattern))
+        if not paths:
+            logger.warning("--skip_inventory %s matched no file.", pattern)
+        for path in paths:
+            with open(path, encoding="utf-8") as fh:
+                keys = {granule_key(line) for line in fh if line.strip()}
+            logger.info("Inventory %s: %d granules held.", path, len(keys))
+            held |= keys
+    return held
+
+
+def drop_held_products(
+    products: List[Dict], held: Set[str]
+) -> Tuple[List[Dict], List[Dict]]:
+    """Split *products* into those not yet held and those already held."""
+    kept = [p for p in products if granule_key(p["Name"]) not in held]
+    skipped = [p for p in products if granule_key(p["Name"]) in held]
+    return kept, skipped
+
+
+def _sensing_start(product: Dict) -> str:
+    return product.get("ContentDate", {}).get("Start", "")
+
+
+def select_products(
+    products: List[Dict], max_products: int, sampling: str = "even"
+) -> List[Dict]:
+    """Choose at most *max_products* products from a full-window search.
+
+    ``"oldest"`` keeps the first products in sensing order (the pre-v4
+    behaviour, which left most months covering only days 1–9).  ``"even"``
+    spreads the cap over the window: products are grouped by sensing day
+    and taken round-robin, one per day per round, so every day with data
+    contributes before any day contributes twice.
+
+    Args:
+        products: Search results (each with ``Name`` and ``ContentDate.Start``).
+        max_products: Upper bound on the number returned.
+        sampling: ``"even"`` or ``"oldest"``.
+
+    Returns:
+        The selected products in sensing order.
+    """
+    if sampling not in ("even", "oldest"):
+        raise ValueError(f"sampling must be 'even' or 'oldest', got {sampling!r}")
+    ordered = sorted(products, key=lambda p: (_sensing_start(p), p["Name"]))
+    if sampling == "oldest" or len(ordered) <= max_products:
+        return ordered[:max_products]
+
+    by_day: Dict[str, List[Dict]] = defaultdict(list)
+    for p in ordered:
+        by_day[_sensing_start(p)[:10]].append(p)
+    queues = [by_day[d] for d in sorted(by_day)]
+
+    selected: List[Dict] = []
+    depth = 0
+    while len(selected) < max_products:
+        row = [q[depth] for q in queues if depth < len(q)]
+        if not row:
+            break
+        # A partial last round goes to days spread across the window, not
+        # to the earliest ones.
+        need = max_products - len(selected)
+        if need < len(row):
+            step = len(row) / need
+            row = [row[int(i * step)] for i in range(need)]
+        selected.extend(row)
+        depth += 1
+    return sorted(selected, key=lambda p: (_sensing_start(p), p["Name"]))
+
+
+def products_per_day(products: List[Dict]) -> Dict[str, int]:
+    """Count products per sensing day (``YYYY-MM-DD``), for logging."""
+    counts: Dict[str, int] = defaultdict(int)
+    for p in products:
+        counts[_sensing_start(p)[:10]] += 1
+    return dict(sorted(counts.items()))

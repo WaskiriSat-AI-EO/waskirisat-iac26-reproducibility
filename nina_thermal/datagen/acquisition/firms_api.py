@@ -7,7 +7,10 @@ above the confidence and FRP thresholds.
 
 import io
 import logging
-from datetime import datetime, timedelta
+import re
+from datetime import date, datetime, timedelta
+from typing import Dict, List, Optional, Tuple
+
 import requests
 import pandas as pd  # type: ignore
 
@@ -139,3 +142,140 @@ def query_firms_fire_dates(
     result = sorted(list(fire_dates))
     logger.info("Found active fire detections on %d unique date(s).", len(result))
     return result
+
+
+# ── Label-CSV download (run_fetch_firms) ─────────────────────────────────────
+
+
+def plan_firms_chunks(
+    start: date,
+    end: date,
+    source: str = config.FIRMS_LABEL_SOURCE,
+    outage_source: str = config.FIRMS_OUTAGE_SOURCE,
+    outages: Optional[List[Tuple[str, str]]] = None,
+    margin_days: int = 1,
+) -> List[Tuple[str, date, int]]:
+    """Plan area-API requests covering ``[start − margin, end + margin]``.
+
+    Labels use FIRMS detections within ±1 day of each granule, so the window
+    is widened by *margin_days* on both sides.  Days inside a Suomi-NPP
+    outage are fetched from *outage_source*; every other day from *source*,
+    so each date has exactly one product.  Each run of same-source days is
+    cut into requests of at most ``FIRMS_API_MAX_CHUNKS`` days.
+
+    Returns:
+        ``(source, first_day, n_days)`` per request, in date order.
+    """
+    if end < start:
+        raise ValueError(f"end {end} is before start {start}")
+    if outages is None:
+        outages = config.FIRMS_SNPP_OUTAGES
+    spans = [(date.fromisoformat(a), date.fromisoformat(b)) for a, b in outages]
+
+    def source_for(day: date) -> str:
+        return outage_source if any(a <= day <= b for a, b in spans) else source
+
+    first = start - timedelta(days=margin_days)
+    last = end + timedelta(days=margin_days)
+    chunks: List[Tuple[str, date, int]] = []
+    day = first
+    while day <= last:
+        src = source_for(day)
+        n = 1
+        while (
+            n < config.FIRMS_API_MAX_CHUNKS
+            and day + timedelta(days=n) <= last
+            and source_for(day + timedelta(days=n)) == src
+        ):
+            n += 1
+        chunks.append((src, day, n))
+        day += timedelta(days=n)
+    return chunks
+
+
+def firms_csv_name(source: str, first_day: date, n_days: int) -> str:
+    """File name used in ``$ROOT/firms/`` (``firms_{source}_{date}_{n}d.csv``)."""
+    return f"firms_{source}_{first_day.isoformat()}_{n_days}d.csv"
+
+
+_CSV_NAME = re.compile(
+    r"^firms_(?P<src>[A-Z0-9_]+)_(?P<day>\d{4}-\d{2}-\d{2})_(?P<n>\d+)d\.csv$"
+)
+
+
+def parse_firms_csv_name(name: str) -> Optional[Tuple[str, date, int]]:
+    """Inverse of :func:`firms_csv_name`; None for other file names."""
+    m = _CSV_NAME.match(name)
+    if not m:
+        return None
+    return m["src"], date.fromisoformat(m["day"]), int(m["n"])
+
+
+def source_conflicts(
+    existing_names: List[str], chunks: List[Tuple[str, date, int]]
+) -> List[str]:
+    """Existing CSVs whose dates overlap *chunks* but come from another product.
+
+    Mixing products on one date double-counts FRP (v3 label bug #3), so the
+    fetch refuses to add a second product to a date that already has one.
+    """
+    conflicts = []
+    for name in existing_names:
+        parsed = parse_firms_csv_name(name)
+        if parsed is None:
+            continue
+        src, day0, n = parsed
+        days = {day0 + timedelta(days=i) for i in range(n)}
+        for c_src, c_day0, c_n in chunks:
+            c_days = {c_day0 + timedelta(days=i) for i in range(c_n)}
+            if src != c_src and days & c_days:
+                conflicts.append(name)
+                break
+    return conflicts
+
+
+def fetch_area_csv(
+    firms_key: str, source: str, bbox: tuple, first_day: date, n_days: int
+) -> str:
+    """Fetch one FIRMS area-API CSV; raise on HTTP errors or a non-CSV reply."""
+    west, south, east, north = bbox
+    bbox_str = f"{west:g},{south:g},{east:g},{north:g}"
+    url = (
+        f"{config.FIRMS_API_BASE_URL}/{firms_key}/{source}/{bbox_str}/"
+        f"{n_days}/{first_day.isoformat()}"
+    )
+    response = requests.get(url, timeout=120)
+    response.raise_for_status()
+    text = response.text
+    header = text.splitlines()[0].lower() if text.strip() else ""
+    if "latitude" not in header:
+        raise RuntimeError(f"FIRMS returned a non-CSV response: {text.strip()[:200]}")
+    return text
+
+
+def fetch_data_availability(firms_key: str) -> Dict[str, Tuple[date, date]]:
+    """Return ``{source: (min_date, max_date)}`` from the FIRMS availability API."""
+    url = f"{config.FIRMS_AVAILABILITY_URL}/{firms_key}/ALL"
+    response = requests.get(url, timeout=60)
+    response.raise_for_status()
+    df = pd.read_csv(io.StringIO(response.text))
+    return {
+        str(row["data_id"]): (
+            date.fromisoformat(str(row["min_date"])),
+            date.fromisoformat(str(row["max_date"])),
+        )
+        for _, row in df.iterrows()
+    }
+
+
+def unavailable_chunks(
+    chunks: List[Tuple[str, date, int]], availability: Dict[str, Tuple[date, date]]
+) -> List[Tuple[str, date, int]]:
+    """Chunks whose dates fall outside their product's published availability."""
+    bad = []
+    for src, day0, n in chunks:
+        span = availability.get(src)
+        last = day0 + timedelta(days=n - 1)
+        if span is None or day0 < span[0] or last > span[1]:
+            bad.append((src, day0, n))
+    return bad
