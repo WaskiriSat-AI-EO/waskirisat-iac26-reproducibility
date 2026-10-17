@@ -220,13 +220,35 @@ def test_skip_inventory_of_other_root(tmp_path):
 
 
 def test_failed_download_sets_exit_code(tmp_path):
-    code, _ = _run(
+    code, dl = _run(
         tmp_path,
         _month(days=[10], per_day=1),
         ["--max_products", "1"],
         download=lambda **kw: False,
     )
-    assert code == 1
+    assert code == 1 and dl.call_count == 3  # retried before giving up
+
+
+def test_dropped_connection_is_retried(tmp_path):
+    calls = []
+
+    def flaky(**kw):
+        calls.append(kw["product_name"])
+        if len(calls) == 1:  # first attempt leaves a partial ZIP behind
+            (Path(kw["output_dir"]) / f"{kw['product_name']}.zip").write_bytes(b"x")
+            return False
+        return _fake_download(**kw)
+
+    ext = tmp_path / "root" / "02_extracted"
+    code, dl = _run(
+        tmp_path,
+        _month(days=[10], per_day=1),
+        ["--max_products", "1", "--extract_dir", str(ext), "--delete_raw"],
+        download=flaky,
+    )
+    assert code == 0 and dl.call_count == 2
+    assert len(list(ext.glob("*_F2_BT.npy"))) == 1
+    assert not list((tmp_path / "root" / "01_raw").glob("*.zip"))
 
 
 def test_delete_raw_requires_extract_dir(tmp_path):
