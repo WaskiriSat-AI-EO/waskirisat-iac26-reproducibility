@@ -3,7 +3,7 @@
 import json
 from collections import Counter
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -15,7 +15,9 @@ from nina_thermal.datagen.acquisition.cdse_search import (
     products_per_day,
     select_products,
 )
+from nina_thermal.datagen.ingestion.extract_channels import SLSTR_NADIR_FILES
 from nina_thermal.datagen.pipelines import run_acquisition
+from shared.cdse_download import download_product_files
 
 ROI = str(
     Path(__file__).resolve().parents[2] / "resources" / "bo_nina_roi_simplified.geojson"
@@ -113,9 +115,10 @@ def test_load_held_unmatched_glob_is_empty(tmp_path):
 # ── run_acquisition end to end (CDSE mocked) ─────────────────────────────────
 
 
-def _fake_download(access_token, product_id, product_name, output_dir, delete_zip):
-    sen3 = Path(output_dir) / product_name
-    sen3.mkdir(parents=True)
+def _fake_download(**kw):
+    """Stands in for both download_and_extract and download_product_files."""
+    sen3 = Path(kw["output_dir"]) / kw["product_name"]
+    sen3.mkdir(parents=True, exist_ok=True)
     (sen3 / "S8_BT_in.nc").write_bytes(b"x" * 10)
     return True
 
@@ -148,9 +151,12 @@ def _run_inner(tmp_path, products, extra, download):
         "--log_dir",
         str(tmp_path / "logs"),
     ] + extra
+    dl = MagicMock(side_effect=lambda **kw: download(**kw))
     with patch(f"{MOD}.get_access_token", return_value="tok"), patch(
         f"{MOD}.search_slstr_products", return_value=list(products)
-    ), patch(f"{MOD}.download_and_extract", side_effect=download) as dl, patch(
+    ), patch(f"{MOD}.download_and_extract", new=dl), patch(
+        f"{MOD}.download_product_files", new=dl
+    ), patch(
         f"{MOD}.extract_thermal_channels", side_effect=_fake_extract
     ):
         code = run_acquisition.main(argv)
@@ -213,7 +219,7 @@ def test_skip_inventory_of_other_root(tmp_path):
     code, dl = _run(
         tmp_path,
         products,
-        ["--max_products", "10", "--skip_inventory", str(other)],
+        ["--max_products", "10", "--skip_inventory", str(other), "--download", "full"],
     )
     assert code == 0 and dl.call_count == 1
     assert dl.call_args.kwargs["product_name"] == products[3]["Name"]
@@ -223,7 +229,7 @@ def test_failed_download_sets_exit_code(tmp_path):
     code, dl = _run(
         tmp_path,
         _month(days=[10], per_day=1),
-        ["--max_products", "1"],
+        ["--max_products", "1", "--download", "full"],
         download=lambda **kw: False,
     )
     assert code == 1 and dl.call_count == 3  # retried before giving up
@@ -271,6 +277,71 @@ def test_tiny_roi_rejected(tmp_path):
                 str(tmp_path / "raw"),
                 "--log_dir",
                 str(tmp_path / "logs"),
+                "--download",
+                "full",
             ]
         )
     assert code == 1 and search.call_count == 0
+
+
+def test_files_mode_requests_only_extraction_inputs(tmp_path):
+    ext = tmp_path / "root" / "02_extracted"
+    code, dl = _run(
+        tmp_path,
+        _month(days=[10], per_day=1),
+        ["--max_products", "1", "--extract_dir", str(ext), "--delete_raw"],
+    )
+    assert code == 0 and dl.call_count == 1
+    kwargs = dl.call_args.kwargs
+    assert sorted(kwargs["files"]) == sorted(SLSTR_NADIR_FILES.values())
+    assert kwargs["workers"] == 4 and "delete_zip" not in kwargs
+
+
+def test_files_mode_requires_extract_dir(tmp_path):
+    with pytest.raises(SystemExit):
+        run_acquisition.main(["--roi", ROI, "--output_dir", str(tmp_path)])
+
+
+# ── download_product_files (CDSE node API mocked) ────────────────────────────
+
+DL = "shared.cdse_download.requests.get"
+
+
+def _node_response(body=b"data", fail=False):
+    r = MagicMock()
+    r.__enter__.return_value = r
+    if fail:
+        r.raise_for_status.side_effect = RuntimeError("503")
+    r.iter_content.return_value = [body]
+    return r
+
+
+def test_download_product_files_writes_each_file(tmp_path):
+    files = ["F2_BT_in.nc", "flags_in.nc"]
+    with patch(DL, return_value=_node_response(b"nc")) as get:
+        ok = download_product_files("tok", "uuid", "G.SEN3", tmp_path, files, workers=2)
+    assert ok and get.call_count == 2
+    assert sorted(p.name for p in (tmp_path / "G.SEN3").iterdir()) == sorted(files)
+    url = get.call_args_list[0].args[0]
+    assert "Products(uuid)/Nodes(G.SEN3)/Nodes(" in url and url.endswith("/$value")
+
+
+def test_download_product_files_retries_and_resumes(tmp_path):
+    responses = [_node_response(fail=True), _node_response(b"ok")]
+    with patch(DL, side_effect=responses) as get:
+        ok = download_product_files("tok", "id", "G.SEN3", tmp_path, ["a.nc"])
+    assert ok and get.call_count == 2
+    assert (tmp_path / "G.SEN3" / "a.nc").read_bytes() == b"ok"
+    assert not list((tmp_path / "G.SEN3").glob("*.part"))
+    # Completed files are not fetched again.
+    with patch(DL) as get:
+        assert download_product_files("tok", "id", "G.SEN3", tmp_path, ["a.nc"])
+    assert get.call_count == 0
+
+
+def test_download_product_files_reports_failure(tmp_path):
+    with patch(
+        "shared.cdse_download.requests.get", return_value=_node_response(fail=True)
+    ):
+        ok = download_product_files("tok", "id", "G.SEN3", tmp_path, ["a.nc"])
+    assert not ok and not (tmp_path / "G.SEN3" / "a.nc").exists()

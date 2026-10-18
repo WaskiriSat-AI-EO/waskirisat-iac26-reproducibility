@@ -22,6 +22,10 @@ v4 options (see ``docs/RUNBOOK_v4_data_expansion.md``):
 * ``--extract_dir DIR --delete_raw`` extracts each granule to ``.npy`` right
   after its download and deletes the ``.SEN3`` folder, so raw data never
   accumulates (~380 MB per granule vs ~27 MB extracted).
+* ``--download files`` (default) fetches only the 4 NetCDFs extraction reads
+  (~14 MB per granule, ~5–8 s) through the CDSE node API; ``--download full``
+  fetches the whole ZIP (~350 MB, ~2 min).  The extracted arrays are
+  bit-identical either way.
 * ``--dry_run`` searches and prints the selection without downloading.
 
 Credentials are read from ``$CDSE_USER`` and ``$CDSE_PASSWORD``
@@ -50,9 +54,12 @@ from nina_thermal.datagen.acquisition.cdse_search import (
     select_products,
 )
 from nina_thermal.datagen.acquisition.firms_api import query_firms_fire_dates
-from nina_thermal.datagen.ingestion.extract_channels import extract_thermal_channels
+from nina_thermal.datagen.ingestion.extract_channels import (
+    SLSTR_NADIR_FILES,
+    extract_thermal_channels,
+)
 from nina_thermal.datagen.ingestion.roi_mask import load_roi_polygon
-from shared.cdse_download import download_and_extract
+from shared.cdse_download import download_and_extract, download_product_files
 from nina_thermal.datagen import config
 from shared.pipeline_logging import configure_logging, log_run_footer
 
@@ -136,6 +143,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="Delete each .SEN3 folder once its .npy files exist (needs --extract_dir).",
     )
     p.add_argument(
+        "--download",
+        default="files",
+        choices=["files", "full"],
+        help=(
+            "'files': only the NetCDFs extraction reads (needs --extract_dir); "
+            "'full': the whole product ZIP."
+        ),
+    )
+    p.add_argument(
+        "--download_workers",
+        type=int,
+        default=4,
+        metavar="N",
+        help="Concurrent file requests per granule with --download files.",
+    )
+    p.add_argument(
         "--allow_small_roi",
         action="store_true",
         help="Accept an ROI narrower than 1° (normally a mistake: see bolivia_roi.geojson).",
@@ -190,6 +213,11 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     if args.delete_raw and not args.extract_dir:
         parser.error("--delete_raw requires --extract_dir")
+    if args.download == "files" and not args.extract_dir and not args.dry_run:
+        parser.error(
+            "--download files keeps only the extraction inputs; pass --extract_dir "
+            "(or --download full for complete .SEN3 products)"
+        )
     log_dir = args.log_dir or f"data/logs/run_{args.start}-{args.end}"
     _, start_time = configure_logging(
         "run_acquisition",
@@ -365,16 +393,24 @@ def main(argv=None) -> int:
                 if not token:
                     logger.error("Token refresh failed at product %d.", i)
                     break
-                ok = (
-                    download_and_extract(
+                if args.download == "files":
+                    ok = download_product_files(
+                        access_token=token,
+                        product_id=pid,
+                        product_name=_sen3_dirname(name),
+                        output_dir=output_dir,
+                        files=list(SLSTR_NADIR_FILES.values()),
+                        workers=args.download_workers,
+                    )
+                else:
+                    ok = download_and_extract(
                         access_token=token,
                         product_id=pid,
                         product_name=name,
                         output_dir=output_dir,
                         delete_zip=True,
                     )
-                    and sen3_dir.is_dir()
-                )
+                ok = ok and sen3_dir.is_dir()
                 if ok:
                     break
                 # The partial ZIP is removed on failure, so a retry starts
@@ -530,6 +566,7 @@ def _write_manifest(output_dir: Path, records: list, args) -> None:
             "skip_inventory": args.skip_inventory,
             "extract_dir": args.extract_dir,
             "delete_raw": args.delete_raw,
+            "download": args.download,
         },
         "granules": records,
         "total_downloaded": len(records),

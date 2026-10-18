@@ -3,11 +3,14 @@
 Downloads a single product ZIP from the Copernicus Data Space Ecosystem
 zipper service, streams it to disk with progress reporting, extracts
 the archive, and optionally deletes the ZIP afterwards.
+:func:`download_product_files` fetches only selected files of a product.
 """
 
 import logging
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import Sequence
 
 import requests
 from tqdm import tqdm
@@ -125,3 +128,83 @@ def download_and_extract(
             logger.warning("Could not delete ZIP %s: %s", zip_path.name, exc)
 
     return True
+
+
+_NODE_BASE = (
+    "https://download.dataspace.copernicus.eu/odata/v1/"
+    "Products({product_id})/Nodes({product_name})/Nodes({file})/$value"
+)
+_NODE_ATTEMPTS = 3
+
+
+def download_product_files(
+    access_token: str,
+    product_id: str,
+    product_name: str,
+    output_dir: Path,
+    files: Sequence[str],
+    workers: int = 4,
+) -> bool:
+    """Download selected files of a product instead of its whole ZIP.
+
+    Uses the CDSE OData node API (``Products(id)/Nodes(name)/Nodes(file)``),
+    so only the listed files are transferred: for SLSTR thermal extraction,
+    4 NetCDFs (~14 MB) instead of a ~350 MB ZIP.  The files are written to
+    ``output_dir/product_name/`` exactly as they appear in the ``.SEN3``
+    directory, so downstream readers need no change.  Each file goes to a
+    ``.part`` name first and is renamed when complete, and is retried up to
+    ``_NODE_ATTEMPTS`` times.
+
+    Args:
+        access_token: Bearer token from :func:`get_access_token`.
+        product_id: Product UUID (``"Id"`` field from search results).
+        product_name: Product name, the ``.SEN3`` directory name.
+        output_dir: Parent directory for the ``.SEN3`` directory.
+        files: File names inside the ``.SEN3`` directory.
+        workers: Files fetched concurrently.
+
+    Returns:
+        ``True`` if every file was downloaded, ``False`` otherwise (files
+        already completed are kept, so a retry only fetches the rest).
+    """
+    target = Path(output_dir) / product_name
+    target.mkdir(parents=True, exist_ok=True)
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    def fetch(file: str) -> bool:
+        dest = target / file
+        if dest.is_file():
+            return True
+        url = _NODE_BASE.format(
+            product_id=product_id, product_name=product_name, file=file
+        )
+        part = dest.with_name(dest.name + ".part")
+        for attempt in range(1, _NODE_ATTEMPTS + 1):
+            try:
+                with requests.get(
+                    url, headers=headers, stream=True, timeout=_TIMEOUT_S
+                ) as response:
+                    response.raise_for_status()
+                    with open(part, "wb") as fh:
+                        for chunk in response.iter_content(chunk_size=1 << 20):
+                            fh.write(chunk)
+                part.rename(dest)
+                return True
+            except Exception as exc:
+                part.unlink(missing_ok=True)
+                logger.warning(
+                    "%s/%s attempt %d/%d failed: %s",
+                    product_name[-40:],
+                    file,
+                    attempt,
+                    _NODE_ATTEMPTS,
+                    exc,
+                )
+        return False
+
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+        results = list(pool.map(fetch, files))
+    ok = all(results)
+    if ok:
+        logger.info("Downloaded %d file(s) of %s", len(files), product_name)
+    return ok
