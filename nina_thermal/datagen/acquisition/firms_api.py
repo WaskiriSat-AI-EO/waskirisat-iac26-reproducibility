@@ -279,3 +279,49 @@ def unavailable_chunks(
         if span is None or day0 < span[0] or last > span[1]:
             bad.append((src, day0, n))
     return bad
+
+
+def daily_counts(csv_text: str) -> Dict[date, int]:
+    """Detections per ``acq_date`` in a FIRMS CSV body."""
+    if not csv_text.strip():
+        return {}
+    df = pd.read_csv(io.StringIO(csv_text), usecols=["acq_date"])
+    counts = df["acq_date"].value_counts()
+    return {date.fromisoformat(str(d)): int(n) for d, n in counts.items()}
+
+
+def chunk_days(first_day: date, n_days: int) -> List[date]:
+    return [first_day + timedelta(days=i) for i in range(n_days)]
+
+
+def incomplete_days(
+    counts: Dict[date, int],
+    days: List[date],
+    reference: Optional[Dict[date, int]] = None,
+    min_ratio: float = config.FIRMS_MIN_DAY_RATIO,
+    min_reference: int = config.FIRMS_MIN_REFERENCE_DETECTIONS,
+) -> Dict[date, str]:
+    """Days whose detections look missing or partial.
+
+    Over the label bbox every real day has hundreds to tens of thousands of
+    detections, so a day with none is missing data.  A partial day (the
+    satellite lost part of its passes) is caught by comparing with
+    *reference*, another VIIRS product: e.g. S-NPP 2024-07-24 had 782
+    detections vs NOAA-20's 13,045.  Undercounting FRP turns fire patches
+    into false "no-fire" labels, so both cases are errors.
+
+    Returns:
+        ``{day: reason}`` for every flagged day.
+    """
+    flagged: Dict[date, str] = {}
+    for day in days:
+        n = counts.get(day, 0)
+        if n == 0:
+            flagged[day] = "0 detections"
+            continue
+        if reference is None:
+            continue
+        ref = reference.get(day, 0)
+        if ref >= min_reference and n < min_ratio * ref:
+            flagged[day] = f"{n} detections vs {ref} in the reference product"
+    return flagged

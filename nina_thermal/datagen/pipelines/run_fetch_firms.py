@@ -17,9 +17,15 @@ Rules enforced, each from a v3 label bug (``docs/TRAINING_REPORT_v3.md`` §2.2):
   a second product to a date that already has a CSV;
 * the queried bbox is declared in ``coverage.json`` and must not change
   within a root;
-* a request that returns no detections over this ~5 Mkm² box is treated as
-  missing data and fails the run (``--allow_empty`` to override), as does a
-  window outside the product's published availability.
+* every day is checked: a day with no detections over this ~5 Mkm² box is
+  missing data, and a day with under 40% of NOAA-20's detections (reference
+  product, ``config.FIRMS_REFERENCE_SOURCE``) is a partial day.  Either fails
+  the request, and the CSV is not written (``--allow_incomplete`` to
+  override).  A window outside the product's published availability fails too.
+  Undercounted FRP silently turns fire patches into "no-fire" labels.
+
+``--check_only`` audits CSVs already in ``--out_dir`` with the same per-day
+checks (fetching only the reference product) and writes nothing.
 
 Re-running is safe: CSVs already on disk are kept (``--overwrite`` to refetch).
 The Map Key is read from ``--firms_key`` or ``$FIRMS_MAP_KEY`` (``.env``).
@@ -32,14 +38,19 @@ import os
 import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
+from typing import Dict, Optional
 
 from dotenv import load_dotenv
 
 from nina_thermal.datagen import config
 from nina_thermal.datagen.acquisition.firms_api import (
+    chunk_days,
+    daily_counts,
     fetch_area_csv,
     fetch_data_availability,
     firms_csv_name,
+    incomplete_days,
+    parse_firms_csv_name,
     plan_firms_chunks,
     source_conflicts,
     unavailable_chunks,
@@ -86,9 +97,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="NASA FIRMS Map Key. Falls back to $FIRMS_MAP_KEY.",
     )
     p.add_argument(
-        "--allow_empty",
+        "--allow_incomplete",
         action="store_true",
-        help="Keep going when a request returns no detections (normally an error).",
+        help="Write CSVs with missing or partial days (normally an error).",
+    )
+    p.add_argument(
+        "--no_crosscheck",
+        action="store_true",
+        help="Skip the per-day comparison with the reference product.",
+    )
+    p.add_argument(
+        "--check_only",
+        action="store_true",
+        help="Audit the CSVs already in --out_dir; fetch and write nothing else.",
     )
     p.add_argument(
         "--overwrite", action="store_true", help="Refetch CSVs already on disk."
@@ -131,6 +152,8 @@ def main(argv=None) -> int:
     )
     for src, day0, n in chunks:
         logger.info("planned: %s", firms_csv_name(src, day0, n))
+    if args.check_only:
+        return log_run_footer(start_time, exit_code=_check_only(out_dir, bbox, args))
     if args.dry_run:
         for src, day0, n in chunks:
             print(firms_csv_name(src, day0, n))
@@ -157,10 +180,8 @@ def main(argv=None) -> int:
         )
         return log_run_footer(start_time, exit_code=1)
 
-    load_dotenv()
-    firms_key = args.firms_key or os.getenv("FIRMS_MAP_KEY")
+    firms_key = _firms_key(args)
     if not firms_key:
-        logger.error("FIRMS Map Key missing: set $FIRMS_MAP_KEY or pass --firms_key.")
         return log_run_footer(start_time, exit_code=1)
 
     try:
@@ -196,10 +217,18 @@ def main(argv=None) -> int:
             failed.append(path.name)
             continue
         n_rows = max(len(text.strip().splitlines()) - 1, 0)
-        if n_rows == 0 and not args.allow_empty:
+        reference = None
+        if not args.no_crosscheck and src != config.FIRMS_REFERENCE_SOURCE:
+            reference = _reference_counts(firms_key, bbox, day0, n)
+        flagged = incomplete_days(daily_counts(text), chunk_days(day0, n), reference)
+        if flagged and not args.allow_incomplete:
+            for day, reason in sorted(flagged.items()):
+                logger.error(
+                    "%s: %s %s — missing or partial day.", path.name, day, reason
+                )
             logger.error(
-                "%s: 0 detections over the label bbox — product missing for these "
-                "dates, not a fire-free week.  Not written.",
+                "%s not written.  Add the dates to config.FIRMS_SNPP_OUTAGES "
+                "(NOAA-20 fills them) and re-run.",
                 path.name,
             )
             failed.append(path.name)
@@ -213,6 +242,59 @@ def main(argv=None) -> int:
 
     _write_coverage(coverage_path, bbox, args)
     return log_run_footer(start_time, exit_code=0)
+
+
+def _firms_key(args) -> Optional[str]:
+    load_dotenv()
+    key = args.firms_key or os.getenv("FIRMS_MAP_KEY")
+    if not key:
+        logger.error("FIRMS Map Key missing: set $FIRMS_MAP_KEY or pass --firms_key.")
+    return key
+
+
+def _reference_counts(
+    firms_key: str, bbox: tuple, day0: date, n: int
+) -> Optional[Dict[date, int]]:
+    """Per-day detections of the reference product, or None if unavailable."""
+    try:
+        text = fetch_area_csv(firms_key, config.FIRMS_REFERENCE_SOURCE, bbox, day0, n)
+    except Exception as exc:
+        logger.warning("Reference fetch failed for %s (+%d d): %s", day0, n, exc)
+        return None
+    return daily_counts(text)
+
+
+def _check_only(out_dir: Path, bbox: tuple, args) -> int:
+    """Audit existing CSVs day by day; return the exit code."""
+    firms_key = None if args.no_crosscheck else _firms_key(args)
+    if not args.no_crosscheck and not firms_key:
+        return 1
+    bad = 0
+    names = sorted(p.name for p in out_dir.glob("*.csv"))
+    for name in names:
+        parsed = parse_firms_csv_name(name)
+        if parsed is None:
+            logger.warning("not a FIRMS label CSV name, skipped: %s", name)
+            continue
+        src, day0, n = parsed
+        text = (out_dir / name).read_text(encoding="utf-8")
+        reference = None
+        if firms_key and src != config.FIRMS_REFERENCE_SOURCE:
+            reference = _reference_counts(firms_key, bbox, day0, n)
+        flagged = incomplete_days(daily_counts(text), chunk_days(day0, n), reference)
+        for day, reason in sorted(flagged.items()):
+            logger.error("%s: %s %s", name, day, reason)
+        bad += bool(flagged)
+        print(
+            f"{'FLAG' if flagged else 'ok  '}  {name}"
+            + (
+                "  " + "; ".join(f"{d} {r}" for d, r in sorted(flagged.items()))
+                if flagged
+                else ""
+            )
+        )
+    print(f"check_only: {len(names)} CSVs, {bad} with missing or partial days")
+    return 1 if bad else 0
 
 
 def _write_coverage(path: Path, bbox: tuple, args) -> None:

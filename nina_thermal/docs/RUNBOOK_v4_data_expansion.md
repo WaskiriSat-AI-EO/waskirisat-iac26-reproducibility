@@ -2,7 +2,7 @@
 
 **For:** Osvaldo (CDSE/FIRMS credentials and all data roots live on this machine).
 **Written:** 2026-10-17 · **Status:** Step 1 done (2026-10-17, branch
-`feat/v4-data-expansion`); Step 2 pilot done (§3.1); Steps 3–6 not started. All commands below exist and
+`feat/v4-data-expansion`); Step 2 pilot done (§3.1); Step 3 done (§4.1); Steps 4–6 not started. All commands below exist and
 were checked with `--help`. Step 1 was verified live against CDSE and FIRMS (§2.1).
 **Starts from:** `TRAINING_REPORT_v3.md` (v3_bc fp32 + v3_bc_qat_sel int8).
 **Goal:** roughly double the labeled pool. Prioritize months that contain both
@@ -73,10 +73,13 @@ than 1° (`--allow_small_roi` to override). Batch 1 tops up those three months (
 1. **Pass `--roots` to every training, evaluation and quantization command.** The default
    is the 4 original roots (`DEFAULT_ROOTS` in `train_thermal.py`).
 2. **The same `--frp_threshold 20000 --frp_negative_max 1000` everywhere.**
-3. **FIRMS:** bbox `-77,-29,-52,-5`, **one product per date** (`VIIRS_SNPP_SP`;
-   `VIIRS_NOAA20_SP` for the S-NPP outage 2022-07-20…08-10), fetched for
-   `[start − 1 day, end + 1 day]`, and `firms/coverage.json` written. Never
-   mix NRT and SP.
+3. **FIRMS:** always through `run_fetch_firms`, which uses bbox `-77,-29,-52,-5`
+   and **one product per date** (`VIIRS_SNPP_SP`; `VIIRS_NOAA20_SP` for the S-NPP
+   outages in `config.FIRMS_SNPP_OUTAGES`), fetches `[start − 1 day, end + 1 day]`,
+   **checks every day** (0 detections, or < 40% of NOAA-20, means missing or
+   partial) and writes `firms/coverage.json`. Never mix NRT and SP. If it
+   flags a day, add it to `FIRMS_SNPP_OUTAGES` and re-run. Audit a root with
+   `run_fetch_firms --check_only --out_dir $ROOT/firms --start 20000101 --end 20000101`.
 4. **No granule may appear in two roots.** Split reconciliation is test > val > train
    (`dataset.py::reconcile_splits`), so an overlapping granule can move a v3 train
    granule into test and silently change the v3 test set.
@@ -212,6 +215,39 @@ while read g; do s=${g%.SEN3}; cp datagen/data/02_extracted/${s}_*.npy $ROOT/02_
 ls $ROOT/02_extracted/*_F2_BT.npy | wc -l                 # expect 318
 ```
 
+### 4.1 Result (2026-10-17) ✅
+
+`data_extra`: 318 granules → 1,274 patches (all kept, `--fire_ratio 0.01`).
+FIRMS: 26 CSVs, 0 flagged days after the outage fixes below.
+
+| month | fire | no-fire | ambiguous |
+|---|---|---|---|
+| 2023-01 / 2024-01 / 2025-01 | 0 | 170 / 98 / 132 | 184 |
+| 2023-07 | 4 | 68 | 217 |
+| **2024-07** | **13** | **39** | 126 |
+| 2025-07 | 0 | 35 | 23 |
+| 2024-08 (30–31) | 11 | 4 | 6 |
+| **2024-10** | **38** | **2** | 21 |
+| 2023-09/10, 2025-08 | 11 | 10 | 62 |
+| **total** | **81** | **558** | 639 |
+
+**Merged pool (9 roots): 883 → 1,662 labeled patches** (fire 316 → 514,
+no-fire 567 → 1,148); test 339 / val 253 / train 1,070 patches. The class
+balance has flipped: no-fire is now 69%. 400 of the new no-fire patches are
+wet-season January scenes (easy, cold negatives). The valuable additions are
+July's warm, dry-season negatives (142) and the mixed July 2024 month.
+Fire-rich months are now what the pool needs most (§5 priorities).
+
+**FIRMS gaps found by the per-day check** (all S-NPP, filled from NOAA-20; the
+7 v3 roots passed `--check_only` with 0 flagged days):
+
+| dates | S-NPP vs NOAA-20 | root affected |
+|---|---|---|
+| 2024-07-10 … 07-16 | 0 (07-16: 844 vs 4,566) | `data_extra` |
+| 2024-07-24 … 07-28 | 0 (07-24: 782 vs 13,045) | none yet (Batch 2 July 2024) |
+| 2024-09-26 … 09-27 | 0 / 2,741 vs 7,073 | `data_202409b` (pilot relabelled: 115 → 121 fire) |
+| 2025-07-04 … 07-05 | 311 vs 1,235 / 385 vs 1,200 | `data_extra` |
+
 Months (new granules): 2023-01 50, **2023-07 60**, 2023-09 9, 2023-10 5, 2024-01 49,
 **2024-07 50**, 2024-08 4, **2024-10 16**, 2025-01 48, **2025-07 18**, 2025-08 9.
 
@@ -301,7 +337,7 @@ python -m nina_thermal.datagen.pipelines.run_simulation \
     --input_dir $ROOT/03_patches --output_dir $ROOT/04_dataset
 
 python -m nina_thermal.datagen.pipelines.run_split   --dataset_dir $ROOT/04_dataset
-python -m nina_thermal.datagen.pipelines.run_balance --dataset_dir $ROOT/04_dataset
+python -m nina_thermal.datagen.pipelines.run_balance --dataset_dir $ROOT/04_dataset --fire_ratio 0.01
 
 # Profiles A and C for train/val (default simulation renders only B for train/val).
 python -m nina_thermal.datagen.pipelines.run_simulation \
@@ -310,6 +346,13 @@ python -m nina_thermal.datagen.pipelines.run_simulation \
 cp --update=none $ROOT/04_dataset_ac/images/*_fixed_A.png $ROOT/04_dataset_ac/images/*_fixed_C.png \
     $ROOT/04_dataset/images/
 ```
+
+**`--fire_ratio 0.01` on `run_balance` for new roots.** Balance undersamples
+no-fire by the *datagen pixel* label, before the FRP relabel used in
+training. At the default 0.2 it dropped 1,029 of `data_extra`'s 1,274 patches
+(the v3 roots kept the default; only `data_202309` lost patches, 257, and is
+left as is so the frozen v3 test set does not move). 0.01 keeps every patch;
+training handles imbalance with `pos_weight` and the val-swept threshold.
 
 **`--roi` on `run_processing` is required.** The v3 roots were processed with
 it (logs in `data/logs/run_*/run_processing_*.log`), so only patches centred in

@@ -217,5 +217,19 @@ FIRMS_LABEL_BBOX = (-77.0, -29.0, -52.0, -5.0)
 # against each other and double-count FRP).
 FIRMS_LABEL_SOURCE = "VIIRS_SNPP_SP"
 FIRMS_OUTAGE_SOURCE = "VIIRS_NOAA20_SP"
-# Suomi-NPP VIIRS outages (inclusive), filled from NOAA-20.
-FIRMS_SNPP_OUTAGES = [("2022-07-20", "2022-08-10")]
+# Suomi-NPP VIIRS outages (inclusive), filled from NOAA-20.  Partial days count
+# as outages: 2024-07-16 and 07-24 have <10% of NOAA-20's detections; the
+# 2024-09 and 2025-07 entries were found by ``run_fetch_firms --check_only``.
+FIRMS_SNPP_OUTAGES = [
+    ("2022-07-20", "2022-08-10"),
+    ("2024-07-10", "2024-07-16"),
+    ("2024-07-24", "2024-07-28"),
+    ("2024-09-26", "2024-09-27"),
+    ("2025-07-04", "2025-07-05"),
+]
+# Per-day completeness check in run_fetch_firms: a day is flagged when the
+# label product has fewer than this fraction of the reference product's
+# detections (S-NPP/NOAA-20 is ~0.9–1.2 on normal days).
+FIRMS_REFERENCE_SOURCE = "VIIRS_NOAA20_SP"
+FIRMS_MIN_DAY_RATIO = 0.4
+FIRMS_MIN_REFERENCE_DETECTIONS = 200
