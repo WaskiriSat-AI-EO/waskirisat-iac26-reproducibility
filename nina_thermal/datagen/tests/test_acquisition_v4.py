@@ -17,6 +17,7 @@ from nina_thermal.datagen.acquisition.cdse_search import (
 )
 from nina_thermal.datagen.ingestion.extract_channels import SLSTR_NADIR_FILES
 from nina_thermal.datagen.pipelines import run_acquisition
+from shared.cdse_auth import TokenProvider
 from shared.cdse_download import download_product_files
 
 ROI = str(
@@ -123,6 +124,12 @@ def _fake_download(**kw):
     return True
 
 
+def _tokens():
+    provider = MagicMock()
+    provider.get.return_value = "tok"
+    return provider
+
+
 def _fake_extract(sen3_dir, output_dir, prefix=None):
     prefix = granule_key(Path(sen3_dir).name)
     paths = []
@@ -152,7 +159,7 @@ def _run_inner(tmp_path, products, extra, download):
         str(tmp_path / "logs"),
     ] + extra
     dl = MagicMock(side_effect=lambda **kw: download(**kw))
-    with patch(f"{MOD}.get_access_token", return_value="tok"), patch(
+    with patch(f"{MOD}.TokenProvider", return_value=_tokens()), patch(
         f"{MOD}.search_slstr_products", return_value=list(products)
     ), patch(f"{MOD}.download_and_extract", new=dl), patch(
         f"{MOD}.download_product_files", new=dl
@@ -266,7 +273,7 @@ def test_delete_raw_requires_extract_dir(tmp_path):
 
 def test_tiny_roi_rejected(tmp_path):
     tiny = str(Path(ROI).with_name("bolivia_roi.geojson"))
-    with patch(f"{MOD}.get_access_token", return_value="tok"), patch(
+    with patch(f"{MOD}.TokenProvider", return_value=_tokens()), patch(
         f"{MOD}.search_slstr_products"
     ) as search:
         code = run_acquisition.main(
@@ -345,3 +352,51 @@ def test_download_product_files_reports_failure(tmp_path):
     ):
         ok = download_product_files("tok", "id", "G.SEN3", tmp_path, ["a.nc"])
     assert not ok and not (tmp_path / "G.SEN3" / "a.nc").exists()
+
+
+# ── TokenProvider ────────────────────────────────────────────────────────────
+
+
+class _Clock:
+    def __init__(self):
+        self.t = 0.0
+
+    def __call__(self):
+        return self.t
+
+
+def test_token_provider_reuses_token_until_near_expiry():
+    clock = _Clock()
+    with patch("shared.cdse_auth._login", return_value=("T1", 600.0)) as login:
+        tokens = TokenProvider(clock=clock, sleep=lambda s: None)
+        assert tokens.get() == "T1"
+        clock.t = 470.0  # 600 - 120 margin = 480 s of reuse
+        assert tokens.get() == "T1" and login.call_count == 1
+        clock.t = 481.0
+        tokens.get()
+        assert login.call_count == 2
+
+
+def test_token_provider_backs_off_then_succeeds():
+    waits = []
+    results = [(None, 0.0), (None, 0.0), ("T", 600.0)]
+    with patch("shared.cdse_auth._login", side_effect=results):
+        tokens = TokenProvider(backoff_s=(1, 2, 3), sleep=waits.append)
+        assert tokens.get() == "T"
+    assert waits == [1, 2] and tokens.logins == 3
+
+
+def test_token_provider_gives_up_after_backoff():
+    with patch("shared.cdse_auth._login", return_value=(None, 0.0)) as login:
+        tokens = TokenProvider(backoff_s=(1, 1), sleep=lambda s: None)
+        assert tokens.get() is None
+    assert login.call_count == 3
+
+
+def test_token_provider_invalidate_forces_login():
+    with patch("shared.cdse_auth._login", return_value=("T", 600.0)) as login:
+        tokens = TokenProvider()
+        tokens.get()
+        tokens.invalidate()
+        tokens.get()
+    assert login.call_count == 2

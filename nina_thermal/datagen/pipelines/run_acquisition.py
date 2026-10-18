@@ -44,7 +44,7 @@ from pathlib import Path
 
 from sentinelsat import read_geojson, geojson_to_wkt  # type: ignore
 
-from shared.cdse_auth import get_access_token
+from shared.cdse_auth import TokenProvider
 from nina_thermal.datagen.acquisition.cdse_search import (
     drop_held_products,
     granule_key,
@@ -230,7 +230,8 @@ def main(argv=None) -> int:
 
     # ── Auth ─────────────────────────────────────────────────────────────────
     logger.info("Authenticating with CDSE …")
-    token = get_access_token()
+    tokens = TokenProvider()
+    token = tokens.get()
     if not token:
         logger.error("Authentication failed — check CDSE_USER / CDSE_PASSWORD.")
         return log_run_footer(start_time, exit_code=1)
@@ -359,8 +360,8 @@ def main(argv=None) -> int:
         return log_run_footer(start_time, exit_code=0)
 
     # ── Download + extract ────────────────────────────────────────────────────
-    # Refresh token before each download: CDSE bearer tokens expire in ~10 min
-    # and a 50-product session easily outlives one token.
+    # One token is reused until shortly before it expires (~10 min); logging in
+    # per granule gets rate-limited at node-download speed (HTTP 400/403).
     extract_dir = Path(args.extract_dir) if args.extract_dir else None
     if extract_dir is not None:
         extract_dir.mkdir(parents=True, exist_ok=True)
@@ -389,7 +390,7 @@ def main(argv=None) -> int:
         if not sen3_dir.is_dir():
             ok = False
             for attempt in range(1, _DOWNLOAD_ATTEMPTS + 1):
-                token = get_access_token()
+                token = tokens.get()
                 if not token:
                     logger.error("Token refresh failed at product %d.", i)
                     break
