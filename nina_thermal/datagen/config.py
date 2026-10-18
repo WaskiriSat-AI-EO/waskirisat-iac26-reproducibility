@@ -219,13 +219,17 @@ FIRMS_LABEL_SOURCE = "VIIRS_SNPP_SP"
 FIRMS_OUTAGE_SOURCE = "VIIRS_NOAA20_SP"
 # Suomi-NPP VIIRS outages (inclusive), filled from NOAA-20.  Partial days count
 # as outages: 2024-07-16 and 07-24 have <10% of NOAA-20's detections; the
-# 2024-09 and 2025-07 entries were found by ``run_fetch_firms --check_only``.
+# later entries were flagged by run_fetch_firms' per-day check (v4 batches).
 FIRMS_SNPP_OUTAGES = [
     ("2022-07-20", "2022-08-10"),
     ("2024-07-10", "2024-07-16"),
     ("2024-07-24", "2024-07-28"),
+    ("2021-08-03", "2021-08-04"),
+    ("2023-07-26", "2023-07-27"),
+    ("2023-11-01", "2023-11-01"),
     ("2024-09-26", "2024-09-27"),
-    ("2025-07-04", "2025-07-05"),
+    ("2025-07-04", "2025-07-07"),
+    ("2025-10-30", "2025-10-30"),
 ]
 # Per-day completeness check in run_fetch_firms: a day is flagged when the
 # label product has fewer than this fraction of the reference product's
