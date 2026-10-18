@@ -46,6 +46,8 @@ from sentinelsat import read_geojson, geojson_to_wkt  # type: ignore
 
 from shared.cdse_auth import TokenProvider
 from nina_thermal.datagen.acquisition.cdse_search import (
+    acquisition_key,
+    dedupe_acquisitions,
     drop_held_products,
     granule_key,
     load_held_granules,
@@ -322,8 +324,13 @@ def main(argv=None) -> int:
             )
         )
     unique = {granule_key(p["Name"]): p for p in found}
-    found = list(unique.values())
-    logger.info("Catalog: %d product(s) in the window.", len(found))
+    found, superseded = dedupe_acquisitions(list(unique.values()))
+    logger.info(
+        "Catalog: %d acquisition(s) in the window (%d superseded version(s) "
+        "of the same acquisition dropped).",
+        len(found),
+        len(superseded),
+    )
 
     held = load_held_granules(args.skip_inventory)
     # The root's own inventory: granules already fetched by an earlier,
@@ -331,6 +338,12 @@ def main(argv=None) -> int:
     own = _read_inventory(output_dir)
     held -= own
     candidates, skipped = drop_held_products(found, held)
+    # Another root may hold a different version of the same acquisition.
+    held_acq = {acquisition_key(k) for k in held}
+    extra = [p for p in candidates if acquisition_key(p["Name"]) in held_acq]
+    if extra:
+        candidates = [p for p in candidates if p not in extra]
+        skipped += extra
     if skipped:
         logger.info("Skipped %d product(s) already held by other roots.", len(skipped))
 

@@ -9,6 +9,8 @@ import numpy as np
 import pytest
 
 from nina_thermal.datagen.acquisition.cdse_search import (
+    acquisition_key,
+    dedupe_acquisitions,
     drop_held_products,
     granule_key,
     load_held_granules,
@@ -400,3 +402,47 @@ def test_token_provider_invalidate_forces_login():
         tokens.invalidate()
         tokens.get()
     assert login.call_count == 2
+
+
+# ── duplicate acquisitions (several processing versions) ─────────────────────
+
+O3 = "S3A_SL_1_RBT____20190821T015159_20190821T015459_20190822T065238_0179_048_202_5760_LN2_O_NT_003.SEN3"
+R4 = "S3A_SL_1_RBT____20190821T015159_20190821T015459_20210113T220359_0179_048_202_5760_LR1_R_NT_004.SEN3"
+OTHER = "S3B_SL_1_RBT____20190821T020000_20190821T020300_20190822T070000_0179_029_100_5580_LN2_O_NT_003.SEN3"
+
+
+def _named(name):
+    return {
+        "Id": name[-12:],
+        "Name": name,
+        "ContentDate": {"Start": "2019-08-21T01:51:58Z"},
+    }
+
+
+def test_acquisition_key_ignores_processing_version():
+    assert acquisition_key(O3) == acquisition_key(R4) != acquisition_key(OTHER)
+
+
+def test_dedupe_prefers_reprocessed_higher_baseline():
+    kept, dropped = dedupe_acquisitions([_named(O3), _named(R4), _named(OTHER)])
+    assert [p["Name"] for p in kept] == [R4, OTHER]
+    assert [p["Name"] for p in dropped] == [O3]
+
+
+def test_dedupe_same_baseline_keeps_newest():
+    a = R4.replace("20210113T220359", "20210101T000000")
+    kept, _ = dedupe_acquisitions([_named(R4), _named(a)])
+    assert [p["Name"] for p in kept] == [R4]
+
+
+def test_other_root_version_blocks_duplicate(tmp_path):
+    other = tmp_path / "other" / "01_raw" / "granule_inventory.txt"
+    other.parent.mkdir(parents=True)
+    other.write_text(O3 + "\n")
+    code, dl = _run(
+        tmp_path,
+        [_named(R4), _named(OTHER)],
+        ["--max_products", "10", "--skip_inventory", str(other), "--download", "full"],
+    )
+    assert code == 0 and dl.call_count == 1
+    assert dl.call_args.kwargs["product_name"] == OTHER

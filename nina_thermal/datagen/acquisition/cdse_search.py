@@ -7,6 +7,7 @@ date range.
 
 import glob
 import logging
+import re
 from collections import defaultdict
 from datetime import datetime
 from typing import Dict, List, Optional, Set, Tuple
@@ -224,3 +225,52 @@ def products_per_day(products: List[Dict]) -> Dict[str, int]:
     for p in products:
         counts[_sensing_start(p)[:10]] += 1
     return dict(sorted(counts.items()))
+
+
+_NAME = re.compile(
+    r"^(?P<platform>S3[AB])_SL_1_RBT____(?P<start>\d{8}T\d{6})_(?P<stop>\d{8}T\d{6})_"
+    r"(?P<created>\d{8}T\d{6})_(?P<orbit>\d{4}_\d{3}_\d{3}_\d{4})_"
+    r"(?P<centre>[A-Z0-9]{3})_(?P<timeliness>[OR])_NT_(?P<baseline>\d{3})"
+)
+
+
+def acquisition_key(name: str) -> str:
+    """Identify one SLSTR acquisition independent of how it was processed.
+
+    The catalog can hold the same acquisition more than once: e.g. the 2019
+    operational product (``…_LN2_O_NT_003``) and ESA's reprocessing
+    (``…_LR1_R_NT_004``) share platform, sensing start/stop and orbit, and
+    differ only in creation time, centre, timeliness and baseline.  Unknown
+    name formats fall back to the full name.
+    """
+    m = _NAME.match(granule_key(name))
+    if not m:
+        return granule_key(name)
+    return f"{m['platform']}_{m['start']}_{m['stop']}_{m['orbit']}"
+
+
+def _version_rank(name: str) -> Tuple[int, int, str]:
+    m = _NAME.match(granule_key(name))
+    if not m:
+        return (-1, -1, "")
+    return (int(m["baseline"]), int(m["timeliness"] == "R"), m["created"])
+
+
+def dedupe_acquisitions(products: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
+    """Keep one product per acquisition: highest baseline, then reprocessed
+    (``R``) over operational (``O``), then the newest.
+
+    Duplicates would put the same scene in the dataset twice, possibly in
+    train and test.  Returns ``(kept, dropped)``.
+    """
+    best: Dict[str, Dict] = {}
+    for p in products:
+        key = acquisition_key(p["Name"])
+        if key not in best or _version_rank(p["Name"]) > _version_rank(
+            best[key]["Name"]
+        ):
+            best[key] = p
+    kept_ids = {id(p) for p in best.values()}
+    kept = [p for p in products if id(p) in kept_ids]
+    dropped = [p for p in products if id(p) not in kept_ids]
+    return kept, dropped
