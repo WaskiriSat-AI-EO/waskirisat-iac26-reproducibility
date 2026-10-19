@@ -9,6 +9,58 @@ The final model is based on MobileNetV2 with `alpha = 0.75` for binary classific
 
 ---
 
+## Dataset used for the final model
+
+The complete dataset used to train, validate, and evaluate the final MobileNetV2 model is the dataset referenced in the code as:
+
+`dataset_final_repo`
+
+During the original experiments, the local path used by the training and evaluation scripts was:
+
+`data/cloud/dataset_final_repo`
+
+A local copy was also organized under:
+
+`nina_cloud_results/dataset/dataset_final_repo`
+
+with the structure:
+
+```text
+dataset_final_repo/
+├── train/
+│   ├── clear/
+│   └── cloud/
+├── val/
+│   ├── clear/
+│   └── cloud/
+└── test/
+    ├── clear/
+    └── cloud/
+```
+
+The complete dataset used for the final training and evaluation is available in the shared Drive under:
+
+`Waskiri-Sat / 2_Subsystems / 1.1.2_Payload / 1.1.2.2_NINA / Cloud_dataset_pipeline2`
+
+The Drive directory contains:
+
+```text
+Cloud_dataset_pipeline2/
+├── train/
+├── val/
+├── test/
+└── final_manifest.json
+```
+
+Therefore, the `dataset_final_repo` referenced by the code corresponds to the same final dataset stored in the shared Drive as `Cloud_dataset_pipeline2`.
+
+Dataset metadata preserved in the repository is available under:
+
+- `nina_cloud_results/dataset/dataset_final_repo/final_manifest.json`
+- `nina_cloud_results/configs/scene_registry.json`
+
+---
+
 ## Dataset composition
 
 The final dataset contains 7,910 unique tiles.
@@ -32,21 +84,43 @@ The dataset policy recorded during training was:
 - Test data used during training: `false`
 - Scene leakage: `0`
 
-Dataset metadata and composition are stored under:
+---
 
-- `data/manifests/`
-- `nina_cloud_results/dataset/`
-- `nina_cloud_results/configs/scene_registry.json`
+
+## Degradation profiles
+
+Three degradation profiles were used:
+
+- **A:** lower degradation level
+- **B:** intermediate degradation condition
+- **C:** highest degradation level considered
+
+Profile B was used for training and validation, while profiles A, B, and C were used for testing.
 
 ---
+
+
 
 ## Training
 
 The final classifier was trained using MobileNetV2 with ImageNet weights.
 
+The final model reported in these results was trained with:
+
+`alpha = 0.75`
+
+
 Main training script:
 
-`train_movil_v3_16ago.py`
+`nina_cloud_results/training/scripts/train_movil_v3_16ago.py`
+
+Dataset used:
+
+`data/cloud/dataset_final_repo`
+
+Final training directory:
+
+`data/cloud/training_mobilenetv2_alpha075`
 
 Final FP32 model:
 
@@ -56,6 +130,7 @@ Training configuration:
 
 | Parameter | Value |
 |---|---:|
+| MobileNetV2 alpha | 0.75 |
 | Batch size | 32 |
 | Cloud weight | 1.0 |
 | Seed | 42 |
@@ -140,7 +215,7 @@ The FP32 evaluation uses:
 - 1,408 images for profile C
 - 4,224 images for the global A+B+C evaluation
 
-Original reports and confusion matrices are stored under:
+Original FP32 reports and confusion matrices are stored under:
 
 `nina_cloud_results/evaluation/fp32/`
 
@@ -152,7 +227,7 @@ The final quantized model uses Full Integer INT8 quantization.
 
 Main quantization script:
 
-`quantize_alpha075_fullinteger.py`
+`nina_cloud_results/quantization/scripts/quantize_alpha075_fullinteger.py`
 
 Generated model:
 
@@ -220,11 +295,8 @@ The per-profile ROC-AUC values are between `0.9758` and `0.9798`, while PR-AUC v
 
 Original INT8 reports and confusion matrices are stored under:
 
-`nina_cloud_results/evaluation/int8/`
-
-and:
-
-`nina_cloud_results/quantization/reports/`
+- `nina_cloud_results/evaluation/int8/`
+- `nina_cloud_results/quantization/reports/`
 
 ---
 
@@ -253,20 +325,39 @@ Results:
 
 ## Results structure
 
-The original artifacts are preserved under:
+The reproducibility artifacts committed to Git are organized under:
 
 ```text
 nina_cloud_results/
 ├── configs/
 ├── dataset/
-├── training/
-│   ├── models/
-│   ├── reports/
-│   └── scripts/
+│   └── dataset_final_repo/
+│       └── final_manifest.json
 ├── evaluation/
 │   ├── fp32/
 │   └── int8/
-└── quantization/
-    ├── scripts/
+├── quantization/
+│   ├── models/
+│   ├── reports/
+│   ├── scripts/
+│   └── training_mobilenetv2_alpha075_fullinteger/
+└── training/
+    ├── logs/
+    ├── models/
     ├── reports/
-    └── training_mobilenetv2_alpha075_fullinteger/
+    ├── scripts/
+    └── training_mobilenetv2_alpha075/
+```
+
+The full `train/`, `val/`, and `test/` image directories are available in the shared Drive and were not committed to Git because of the dataset size.
+
+The complete dataset is stored under:
+
+`Waskiri-Sat / 2_Subsystems / 1.1.2_Payload / 1.1.2.2_NINA / Cloud_dataset_pipeline2`
+
+The complete dataset used for the final training and evaluation is available at the following shared OneDrive link:
+
+[Cloud dataset - OneDrive](https://1drv.ms/f/c/a557f4573269976b/IgA9srXbmUr3SoiSf9RvRRu0AZyDhbR1KdDjQZ7Z3IK1QHw?e=6ybTYa)
+
+
+
