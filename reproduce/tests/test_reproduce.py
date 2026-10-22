@@ -2,7 +2,7 @@
 
 import pytest
 
-from reproduce import check, table7, table8, test2_summary
+from reproduce import check, table5, table6, table7, table8, test2_summary, thresholds
 from reproduce.lib import compare
 
 
@@ -12,6 +12,14 @@ from reproduce.lib import compare
 )
 def test_hil_items_match_paper(name, module):
     assert compare(name, module.compute()) == []
+
+
+@pytest.mark.parametrize(
+    "name,module",
+    [("table5", table5), ("table6", table6), ("thresholds", thresholds)],
+)
+def test_thermal_items_match_paper(name, module):
+    assert compare(name, module.compute_thermal(), payload="thermal") == []
 
 
 def test_compare_flags_mismatch_and_missing(tmp_path, monkeypatch):
