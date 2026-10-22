@@ -301,8 +301,17 @@ def build_evaluation_report(
         "deltas_vs_B": M.profile_deltas(by_profile),
         "by_surface_type": by_surface_type,
         **(
-            {"int8": _int8_block(tflite_path, tflite_threshold, test_samples,
-                                 predictions, nominal_metrics, beta, seed)}
+            {
+                "int8": _int8_block(
+                    tflite_path,
+                    tflite_threshold,
+                    test_samples,
+                    predictions,
+                    nominal_metrics,
+                    beta,
+                    seed,
+                )
+            }
             if tflite_path is not None
             else {}
         ),
@@ -357,11 +366,15 @@ def _int8_block(
             raise ValueError(
                 f"No int8 threshold: pass --tflite_threshold or provide {qreport}."
             )
-        threshold = float(json.loads(qreport.read_text(encoding="utf-8"))["int8"]["threshold"])
+        threshold = float(
+            json.loads(qreport.read_text(encoding="utf-8"))["int8"]["threshold"]
+        )
 
     # The artifact folds normalization into the graph: feed [0, 1] pixels.
     loader = DataLoader(
-        ThermalDataset(samples, qat_transform(augment=False)), batch_size=32, shuffle=False
+        ThermalDataset(samples, qat_transform(augment=False)),
+        batch_size=32,
+        shuffle=False,
     )
     scores = qat_lib.tflite_scores(tflite_path, loader)
     for record, score in zip(predictions, scores, strict=True):
@@ -370,7 +383,9 @@ def _int8_block(
     int8_records = [
         {**r, "score": r["int8_score"], "pred": r["int8_pred"]} for r in predictions
     ]
-    nominal = [r for r in int8_records if r["profile"] == M.NOMINAL_PROFILE] or int8_records
+    nominal = [
+        r for r in int8_records if r["profile"] == M.NOMINAL_PROFILE
+    ] or int8_records
     nominal_metrics = M.compute_classification_metrics(
         [r["label"] for r in nominal],
         [r["pred"] for r in nominal],

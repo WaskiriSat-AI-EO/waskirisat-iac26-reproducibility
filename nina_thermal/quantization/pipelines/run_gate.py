@@ -34,7 +34,11 @@ from nina_thermal.training.dataset import (
     split_samples,
 )
 from nina_thermal.training.frp_labels import DEFAULT_FRP_THRESHOLD_MW, apply_frp_labels
-from nina_thermal.training.threshold import metrics_at_threshold, roc_auc, select_threshold
+from nina_thermal.training.threshold import (
+    metrics_at_threshold,
+    roc_auc,
+    select_threshold,
+)
 from nina_thermal.training.train_thermal import (
     CHECKPOINT_NAME,
     DEFAULT_ROOTS,
@@ -131,7 +135,9 @@ def compute_gate(
                 "fp32_score": round(float(f), 6),
                 "int8_score": round(float(i), 6),
             }
-            for s, y, f, i in zip(val, y_true, paired_fp32_scores, int8_scores, strict=True)
+            for s, y, f, i in zip(
+                val, y_true, paired_fp32_scores, int8_scores, strict=True
+            )
         ],
     }
 
@@ -209,7 +215,9 @@ def main(argv: list[str] | None = None) -> int:
         measured["sqnr_db"],
         measured["kl_nats"],
     )
-    return log_run_footer(start_time, exit_code=0 if result["acceptance"]["passed"] else 1)
+    return log_run_footer(
+        start_time, exit_code=0 if result["acceptance"]["passed"] else 1
+    )
 
 
 if __name__ == "__main__":

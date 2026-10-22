@@ -18,7 +18,9 @@ def _gate(roots, ckpt, tmp_path):
     )
 
 
-def test_identical_scores_pass(eval_multiroot, random_checkpoint, tmp_path, monkeypatch):
+def test_identical_scores_pass(
+    eval_multiroot, random_checkpoint, tmp_path, monkeypatch
+):
     ckpt, _ = random_checkpoint
     # int8 == fp32 scores: no drop, infinite SQNR, zero KL
     monkeypatch.setattr(
@@ -35,7 +37,9 @@ def test_identical_scores_pass(eval_multiroot, random_checkpoint, tmp_path, monk
     assert result["val_composition"]["patches"] == len(result["val_scores"])
 
 
-def test_unrelated_scores_fail(eval_multiroot, random_checkpoint, tmp_path, monkeypatch):
+def test_unrelated_scores_fail(
+    eval_multiroot, random_checkpoint, tmp_path, monkeypatch
+):
     ckpt, _ = random_checkpoint
     # int8 scores unrelated to fp32: SQNR and KL must both fail
     rng = np.random.default_rng(0)
