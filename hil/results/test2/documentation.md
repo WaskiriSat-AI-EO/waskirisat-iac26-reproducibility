@@ -2,7 +2,7 @@
 
 ## Fault-Tolerant UART Coordination Between an ESP32 OBC and an OpenMV H7 Plus for Embedded Cloud and Fire Detection
 
-**Experiment:** Test 2 — OBC–Payload Integration  
+**Experiment:** Test Payload — OBC–Payload Integration
 **Date:** 5 September 2026  
 **ESP32 firmware:** OBC v3.2, terminal-only storage policy  
 **OpenMV firmware:** Payload v3.1, result schema v3.1  
@@ -28,7 +28,7 @@ All 185 predictions in the stable log, and all 199 directly recoverable predicti
 
 ## 1. Objectives and Scope
 
-The objectives of Test 2 were to:
+The objectives of Test Payload were to:
 
 1. Use the ESP32 as an OBC that selects and commands the OpenMV operating mode.
 2. Preserve the model execution and preprocessing validated during phase 1.
@@ -47,7 +47,7 @@ This test validates the system in a laboratory configuration. The OpenMV payload
 
 ### 2.1 Hardware roles
 
-| Component | Role | Persistent storage used in Test 2 |
+| Component | Role | Persistent storage used in Test Payload |
 |---|---|---|
 | ESP32 | OBC, mission scheduler, protocol receiver, integrity validator, metric aggregator | None; aggregates remain in RAM and logs are sent through USB Serial |
 | OpenMV Cam H7 Plus | Image source, preprocessing, model inference, sample catalog, persistent progress | OpenMV SD card |
@@ -87,29 +87,22 @@ At 460800 baud using 8N1, each application byte requires ten line bits. The maxi
 The implementation is divided into small modules with explicit responsibilities.
 
 ```text
-firmware_v3_optimized/
-├── openmv/
+hil/
+├── openmv/test2_payload/
 │   ├── config.py
 │   ├── payload_protocol.py
 │   ├── model_runner.py
-│   └── main.py                 # deployed as main_code.py in Test 2
-├── esp32_obc/
-│   └── obc_v3/
-│       └── obc_v3.ino
-├── host_tools/
-│   ├── capture_serial.py
-│   └── analyze_telemetry.py
-├── host_tests/
-│   ├── test_protocol.py
-│   └── test_crc32_esp.cpp
-└── docs/
-    ├── UART_PROTOCOL.md
-    ├── DEBUGGING.md
-    ├── VALIDATION_PLAN.md
-    └── REVISION_TECNICA.md
+│   └── main_code.py
+├── obc_esp32/
+│   └── obc_v3.ino
+├── protocol/
+│   └── README.md
+└── results/test2/
+    ├── documentation.md
+    └── Results_Test2.txt
 ```
 
-### 3.1 `openmv/config.py`
+### 3.1 `openmv/test2_payload/config.py`
 
 This module centralizes:
 
@@ -125,7 +118,7 @@ This module centralizes:
 
 Centralizing these values prevents hardware configuration from being mixed with inference or framing logic. Model-contract fields must not be modified without repeating phase-1 validation.
 
-### 3.2 `openmv/payload_protocol.py`
+### 3.2 `openmv/test2_payload/payload_protocol.py`
 
 This module implements the OpenMV side of protocol v2:
 
@@ -139,7 +132,7 @@ This module implements the OpenMV side of protocol v2:
 - Protocol counters for frames, bytes, CRC failures, version errors, length errors and receive timeouts.
 - Helper functions for `ACK`, `ERROR`, `DONE` and `DEBUG` messages.
 
-### 3.3 `openmv/model_runner.py`
+### 3.3 `openmv/test2_payload/model_runner.py`
 
 This module preserves the phase-1 model behavior and adds transactional sample management. Its main responsibilities are:
 
@@ -157,7 +150,7 @@ This module preserves the phase-1 model behavior and adds transactional sample m
 
 ### 3.4 OpenMV payload controller (`main_code.py`)
 
-The supplied controller source is named `main.py` in the package, but it was deliberately deployed as `main_code.py` for this test and started manually from OpenMV IDE. This avoids an automatic boot loop that could make SD recovery difficult if an early startup error occurs.
+The controller is [`main_code.py`](../../openmv/test2_payload/main_code.py), started manually from OpenMV IDE. This avoids an automatic boot loop that could make SD recovery difficult if an early startup error occurs.
 
 The controller:
 
@@ -171,9 +164,8 @@ The controller:
 - Converts ordinary Python exceptions into protocol `ERROR` frames when possible.
 - Enters an idle or stop state at the end of a session.
 
-The packaged configuration defaults to `LOW_POWER_ENABLED = True`. For the
-successful Test 2 execution, this value was deliberately overridden on the
-deployed OpenMV code as follows:
+The committed configuration sets
+`LOW_POWER_ENABLED = False`, matching the successful laboratory execution:
 
 ```python
 LOW_POWER_ENABLED = False
@@ -181,7 +173,7 @@ LOW_POWER_ENABLED = False
 
 With this setting, the script waits for the P0 wake event without calling `pyb.stop()`. It preserves the wake-controlled session flow while avoiding deep-stop USB/IDE reconnection during laboratory debugging.
 
-### 3.5 `esp32_obc/obc_v3/obc_v3.ino`
+### 3.5 `obc_esp32/obc_v3.ino`
 
 The ESP32 firmware implements:
 
@@ -201,27 +193,9 @@ The ESP32 firmware implements:
 
 The ESP32 does not retain source images. Each 512-byte payload is included in the running CRC and then released. This makes memory use proportional to the largest individual frame rather than to the complete image.
 
-### 3.6 Host-side tools
+### 3.6 Host capture and analysis
 
-`capture_serial.py` reads the ESP32 USB port and writes:
-
-```text
-paper_tests/test_2/
-├── esp32_terminal_<timestamp>.log
-├── esp32_events_<timestamp>.jsonl
-├── esp32_telemetry_<timestamp>.jsonl
-└── esp32_summaries_<timestamp>.jsonl
-```
-
-`analyze_telemetry.py` independently recalculates, by mode:
-
-- Record and commit counts.
-- Fault frequencies.
-- TP, TN, FP and FN.
-- Accuracy, precision, recall, specificity and F1.
-- Transaction minimum, mean, median, P95 and maximum.
-- Total transferred bytes and effective UART payload throughput.
-- File-integrity failures.
+The ESP32 emits event, telemetry and summary JSON records over USB Serial at 115200 baud. Capture the complete terminal stream to retain both JSON and diagnostic lines. The results obtained are recorded in [`Results_Test2.txt`](Results_Test2.txt). The record fields are described in the [protocol reference](../../protocol/README.md#telemetry-and-results).
 
 ---
 
@@ -642,64 +616,25 @@ If the OpenMV restarts, it returns to the `>>>` prompt because `main_code.py` is
 
 ### 12.2 ESP32 preparation
 
-1. Open `esp32_obc/obc_v3/obc_v3.ino` in Arduino IDE.
+1. Open `obc_esp32/obc_v3.ino` in Arduino IDE.
 2. Select the exact installed ESP32 board target.
 3. Verify GPIO16, GPIO17 and GPIO4 against the physical wiring.
 4. Compile and upload the sketch.
 5. Open the ESP32 USB Serial port at 115200 baud or use the host capture tool.
 
-### 12.3 Host log capture on Windows
+### 12.3 Host log capture
 
-Install the only external Python dependency:
+Open the ESP32 USB port in a serial terminal at 115200 baud and enable file capture before starting or resetting the OBC. Retain the complete output through `MISSION_COMPLETED` and the final summary. Close other serial monitors using the same port.
 
-```powershell
-py -m pip install pyserial
-```
+### 12.4 Offline verification
 
-Start capture, replacing `COM5` with the ESP32 port:
-
-```powershell
-py host_tools\capture_serial.py --port COM5
-```
-
-An explicit output path can be supplied when required:
-
-```powershell
-py host_tools\capture_serial.py --port COM5 --baud 115200 --output paper_tests\test_2
-```
-
-Stop capture with `Ctrl+C` only after `MISSION_COMPLETED` and the final summary are visible.
-
-### 12.4 Offline telemetry analysis
-
-```powershell
-py host_tools\analyze_telemetry.py `
-  paper_tests\test_2\esp32_telemetry_<timestamp>.jsonl `
-  --output paper_tests\test_2\summary.json
-```
-
-### 12.5 Host-side protocol tests
-
-From the firmware package root:
+From the repository root:
 
 ```bash
-python -m unittest -v host_tests/test_protocol.py
-python -m py_compile openmv/*.py host_tools/*.py host_tests/*.py
-g++ -std=c++17 host_tests/test_crc32_esp.cpp -o test_crc32_esp
-./test_crc32_esp
+python -m reproduce.test2_summary
 ```
 
-The protocol test suite covers:
-
-1. The standard CRC32 vector `123456789 → 0xCBF43926`.
-2. Frame encode/decode round-trip.
-3. Empty payloads.
-4. Payload corruption detection.
-5. Header corruption detection.
-6. Arbitrarily fragmented input and stream resynchronization.
-7. Transaction reservation and idempotent commit semantics.
-
-All seven protocol unit tests passed before hardware integration.
+The script reads `hil/results/test2/Results_Test2.txt`, extracts telemetry and the final summary, and compares predictions with the Test Surrogate results.
 
 ### 12.6 Starting an intentionally new 100+100 run
 
@@ -770,7 +705,7 @@ The OpenMV commit succeeded, as demonstrated by the next boot resuming at index 
 | Estimated quantized output | -116 |
 | Correct | `true` |
 
-This reference result is used only when presenting the complete 100-image classification matrix. It is not counted as directly observed Test-2 UART telemetry.
+This reference result is used only when presenting the complete 100-image classification matrix. It is not counted as directly observed Test Payload UART telemetry.
 
 ### 13.4 Why the mission can complete with ESP32 counts below 100
 
@@ -950,13 +885,13 @@ The Cloud model strongly favors sensitivity. It detects 49 of 50 positive Cloud 
 
 The Fire model is balanced at the evaluated threshold: TP, TN, FP and FN are symmetric, and accuracy, precision, recall, specificity and F1 all equal 68%. It does not show the Cloud model's strong positive bias, but its detection sensitivity is lower.
 
-These model characteristics were already present during phase 1. Test 2 evaluates system integration and does not claim to improve the classifiers.
+These model characteristics were already present during phase 1. Test Payload evaluates system integration and does not claim to improve the classifiers.
 
 ---
 
 ## 19. Reproducibility Against Phase 1
 
-Each Test-2 result was joined to the phase-1 schema-v6.3 evaluation by filename and mode.
+Each Test Payload result was joined to the phase-1 schema-v6.3 evaluation by filename and mode.
 
 | Comparison | Stable log | All available logs |
 |---|---:|---:|
@@ -979,7 +914,7 @@ The agreement is exact, not merely within a numerical tolerance. This supports t
 ### 19.1 Phase-1 desktop-reference context
 
 The following values were obtained during the phase-1 embedded-versus-desktop
-comparison and are included only as reference context. Test 2 did not recompute
+comparison and are included only as reference context. Test Payload did not recompute
 the desktop models; it reproduced the phase-1 OpenMV outputs.
 
 | Model | Decision agreement | Probability MAE | Probability RMSE | Probability correlation | OpenMV−desktop bias | Exact quantized output rate |
@@ -991,7 +926,7 @@ The relatively large Cloud probability error and positive bias explain why its
 embedded decision behavior differs more substantially from the desktop
 reference. Fire maintains much closer probability and decision agreement. This
 is a model/preprocessing deployment characteristic established in phase 1, not
-a UART-induced effect: Test 2 matches the embedded phase-1 values exactly.
+a UART-induced effect: Test Payload matches the embedded phase-1 values exactly.
 
 ---
 
@@ -1036,7 +971,7 @@ The final stable execution demonstrates reliable end-to-end operation over more 
 
 The 89 Cloud and 96 Fire counts in the final ESP32 summary are not incomplete dataset processing. They are the number of commits performed after the final ESP32 boot. The OpenMV had already persisted 11 Cloud and 4 Fire positions and subsequently reached position 100 in both catalogs. The system therefore completed all 200 logical samples, with direct UART telemetry available for 199 because one ESP32 output record was interrupted after a successful OpenMV commit.
 
-Accordingly, Test 2 is considered **passed for UART communication, OBC mode control, embedded inference, source-file streaming, CRC validation, transactional commit, restart recovery, telemetry generation and memory stability in the tested laboratory configuration**. Deep-stop behavior should be evaluated separately before it is included in the final operational design.
+Accordingly, Test Payload is considered **passed for UART communication, OBC mode control, embedded inference, source-file streaming, CRC validation, transactional commit, restart recovery, telemetry generation and memory stability in the tested laboratory configuration**. Deep-stop behavior should be evaluated separately before it is included in the final operational design.
 
 ---
 
@@ -1055,28 +990,12 @@ RESET_RUN
 SLEEP
 ```
 
-### Host capture
+### Host capture and verification
 
-```powershell
-py -m pip install pyserial
-py host_tools\capture_serial.py --port COM5
-```
-
-### Offline analysis
-
-```powershell
-py host_tools\analyze_telemetry.py `
-  paper_tests\test_2\esp32_telemetry_<timestamp>.jsonl `
-  --output paper_tests\test_2\summary.json
-```
-
-### Verification tests
+Capture the ESP32 USB output at 115200 baud. Review the [protocol reference](../../protocol/README.md) for command framing, telemetry fields and acceptance criteria.
 
 ```bash
-python -m unittest -v host_tests/test_protocol.py
-python -m py_compile openmv/*.py host_tools/*.py host_tests/*.py
-g++ -std=c++17 host_tests/test_crc32_esp.cpp -o test_crc32_esp
-./test_crc32_esp
+python -m reproduce.test2_summary
 ```
 
 ---

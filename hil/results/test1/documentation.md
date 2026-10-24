@@ -2,7 +2,7 @@
 
 ## Embedded Batch Evaluation, Cross-Runtime Analysis, and Final Conclusions
 
-**Software artifact:** `openmv_batch_test.py`  
+**Software artifact:** `model_execution.py`
 **Software and JSON schema version:** 6.3  
 **Target board:** OpenMV Cam H7 Plus (`OPENMV4P`, STM32H743)  
 **Embedded runtime:** OpenMV 5.0.0, MicroPython 1.28.0-49  
@@ -83,13 +83,10 @@ The final audit uses the following primary result artifacts:
 
 | Artifact | Role |
 |---|---|
-| `cloud_detection_results(20260905-074452).json` | Final native Cloud result, schema 6.3 |
-| `fire_detection_results(20260905-074453).json` | Final Fire result, schema 6.3 |
-| `cloud_detection_python_results.json` | Desktop Cloud reference |
-| `fire_detection_python_results.json` | Desktop Fire reference |
-| `cloud_detection_results(10).json` | Controlled exact-input Cloud experiment |
-| `cloud_detection_results(9).json` | Corrected native Cloud preprocessing reference |
-| `fire_detection_results(20260905-054036).json` | Previously validated Fire reference |
+| [`cloud_detection_results.json`](cloud_detection_results.json) | Native Cloud evaluation, schema 6.3; includes per-image desktop references |
+| [`fire_detection_results.json`](fire_detection_results.json) | Fire evaluation, schema 6.3; includes per-image desktop references |
+| [`model_execution.py`](../../openmv/test1_surrogate/model_execution.py) | Embedded batch evaluator |
+| [`validate_tflite_LOCALTEST.py`](../../openmv/test1_surrogate/validate_tflite_LOCALTEST.py) | Desktop evaluation and comparison |
 
 Intermediate runs containing input-shape errors, invalid reshaping,
 unsupported pixel formats, incomplete JSON, or known double scaling were used
