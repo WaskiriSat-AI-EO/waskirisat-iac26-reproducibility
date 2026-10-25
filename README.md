@@ -125,7 +125,7 @@ open work is tracked in the `iac26-repro` milestone.
 
 ## Affiliation and license
 
-Universidad Católica Boliviana "San Pablo" · BIRDS Program · Kyushu Institute of Technology.
+Universidad Católica Boliviana "San Pablo".
 Code is BSD 3-Clause ([`LICENSE`](LICENSE)). Proposed licence for model weights and derived datasets: CC BY 4.0,
 with the Copernicus and NASA FIRMS attribution given in the model and dataset cards. Cite with
 [`CITATION.cff`](CITATION.cff).
