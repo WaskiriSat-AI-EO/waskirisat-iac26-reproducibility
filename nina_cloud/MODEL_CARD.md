@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Task | Binary classification of a 224 × 224 RGB tile: `clear` (0) or `cloud` (1) |
+| Task | Binary classification of an RGB tile resized to 224 × 224: `clear` (0) or `cloud` (1) |
 | Architecture | MobileNetV2, **width multiplier α = 0.75**, ImageNet init, single sigmoid output |
 | Input | 224 × 224 × 3 RGB; scaling `x / 127.5 − 1` is inside the model |
 | FP32 checkpoint | `nina_cloud_results/training/training_mobilenetv2_alpha075/mobilenetv2_best.keras` |

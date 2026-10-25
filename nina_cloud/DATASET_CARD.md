@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Content | 7,910 unique 224 × 224 RGB tiles, rendered under degradation profiles A, B and C |
+| Content | 7,910 unique RGB tiles of 1280 × 800 px (12.8 × 8 km at 10 m), rendered under degradation profiles A, B and C. Training resizes them to 224 × 224 |
 | Source | Copernicus Sentinel-2 L2A, 41 scenes, 2020–2022 acquisitions over Bolivia (30 MGRS tiles) |
 | Labels | `cloud` / `clear` from the scene cloud fraction of each tile |
 | Owner | Leyla (WaskiriSat AI-EO) |
