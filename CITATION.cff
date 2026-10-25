@@ -5,7 +5,7 @@ type: software
 version: "1.0.1"
 date-released: "2026-10-25"
 license: BSD-3-Clause
-repository-code: "https://github.com/WaskiriSat-AI-EO/waskirisat-pl-aidev"
+repository-code: "https://github.com/WaskiriSat-AI-EO/waskirisat-iac26-reproducibility"
 doi: 10.5281/zenodo.23647727
 identifiers:
   - {type: doi, value: 10.5281/zenodo.23647728, description: "Zenodo, version iac26-v1.0.1"}
