@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this repository, please cite it as below. The DOI will be added when the Zenodo archive exists."
-title: "Reproducibility repository for: Onboard Edge AI for Wildfire Monitoring Using Visible and LWIR Imagery on Bolivia's First Nanosatellite (IAC-26)"
+title: "Reproducibility repository for: Onboard edge AI for wildfire monitoring using visible and LWIR imagery on Bolivia's first nanosatellite (IAC-2026)"
 type: software
 version: "1.0"
 date-released: "2026-10-25"
@@ -26,3 +26,22 @@ authors:
   - {given-names: Laura Letizia, family-names: Choque Mamani, affiliation: "Universidad Católica Boliviana San Pablo"}
   - {given-names: Gabriel, family-names: Rojas, affiliation: "Universidad Católica Boliviana San Pablo"}
   - {given-names: Georgina, family-names: Chavez, affiliation: "Universidad Católica Boliviana San Pablo"}
+preferred-citation:
+  type: conference-paper
+  title: "Onboard edge AI for wildfire monitoring using visible and LWIR imagery on Bolivia's first nanosatellite"
+  collection-title: "77th International Astronautical Congress (IAC 2026)"
+  notes: "Paper ID IAC-2026-111635"
+  year: 2026
+  url: "https://dl.iafastro.directory/event/IAC-2026/paper/111635/"
+  authors:
+    - {given-names: Christian, family-names: Conchari}
+    - {given-names: Adrian, family-names: Flores}
+    - {given-names: Osvaldo, family-names: Quinteros}
+    - {given-names: Misael Jhamel, family-names: Mamani Quiroga}
+    - {given-names: Aracely Cielo, family-names: Flores Mendoza}
+    - {given-names: Leyla Bionda, family-names: Lipa Huari}
+    - {given-names: Franklin Josue, family-names: Ticona Coaquira}
+    - {given-names: Karen Wendy, family-names: Vidaurre Torrez}
+    - {given-names: Laura Letizia, family-names: Choque Mamani}
+    - {given-names: Gabriel, family-names: Rojas}
+    - {given-names: Georgina, family-names: Chavez}

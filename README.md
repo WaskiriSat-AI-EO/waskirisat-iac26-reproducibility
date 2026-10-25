@@ -1,9 +1,9 @@
 # WaskiriSat — AI payload: models, data pipelines and reproducibility
 
 Code, models and verification artifacts behind the IAC-26 paper
-**"Onboard Edge AI for Wildfire Monitoring …"** (paper ID 111635, session B4.4) on the
+**"Onboard edge AI for wildfire monitoring using visible and LWIR imagery on Bolivia's first nanosatellite"** (IAC-2026, paper ID 111635, session B4.4) on the
 two AI payloads of WaskiriSat, Bolivia's first CubeSat (525 km sun-synchronous orbit).
-Paper: _link / DOI to be added when indexed_.
+Paper: [IAF Digital Library, IAC-2026 paper 111635](https://dl.iafastro.directory/event/IAC-2026/paper/111635/) (no DOI yet; the manuscript PDF there is access-restricted).
 
 | Payload | Sensor | Input | Task | Code |
 |---|---|---|---|---|
