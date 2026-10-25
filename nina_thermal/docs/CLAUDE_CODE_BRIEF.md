@@ -18,7 +18,6 @@ project document and must not be changed without updating that reference.
 
 **Mission:** WaskiriSat — Bolivia's first university-developed CubeSat.
 **Institution:** Universidad Católica Boliviana "San Pablo" (UCB San Pablo)
-**Program:** BIRDS / Kyushu Institute of Technology (KyuTech)
 **Payload:** NINA — Neural Infrared Anomaly Observer
 
 NINA is the AI+EO payload subsystem. It carries a FLIR Lepton 3.5 LWIR
