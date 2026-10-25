@@ -20,7 +20,6 @@ The limits below are stated in the paper or were found while preparing this repo
 - **Warm-scene confound.** Scene mean temperature alone reaches test ROC-AUC 0.903 on the v3 test set, so part of the thermal skill may be scene temperature.
 - **Datasets are not yet on an open archive.** The cloud dataset is available through a provisional OneDrive link (see `nina_cloud/DATASET_CARD.md`). Both datasets will move to an open repository such as Hugging Face; until then reproducing training needs a request to the owners. Evaluation and tables reproduce from the committed reports and manifests.
 - **Binaries live partly in git.** `nina_cloud_results/` carries about 76 MB of `.keras`, `.pt` and `.tflite` files, contrary to the policy in `models/MANIFEST.json`. They are kept as delivered.
-- **No DOI yet.** Zenodo archiving is pending; see `CITATION.cff`.
 
 ## Deferred (Table 9)
 
