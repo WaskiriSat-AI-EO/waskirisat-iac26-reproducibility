@@ -33,11 +33,6 @@ WaskiriSat is Bolivia's first university-developed CubeSat (525 km sun-synchrono
 
 The flight board was not available at submission, so **everything here is pre-flight**: the datasets are synthetic proxies, built by degrading calibrated Sentinel-2 / Sentinel-3 and NASA FIRMS products to the flight sensors' characteristics. The paper's contribution is the **method** for making such claims honestly: every number carries an evidence tier (T1–T4) and sits on a rung of a verification ladder (V0–V7).
 
-<p align="center">
-  <img src="docs/img/payload-block-diagram.png" alt="Payload block diagram: visible and thermal imagers feed the OpenMV N6 processing core, which runs the cloud (MobileNetV2) and thermal (MobileNetV3-Small) classifiers and connects to the bus through a 50-pin connector." width="520"><br>
-  <sub><b>Payload architecture.</b> Two imagers, one processing core with two INT8 classifiers, one bus connector.</sub>
-</p>
-
 ## At a glance
 
 | | |
@@ -51,12 +46,7 @@ The flight board was not available at submission, so **everything here is pre-fl
 
 ## How the data is made
 
-Both channels follow the same five stages, from a public calibrated product to a split dataset. Profile B is used for training; A and C are held out as best-case and stress conditions.
-
-<p align="center">
-  <img src="docs/img/dataset-synthesis-pipeline.png" alt="Five-stage synthesis pipeline for the thermal and visible channels: acquisition, label derivation, detector simulation, degradation profile, partitioning." width="560"><br>
-  <sub><b>Dataset synthesis.</b> Rebuild commands are at the end of this page.</sub>
-</p>
+Both channels follow the same five stages, from a public calibrated product to a split dataset: acquisition, label derivation, detector simulation, degradation profile and partitioning. Profile B is used for training; A and C are held out as best-case and stress conditions. The rebuild commands are at the end of this page, and `make figures` redraws the pipeline diagram.
 
 ### Why the thermal task is scene-level
 
