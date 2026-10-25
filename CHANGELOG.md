@@ -7,7 +7,7 @@ Archived on Zenodo: [10.5281/zenodo.23647728](https://doi.org/10.5281/zenodo.236
 - Universidad Católica Boliviana San Pablo is the only listed affiliation.
 - README and `CITATION.cff` link the IAF Digital Library record (IAC-2026, paper 111635) and carry a `preferred-citation` for the paper.
 - The DOI is recorded in the repository after the archive was created, so the archived snapshot itself does not contain it.
-- This repository is dedicated to the paper; later development continues in other repositories of the organization.
+- This repository is dedicated to the paper and is frozen; later development continues in other repositories of the organization. Closed without merging: PRs #26 (thermal v3) and #27 (thermal v4), whose branches are kept until moved.
 
 ## iac26-v1.0 (2026-10-25)
 

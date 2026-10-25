@@ -6,6 +6,8 @@ two AI payloads of WaskiriSat, Bolivia's first CubeSat (525 km sun-synchronous o
 Paper: [IAF Digital Library, IAC-2026 paper 111635](https://dl.iafastro.directory/event/IAC-2026/paper/111635/) (the manuscript PDF there is access-restricted).
 Archive of this repository: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23647727.svg)](https://doi.org/10.5281/zenodo.23647727) (all versions); exact version for the paper: [10.5281/zenodo.23647728](https://doi.org/10.5281/zenodo.23647728) (`iac26-v1.0.1`).
 
+> **Status: frozen at the paper.** This repository is dedicated to the IAC-26 paper and is kept as the reproducibility record of release [`iac26-v1.0.1`](https://github.com/WaskiriSat-AI-EO/waskirisat-pl-aidev/releases/tag/iac26-v1.0.1) (Zenodo DOI above). Later development (newer thermal models, the flight gate, further hardware-in-the-loop work) continues in other repositories of the organization. Known gaps of this record are listed in [`docs/limitations.md`](docs/limitations.md) and [`CHANGELOG.md`](CHANGELOG.md).
+
 | Payload | Sensor | Input | Task | Code |
 |---|---|---|---|---|
 | **NINA** — thermal | FLIR Lepton 3.5 | 160×120, 3,563 m/px | Wildfire hotspot detection | [`nina_thermal/`](nina_thermal/) |
