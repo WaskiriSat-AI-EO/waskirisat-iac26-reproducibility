@@ -1,0 +1,50 @@
+# Values of the run behind the paper (v1, frp20000). Source of each value in comments.
+payload: thermal
+# Approximate: the run (2026-08-30) predates its commits. 2d87c0b (2026-08-31, branch
+# feat/enhacement-thermal-pipeline) is the first commit holding that code + its report.
+# main's nina_thermal reproduces the FP32 test scores of this run bit-exactly (#15).
+code_commit: 2d87c0b
+seed: 42
+data:
+  roots: [data, data_202408, data_202409, data_202509]
+  months: [2023-06, 2023-08, 2024-08, 2024-09, 2025-09]   # granule sensing months
+  manifests: data/manifests/thermal_v1_*                  # splits 219 / 36 / 82 frames
+  profiles: [B]            # training and nominal evaluation; A and C are OOD bounds
+  agc_mode: fixed
+labels:
+  frp_threshold: 20000     # MW, summed FRP over the 640 x 480 km footprint, +/-1 day
+  negative: zero_firms_detections
+  firms:
+    products: [VIIRS_SNPP_SP]           # NRT CSVs present but empty (header only)
+    bbox_w_s_e_n: [-67.5, -20.5, -59.7, -11.8]
+    months_without_firms: [2023-06]     # see DATASET_CARD.md, limitations
+model:
+  backbone: mobilenet_v3_small
+  input_shape: [3, 120, 160]   # NCHW float32, grayscale duplicated to 3 channels
+  parameters: 927585
+  normalization: imagenet      # mean [0.485, 0.456, 0.406], std [0.229, 0.224, 0.225]
+training:                      # training_report.json
+  epochs: 20                   # head
+  finetune_epochs: 15
+  batch_size: 32
+  lr: 1.0e-3
+  finetune_lr: 1.0e-4
+  loss: bce_with_logits
+  pos_weight: 3.0              # FN:FP cost ratio; F-beta uses beta = sqrt(3)
+  select_metric: roc_auc
+  patience: 10
+quantization:                  # quantization_report.json
+  method: qat
+  qat_epochs: 40
+  lr: 5.0e-5
+  weights: per-channel symmetric int8
+  activations: per-tensor asymmetric uint8
+  io: float32 input, int8 output   # normalization folded into the graph
+threshold:                     # val split, highest threshold with recall >= 0.95
+  fp32: 0.456                  # 0.45642223954200745
+  int8: 0.2875                 # 0.28752797842025757, HIL artifact (paper §4 corrected from 0.181)
+  hil_firmware: 0.5            # fixed in model_execution.py / config.py; Table 8 uses it
+artifacts:                     # models/MANIFEST.json
+  fp32_sha256: fe7ff10f28e15847f05f10b38b79d976f7d0d4d740ebbdc2892ae80cadba52e0
+  int8_sha256: 6e486fc771f9c7a984d281208980692e1c31340241984f2ff487db5ada1201e8
+acceptance_gate: failed_3_of_4  # recall drop 0 passes; F-beta drop, SQNR, KL fail

@@ -61,6 +61,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=DEFAULT_FRP_THRESHOLD_MW,
         help="Summed-FRP relabel threshold [MW]; must match training.",
     )
+    parser.add_argument(
+        "--tflite",
+        default=None,
+        help="Optional int8 .tflite to score on the same test images (adds an 'int8' block).",
+    )
+    parser.add_argument(
+        "--tflite_threshold",
+        type=float,
+        default=None,
+        help="int8 operating threshold; default int8.threshold from the "
+        "quantization_report.json beside the artifact.",
+    )
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size.")
     parser.add_argument("--seed", type=int, default=42, help="Bootstrap RNG seed.")
     parser.add_argument("--figures", action="store_true", help="Render figures/.")
@@ -97,6 +109,8 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.out_dir),
             device,
             frp_threshold=args.frp_threshold,
+            tflite_path=Path(args.tflite) if args.tflite else None,
+            tflite_threshold=args.tflite_threshold,
             explicit_threshold=args.threshold,
             training_report=(
                 Path(args.training_report) if args.training_report else None

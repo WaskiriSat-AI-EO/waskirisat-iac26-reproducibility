@@ -141,6 +141,43 @@ class TestThresholdResolution:
         assert rep["threshold_source"] == "swept_on_test"
 
 
+class TestInt8Block:
+    def test_int8_block_and_per_record_scores(
+        self, eval_multiroot, random_checkpoint, tmp_path, monkeypatch
+    ):
+        from nina_thermal.quantization import qat as qat_lib
+
+        # stand-in for the TFLite interpreter: a constant score per image
+        monkeypatch.setattr(
+            qat_lib, "tflite_scores", lambda path, loader: [0.6] * len(loader.dataset)
+        )
+        ckpt, ckpt_dir = random_checkpoint
+        rep = _report(
+            eval_multiroot.roots,
+            ckpt,
+            tmp_path,
+            training_report=ckpt_dir / "training_report.json",
+            tflite_path=tmp_path / "fake.tflite",
+            tflite_threshold=0.5,
+        )
+        assert rep["int8"]["operating_threshold"] == 0.5
+        assert rep["int8"]["nominal"]["recall"] == 1.0
+        assert set(rep["int8"]["by_profile"]) == {"A", "B", "C"}
+        assert "bootstrap_ci" in rep["int8"]["nominal"]
+        preds = json.loads((tmp_path / "predictions.json").read_text())["records"]
+        assert all(p["int8_score"] == 0.6 and p["int8_pred"] == 1 for p in preds)
+
+    def test_no_tflite_no_int8_block(self, eval_multiroot, random_checkpoint, tmp_path):
+        ckpt, ckpt_dir = random_checkpoint
+        rep = _report(
+            eval_multiroot.roots,
+            ckpt,
+            tmp_path,
+            training_report=ckpt_dir / "training_report.json",
+        )
+        assert "int8" not in rep
+
+
 class TestDegenerateGuard:
     def test_small_fixture_is_flagged(self, multiroot, random_checkpoint, tmp_path):
         ckpt, ckpt_dir = random_checkpoint
