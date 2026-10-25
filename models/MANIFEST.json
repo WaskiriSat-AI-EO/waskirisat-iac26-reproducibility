@@ -11,7 +11,7 @@
       "size_bytes": 1941072,
       "source": "delivered with HIL Test 1/2 (2026-09-05); same bytes as the full-integer INT8 in nina_cloud_results/ (alpha 0.75)",
       "owner": "Leyla",
-      "url": "https://github.com/WaskiriSat-AI-EO/waskirisat-pl-aidev/releases/download/iac26-v1.0/cloud_detection.tflite",
+      "url": "https://github.com/WaskiriSat-AI-EO/waskirisat-iac26-reproducibility/releases/download/iac26-v1.0/cloud_detection.tflite",
       "open_items": [
         "training commit not recorded (delivered as files)",
         "hosting: GitHub Release asset (provisional); Zenodo DOI pending"
@@ -28,7 +28,7 @@
       "repo_path": "nina_cloud_results/training/training_mobilenetv2_alpha075/mobilenetv2_best.keras",
       "source": "final FP32 checkpoint (alpha 0.75, seed 42) that the INT8 was quantized from",
       "owner": "Leyla",
-      "url": "https://github.com/WaskiriSat-AI-EO/waskirisat-pl-aidev/releases/download/iac26-v1.0/mobilenetv2_best.keras",
+      "url": "https://github.com/WaskiriSat-AI-EO/waskirisat-iac26-reproducibility/releases/download/iac26-v1.0/mobilenetv2_best.keras",
       "open_items": [
         "fp32_report.json in nina_cloud_results/evaluation/fp32 may describe another model (ERRATA #3)",
         "hosting: GitHub Release asset (provisional); Zenodo DOI pending"
@@ -43,7 +43,7 @@
       "size_bytes": 1452472,
       "source": "models/nina_thermal_frp20000 (matches fire_detection.tflite used in HIL)",
       "owner": "Osvaldo",
-      "url": "https://github.com/WaskiriSat-AI-EO/waskirisat-pl-aidev/releases/download/iac26-v1.0/mobilenetv3s_fire_int8.tflite",
+      "url": "https://github.com/WaskiriSat-AI-EO/waskirisat-iac26-reproducibility/releases/download/iac26-v1.0/mobilenetv3s_fire_int8.tflite",
       "open_items": [
         "acceptance gate recomputed 2026-10-22 on this artifact (models/thermal/frp20000/quantization_report.json): FAILED 3/4 (F-beta drop 0.047, SQNR 11.0 dB, KL 3.90 nats; recall drop 0). Published with this caveat; not released for flight",
         "hosting: GitHub Release asset (provisional); Zenodo DOI pending"

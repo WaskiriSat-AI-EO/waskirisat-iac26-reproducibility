@@ -2,7 +2,7 @@
 
 This repository is the presentation and reproducibility repo of the IAC-26 paper. Each area has an
 owner and a delivery checklist in its README; open work is tracked in the
-[`iac26-repro`](https://github.com/WaskiriSat-AI-EO/waskirisat-pl-aidev/milestone/1) milestone.
+[`iac26-repro`](https://github.com/WaskiriSat-AI-EO/waskirisat-iac26-reproducibility/milestone/1) milestone.
 
 | Area | Owner | Checklist | Issue |
 |---|---|---|---|

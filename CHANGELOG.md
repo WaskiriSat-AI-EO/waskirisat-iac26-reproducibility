@@ -1,5 +1,9 @@
 # Changelog
 
+## Repository renamed (2026-10-25)
+
+`waskirisat-pl-aidev` → `waskirisat-iac26-reproducibility`, because the repository is now dedicated to the paper. GitHub redirects the old URLs. The archived releases (`iac26-v1.0`, `iac26-v1.0.1`) and the Zenodo record keep the old name, and the old name must not be reused for another repository, or the redirect breaks.
+
 ## iac26-v1.0.1 (2026-10-25)
 
 Archived on Zenodo: [10.5281/zenodo.23647728](https://doi.org/10.5281/zenodo.23647728) (all versions: [10.5281/zenodo.23647727](https://doi.org/10.5281/zenodo.23647727)). Same code, models and results as iac26-v1.0.

@@ -7,8 +7,8 @@
 *Onboard edge AI for wildfire monitoring using visible and LWIR imagery on Bolivia's first nanosatellite*
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23647727.svg)](https://doi.org/10.5281/zenodo.23647727)
-[![Release](https://img.shields.io/github/v/release/WaskiriSat-AI-EO/waskirisat-pl-aidev)](https://github.com/WaskiriSat-AI-EO/waskirisat-pl-aidev/releases/latest)
-[![CI](https://github.com/WaskiriSat-AI-EO/waskirisat-pl-aidev/actions/workflows/ci.yml/badge.svg)](https://github.com/WaskiriSat-AI-EO/waskirisat-pl-aidev/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/WaskiriSat-AI-EO/waskirisat-iac26-reproducibility)](https://github.com/WaskiriSat-AI-EO/waskirisat-iac26-reproducibility/releases/latest)
+[![CI](https://github.com/WaskiriSat-AI-EO/waskirisat-iac26-reproducibility/actions/workflows/ci.yml/badge.svg)](https://github.com/WaskiriSat-AI-EO/waskirisat-iac26-reproducibility/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/code-BSD--3--Clause-blue)](LICENSE)
 
 [Paper record](https://dl.iafastro.directory/event/IAC-2026/paper/111635/) ·
@@ -18,7 +18,9 @@
 
 </div>
 
-> **Status: frozen at the paper.** This repository is the reproducibility record of release [`iac26-v1.0.1`](https://github.com/WaskiriSat-AI-EO/waskirisat-pl-aidev/releases/tag/iac26-v1.0.1) (Zenodo DOI [10.5281/zenodo.23647728](https://doi.org/10.5281/zenodo.23647728)). Later development (newer thermal models, the flight gate, more hardware-in-the-loop work) continues in other repositories of the organization.
+> **Formerly `waskirisat-pl-aidev`.** The repository was renamed on 2026-10-25 when it became the paper's record; old links redirect. Release tags, DOIs and the Zenodo archive keep the old name in their metadata.
+>
+> **Status: frozen at the paper.** This repository is the reproducibility record of release [`iac26-v1.0.1`](https://github.com/WaskiriSat-AI-EO/waskirisat-iac26-reproducibility/releases/tag/iac26-v1.0.1) (Zenodo DOI [10.5281/zenodo.23647728](https://doi.org/10.5281/zenodo.23647728)). Later development (newer thermal models, the flight gate, more hardware-in-the-loop work) continues in other repositories of the organization.
 
 ---
 
@@ -26,7 +28,7 @@
 
 WaskiriSat is Bolivia's first university-developed CubeSat (525 km sun-synchronous orbit). Its AI payload runs two small classifiers on a commercial microcontroller, so that the satellite sends down only what is worth the bandwidth:
 
-> **Status: frozen at the paper.** This repository is dedicated to the IAC-26 paper and is kept as the reproducibility record of release [`iac26-v1.0.1`](https://github.com/WaskiriSat-AI-EO/waskirisat-pl-aidev/releases/tag/iac26-v1.0.1) (Zenodo DOI above). Later development (newer thermal models, the flight gate, further hardware-in-the-loop work) continues in other repositories of the organization. Known gaps of this record are listed in [`docs/limitations.md`](docs/limitations.md) and [`CHANGELOG.md`](CHANGELOG.md).
+> **Status: frozen at the paper.** This repository is dedicated to the IAC-26 paper and is kept as the reproducibility record of release [`iac26-v1.0.1`](https://github.com/WaskiriSat-AI-EO/waskirisat-iac26-reproducibility/releases/tag/iac26-v1.0.1) (Zenodo DOI above). Later development (newer thermal models, the flight gate, further hardware-in-the-loop work) continues in other repositories of the organization. Known gaps of this record are listed in [`docs/limitations.md`](docs/limitations.md) and [`CHANGELOG.md`](CHANGELOG.md).
 
 | Payload | Sensor | Input | Task | Code |
 |---|---|---|---|---|
@@ -120,8 +122,8 @@ The remaining tests are specified, with acceptance criteria, in [`docs/deferred-
 Everything below needs **no GPU and no data download**: the tables are recomputed from the reports, manifests and raw hardware results committed here.
 
 ```bash
-git clone https://github.com/WaskiriSat-AI-EO/waskirisat-pl-aidev.git
-cd waskirisat-pl-aidev
+git clone https://github.com/WaskiriSat-AI-EO/waskirisat-iac26-reproducibility.git
+cd waskirisat-iac26-reproducibility
 python3.13 -m venv .venv && source .venv/bin/activate   # fish: source .venv/bin/activate.fish
 pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
 make reproduce      # recompute every paper item and compare it with the paper
@@ -150,7 +152,7 @@ The exact command and status of every table and figure is in [`reproduce/paper_m
 
 | Artifact | Where |
 |---|---|
-| INT8 and FP32 models | [Release assets](https://github.com/WaskiriSat-AI-EO/waskirisat-pl-aidev/releases/tag/iac26-v1.0). [`models/MANIFEST.json`](models/MANIFEST.json) holds each sha256; `make verify-models` checks them. The cloud files are also tracked in git under `nina_cloud_results/` |
+| INT8 and FP32 models | [Release assets](https://github.com/WaskiriSat-AI-EO/waskirisat-iac26-reproducibility/releases/tag/iac26-v1.0). [`models/MANIFEST.json`](models/MANIFEST.json) holds each sha256; `make verify-models` checks them. The cloud files are also tracked in git under `nina_cloud_results/` |
 | Cloud dataset | Provisional OneDrive link in [`nina_cloud/DATASET_CARD.md`](nina_cloud/DATASET_CARD.md); an open archive is pending |
 | Thermal dataset | Not published yet; its manifests and split registry are in [`data/manifests/`](data/manifests/) |
 | Model and dataset cards | [`nina_cloud/`](nina_cloud/) and [`nina_thermal/`](nina_thermal/): `MODEL_CARD.md`, `DATASET_CARD.md`, `configs/paper.yaml` |
@@ -226,7 +228,7 @@ Cite the archived version through [`CITATION.cff`](CITATION.cff) (GitHub's "Cite
 
 ## Contributing, license and affiliation
 
-The repository is frozen at the paper, so changes are limited to corrections of the record; open an issue and see [`CONTRIBUTING.md`](CONTRIBUTING.md). Open items are listed in [#33](https://github.com/WaskiriSat-AI-EO/waskirisat-pl-aidev/issues/33).
+The repository is frozen at the paper, so changes are limited to corrections of the record; open an issue and see [`CONTRIBUTING.md`](CONTRIBUTING.md). Open items are listed in [#33](https://github.com/WaskiriSat-AI-EO/waskirisat-iac26-reproducibility/issues/33).
 
 Code is BSD 3-Clause ([`LICENSE`](LICENSE)). Proposed licence for model weights and derived datasets: CC BY 4.0, with the Copernicus and NASA FIRMS attribution given in the model and dataset cards.
 
