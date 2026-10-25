@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use this repository, please cite it as below. The DOI will be added when the Zenodo archive exists."
+title: "Reproducibility repository for: Onboard Edge AI for Wildfire Monitoring Using Visible and LWIR Imagery on Bolivia's First Nanosatellite (IAC-26)"
+type: software
+version: "1.0"
+date-released: "2026-10-25"
+license: BSD-3-Clause
+repository-code: "https://github.com/WaskiriSat-AI-EO/waskirisat-pl-aidev"
+# doi: pending (Zenodo)
+keywords:
+  - onboard edge AI
+  - CubeSat
+  - wildfire detection
+  - cloud screening
+  - quantized neural inference
+  - hardware-in-the-loop
+authors:
+  - {given-names: Christian, family-names: Conchari, affiliation: "Universidad Católica Boliviana San Pablo"}
+  - {given-names: Adrian, family-names: Flores, affiliation: "Universidad Católica Boliviana San Pablo"}
+  - {given-names: Osvaldo, family-names: Quinteros, affiliation: "Universidad Católica Boliviana San Pablo"}
+  - {given-names: Misael Jhamel, family-names: Mamani Quiroga, affiliation: "Universidad Católica Boliviana San Pablo"}
+  - {given-names: Aracely Cielo, family-names: Flores Mendoza, affiliation: "Universidad Mayor de San Andrés"}
+  - {given-names: Leyla Bionda, family-names: Lipa Huari, affiliation: "Universidad Católica Boliviana San Pablo"}
+  - {given-names: Franklin Josue, family-names: Ticona Coaquira, affiliation: "Kyushu Institute of Technology"}
+  - {given-names: Karen Wendy, family-names: Vidaurre Torrez, affiliation: "Kyushu Institute of Technology"}
+  - {given-names: Laura Letizia, family-names: Choque Mamani, affiliation: "Universidad Católica Boliviana San Pablo"}
+  - {given-names: Gabriel, family-names: Rojas, affiliation: "Universidad Católica Boliviana San Pablo"}
+  - {given-names: Georgina, family-names: Chavez, affiliation: "Universidad Católica Boliviana San Pablo"}

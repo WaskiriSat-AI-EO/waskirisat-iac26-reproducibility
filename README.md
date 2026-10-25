@@ -26,7 +26,9 @@ models/         Published artifacts; MANIFEST.json holds the sha256 of every bin
 reproduce/      One script per paper table/figure, compared against the paper's values
 shared/         Utilities used by both payloads (CDSE access, optics, seeding, logging)
 data/manifests/ Versioned dataset manifests and the scene/split registry (data itself is not in git)
-docs/           Evidence taxonomy, limitations, model/dataset card templates
+docs/           Evidence taxonomy, limitations, deferred campaign, model/dataset card templates
+ERRATA.md       Discrepancies between sources and which value prevails
+CHANGELOG.md    What each release contains and what it leaves out
 ```
 
 ## Quick start
@@ -40,23 +42,30 @@ make test          # unit tests
 make reproduce     # recompute every paper item and compare with the paper
 ```
 
-`make reproduce` prints PASS / FAIL / PENDING per item. Tables 7 and 8 and the Test 2 summary
-already reproduce from the raw HIL results committed in `hil/results/`. Items still marked
-PENDING are waiting for their owner; the map is in [`reproduce/paper_map.md`](reproduce/paper_map.md).
+`make reproduce` prints PASS / FAIL / PENDING per item. Tables 5, 6 and 7, §4 thresholds, and Table 8
+(rows 1 and 2) and the Test 2 summary (185 of the 199 samples) reproduce from the reports, manifests and raw HIL
+results committed in the repo. What does not reproduce, and why, is in
+[`reproduce/paper_map.md`](reproduce/paper_map.md), [`docs/limitations.md`](docs/limitations.md) and
+[`ERRATA.md`](ERRATA.md).
 
 ## Reproducing the paper
 
 | Paper item | Command | Status |
 |---|---|---|
-| Tables 5, 6, §4 thresholds | `make table5 table6 parity` | pending (payload owners) |
-| Tables 7, 8, §6.6 | `make table7 table8 test2-summary` | reproduces |
-| Figures 1, 2 | `make figures` | script available |
-| Binary integrity | `make verify-models` | needs the published binaries |
+| Tables 5, 6, §4 thresholds | `make table5 table6 parity` | reproduces (thermal §4 INT8 threshold is 0.2875, see [`ERRATA.md`](ERRATA.md) #2) |
+| Tables 7, 8, §6.6 | `make table7 table8 test2-summary` | Table 7 reproduces; Table 8 row 3 and the 199th Test 2 sample need raw data not delivered |
+| Table 2 | `make table2` | not implemented (values are in each payload's `datagen/config.py`) |
+| Figures 1, 2 | `make figures` | reproduces (SVG) |
+| Binary integrity | `make verify-models` | cloud artifacts OK (tracked in git); thermal ones need the Release assets |
 
-Models (`.tflite`, checkpoints) and the full datasets are **not stored in git**. They are
-published outside the repository (Zenodo / GitHub Release); `models/MANIFEST.json` records
-the expected sha256 of each artifact and `make verify-models` checks them. Links will be added
-here once published.
+`models/MANIFEST.json` records the sha256 of each model artifact and `make verify-models` checks
+them. The cloud model files are tracked in git under `nina_cloud_results/`; the thermal binaries
+(`.pt`, `.tflite`) are attached to the GitHub Release.
+
+The datasets are **not in git**. The cloud dataset is available through a provisional OneDrive link
+(see [`nina_cloud/DATASET_CARD.md`](nina_cloud/DATASET_CARD.md)); both datasets will be moved to an open
+archive (Hugging Face or similar), and a Zenodo DOI is pending. Dataset manifests, split registries and
+evaluation reports in git are enough to reproduce the tables without the data.
 
 ## Rebuilding the datasets
 
@@ -117,5 +126,6 @@ open work is tracked in the `iac26-repro` milestone.
 ## Affiliation and license
 
 Universidad Católica Boliviana "San Pablo" · BIRDS Program · Kyushu Institute of Technology.
-Code is BSD 3-Clause ([`LICENSE`](LICENSE)). Licenses for models and derived datasets, and the required
-attribution for Copernicus and NASA FIRMS data, are documented in the model and dataset cards.
+Code is BSD 3-Clause ([`LICENSE`](LICENSE)). Proposed licence for model weights and derived datasets: CC BY 4.0,
+with the Copernicus and NASA FIRMS attribution given in the model and dataset cards. Cite with
+[`CITATION.cff`](CITATION.cff).
