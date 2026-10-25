@@ -94,5 +94,26 @@
     "recall_delta": 0.0,
     "precision_delta": -0.1095
   },
-  "deployment_note": "Load on OpenMV N6 with ml.Model('/rom/mobilenetv3s_fire_int8.tflite'); feed the Lepton frame replicated to 3 channels, apply sigmoid to the logit and compare against int8.threshold.  Check artifact.io: this PT2E export quantizes weights to int8 but leaves the graph boundary in float32, so it is not yet a full-NPU graph.  Achieving uint8 I/O needs the ai_edge_quantizer static_wi8_ai8 recipe applied to a float export, which is not yet wired into this pipeline."
+  "deployment_note": "Load on OpenMV N6 with ml.Model('/rom/mobilenetv3s_fire_int8.tflite'); feed the Lepton frame replicated to 3 channels, apply sigmoid to the logit and compare against int8.threshold.  Check artifact.io: this PT2E export quantizes weights to int8 but leaves the graph boundary in float32, so it is not yet a full-NPU graph.  Achieving uint8 I/O needs the ai_edge_quantizer static_wi8_ai8 recipe applied to a float export, which is not yet wired into this pipeline.",
+  "acceptance": {
+    "acceptance_computed": "2026-10-22, retroactively, on the HIL artifact (sha256 6e486fc7...01e8) with main's parity.check_acceptance on the v1 validation split (36 patches / 11 granules / 17 fire); gate introduced 2026-09-02 (#11)",
+    "passed": false,
+    "violations": [
+      "F-beta drop 0.0471 > tol 0.0100 (fp32=0.9189, int8=0.8718)",
+      "SQNR 11.0 dB < 30 dB minimum",
+      "score-distribution KL 3.8996 nats > 0.0500 nats"
+    ],
+    "tolerances": {
+      "recall_drop": 0.005,
+      "fbeta_drop": 0.01,
+      "sqnr_min_db": 30.0,
+      "kl_max_nats": 0.05
+    },
+    "measured": {
+      "recall_drop": 0.0,
+      "fbeta_drop": 0.047124,
+      "sqnr_db": 10.96,
+      "kl_nats": 3.899617
+    }
+  }
 }

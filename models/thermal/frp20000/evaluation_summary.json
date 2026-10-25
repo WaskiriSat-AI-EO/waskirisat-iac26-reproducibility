@@ -1,0 +1,421 @@
+{
+  "stage": "run_evaluate",
+  "generated_at": "2026-10-22T13:14:46.657481+00:00",
+  "script_version": "1.0.0",
+  "checkpoint": "mobilenetv3s_fire_best.pt",
+  "device": "cuda",
+  "frp_threshold_mw": 20000.0,
+  "operating_threshold": 0.456422,
+  "threshold_source": "training_report",
+  "beta": 1.732051,
+  "degenerate_eval": false,
+  "test_composition": {
+    "images": 246,
+    "patches": 82,
+    "granules": 21,
+    "nominal_images": 82,
+    "nominal_fire": 36
+  },
+  "merge_stats": {
+    "roots": {
+      "data/04_dataset": 576,
+      "data_202408/04_dataset": 171,
+      "data_202409/04_dataset": 161,
+      "data_202509/04_dataset": 187
+    },
+    "records_read": 1095,
+    "unique_patches": 924,
+    "duplicate_patches_dropped": 171,
+    "granules": 201,
+    "granules_with_conflicting_splits": 19,
+    "patches_reassigned_by_reconciliation": 58,
+    "split_precedence": [
+      "train",
+      "val",
+      "test"
+    ]
+  },
+  "frp_relabel": {
+    "threshold_mw": 20000.0,
+    "counts": {
+      "fire": 360,
+      "no_fire": 651,
+      "ambiguous": 1761,
+      "no_frp_data": 0
+    },
+    "retained": 1011,
+    "definition": "label=1 when summed FIRMS FRP over the 640x480 km patch footprint >= 20000 MW within +/-1 day of sensing; label=0 only when the footprint contains zero FIRMS detections; patches in between are ambiguous and excluded."
+  },
+  "nominal": {
+    "n": 82,
+    "n_fire": 36,
+    "n_nofire": 46,
+    "recall": 0.777778,
+    "specificity": 0.673913,
+    "roc_auc": 0.786836,
+    "average_precision": 0.702385,
+    "fbeta": 0.741722,
+    "beta": 1.732051,
+    "precision": 0.651163,
+    "accuracy": 0.719512,
+    "f1": 0.708861,
+    "confusion_matrix": {
+      "tn": 31,
+      "fp": 15,
+      "fn": 8,
+      "tp": 28
+    },
+    "precision_at_prevalence": {
+      "0.1": 0.209499,
+      "0.5": 0.704595,
+      "0.9": 0.95549
+    },
+    "bootstrap_ci": {
+      "recall": {
+        "point_estimate": 0.7777777777777778,
+        "ci_low": 0.6749709302325582,
+        "ci_high": 0.8888888888888888,
+        "n_resamples_used": 1000,
+        "n_resamples_requested": 1000
+      },
+      "precision": {
+        "point_estimate": 0.6511627906976745,
+        "ci_low": 0.3862762237762237,
+        "ci_high": 0.9413398692810456,
+        "n_resamples_used": 1000,
+        "n_resamples_requested": 1000
+      },
+      "fbeta": {
+        "point_estimate": 0.7417218600348132,
+        "ci_low": 0.5984105028884628,
+        "ci_high": 0.8485187025091251,
+        "n_resamples_used": 1000,
+        "n_resamples_requested": 1000
+      },
+      "roc_auc": {
+        "point_estimate": 0.786836,
+        "ci_low": 0.644421,
+        "ci_high": 0.9429016499999999,
+        "n_resamples_used": 1000,
+        "n_resamples_requested": 1000
+      }
+    }
+  },
+  "by_profile": {
+    "A": {
+      "n": 82,
+      "n_fire": 36,
+      "n_nofire": 46,
+      "recall": 0.361111,
+      "specificity": 0.913043,
+      "roc_auc": 0.805556,
+      "average_precision": 0.722623,
+      "fbeta": 0.416,
+      "beta": 1.732051,
+      "precision": 0.764706,
+      "accuracy": 0.670732,
+      "f1": 0.490566,
+      "confusion_matrix": {
+        "tn": 42,
+        "fp": 4,
+        "fn": 23,
+        "tp": 13
+      },
+      "precision_at_prevalence": {
+        "0.1": 0.315734,
+        "0.5": 0.80593,
+        "0.9": 0.973941
+      }
+    },
+    "B": {
+      "n": 82,
+      "n_fire": 36,
+      "n_nofire": 46,
+      "recall": 0.777778,
+      "specificity": 0.673913,
+      "roc_auc": 0.786836,
+      "average_precision": 0.702385,
+      "fbeta": 0.741722,
+      "beta": 1.732051,
+      "precision": 0.651163,
+      "accuracy": 0.719512,
+      "f1": 0.708861,
+      "confusion_matrix": {
+        "tn": 31,
+        "fp": 15,
+        "fn": 8,
+        "tp": 28
+      },
+      "precision_at_prevalence": {
+        "0.1": 0.209499,
+        "0.5": 0.704595,
+        "0.9": 0.95549
+      }
+    },
+    "C": {
+      "n": 82,
+      "n_fire": 36,
+      "n_nofire": 46,
+      "recall": 0.277778,
+      "specificity": 0.956522,
+      "roc_auc": 0.759058,
+      "average_precision": 0.705458,
+      "fbeta": 0.333333,
+      "beta": 1.732051,
+      "precision": 0.833333,
+      "accuracy": 0.658537,
+      "f1": 0.416667,
+      "confusion_matrix": {
+        "tn": 44,
+        "fp": 2,
+        "fn": 26,
+        "tp": 10
+      },
+      "precision_at_prevalence": {
+        "0.1": 0.415162,
+        "0.5": 0.864662,
+        "0.9": 0.982906
+      }
+    }
+  },
+  "deltas_vs_B": {
+    "A": {
+      "recall": -0.416667,
+      "specificity": 0.23913,
+      "roc_auc": 0.01872,
+      "average_precision": 0.020238,
+      "fbeta": -0.325722,
+      "precision": 0.113543
+    },
+    "C": {
+      "recall": -0.5,
+      "specificity": 0.282609,
+      "roc_auc": -0.027778,
+      "average_precision": 0.003073,
+      "fbeta": -0.408389,
+      "precision": 0.18217
+    }
+  },
+  "by_surface_type": {
+    "fire": {
+      "n": 15,
+      "n_fire": 15,
+      "n_nofire": 0,
+      "recall": 0.666667,
+      "specificity": 0.0,
+      "roc_auc": null,
+      "average_precision": null,
+      "fbeta": 0.727273,
+      "beta": 1.732051,
+      "precision": 1.0,
+      "accuracy": 0.666667,
+      "f1": 0.8,
+      "confusion_matrix": {
+        "tn": 0,
+        "fp": 0,
+        "fn": 5,
+        "tp": 10
+      },
+      "precision_at_prevalence": {
+        "0.1": 0.068966,
+        "0.5": 0.4,
+        "0.9": 0.857143
+      }
+    },
+    "nominal": {
+      "n": 63,
+      "n_fire": 17,
+      "n_nofire": 46,
+      "recall": 0.823529,
+      "specificity": 0.673913,
+      "roc_auc": 0.782609,
+      "average_precision": 0.471016,
+      "fbeta": 0.7,
+      "beta": 1.732051,
+      "precision": 0.482759,
+      "accuracy": 0.714286,
+      "f1": 0.608696,
+      "confusion_matrix": {
+        "tn": 31,
+        "fp": 15,
+        "fn": 3,
+        "tp": 14
+      },
+      "precision_at_prevalence": {
+        "0.1": 0.219122,
+        "0.5": 0.716352,
+        "0.9": 0.957858
+      }
+    },
+    "warm_surface": {
+      "n": 4,
+      "n_fire": 4,
+      "n_nofire": 0,
+      "recall": 1.0,
+      "specificity": 0.0,
+      "roc_auc": null,
+      "average_precision": null,
+      "fbeta": 1.0,
+      "beta": 1.732051,
+      "precision": 1.0,
+      "accuracy": 1.0,
+      "f1": 1.0,
+      "confusion_matrix": {
+        "tn": 0,
+        "fp": 0,
+        "fn": 0,
+        "tp": 4
+      },
+      "precision_at_prevalence": {
+        "0.1": 0.1,
+        "0.5": 0.5,
+        "0.9": 0.9
+      }
+    }
+  },
+  "int8": {
+    "artifact": "mobilenetv3s_fire_int8.tflite",
+    "operating_threshold": 0.287528,
+    "nominal": {
+      "n": 82,
+      "n_fire": 36,
+      "n_nofire": 46,
+      "recall": 0.972222,
+      "specificity": 0.369565,
+      "roc_auc": 0.694143,
+      "average_precision": 0.538965,
+      "fbeta": 0.813954,
+      "beta": 1.732051,
+      "precision": 0.546875,
+      "accuracy": 0.634146,
+      "f1": 0.7,
+      "confusion_matrix": {
+        "tn": 17,
+        "fp": 29,
+        "fn": 1,
+        "tp": 35
+      },
+      "precision_at_prevalence": {
+        "0.1": 0.146284,
+        "0.5": 0.606631,
+        "0.9": 0.932793
+      },
+      "bootstrap_ci": {
+        "recall": {
+          "point_estimate": 0.9722222222222222,
+          "ci_low": 0.9130434782608695,
+          "ci_high": 1.0,
+          "n_resamples_used": 1000,
+          "n_resamples_requested": 1000
+        },
+        "precision": {
+          "point_estimate": 0.546875,
+          "ci_low": 0.31942966903073283,
+          "ci_high": 0.8159090909090908,
+          "n_resamples_used": 1000,
+          "n_resamples_requested": 1000
+        },
+        "fbeta": {
+          "point_estimate": 0.8139535104539242,
+          "ci_low": 0.6375852191467052,
+          "ci_high": 0.930261821351975,
+          "n_resamples_used": 1000,
+          "n_resamples_requested": 1000
+        },
+        "roc_auc": {
+          "point_estimate": 0.694143,
+          "ci_low": 0.5077519,
+          "ci_high": 0.9430394999999999,
+          "n_resamples_used": 1000,
+          "n_resamples_requested": 1000
+        }
+      }
+    },
+    "by_profile": {
+      "A": {
+        "n": 82,
+        "n_fire": 36,
+        "n_nofire": 46,
+        "recall": 0.944444,
+        "specificity": 0.391304,
+        "roc_auc": 0.729771,
+        "average_precision": 0.565852,
+        "fbeta": 0.8,
+        "beta": 1.732051,
+        "precision": 0.548387,
+        "accuracy": 0.634146,
+        "f1": 0.693878,
+        "confusion_matrix": {
+          "tn": 18,
+          "fp": 28,
+          "fn": 2,
+          "tp": 34
+        },
+        "precision_at_prevalence": {
+          "0.1": 0.147048,
+          "0.5": 0.608087,
+          "0.9": 0.933174
+        }
+      },
+      "B": {
+        "n": 82,
+        "n_fire": 36,
+        "n_nofire": 46,
+        "recall": 0.972222,
+        "specificity": 0.369565,
+        "roc_auc": 0.694143,
+        "average_precision": 0.538965,
+        "fbeta": 0.813954,
+        "beta": 1.732051,
+        "precision": 0.546875,
+        "accuracy": 0.634146,
+        "f1": 0.7,
+        "confusion_matrix": {
+          "tn": 17,
+          "fp": 29,
+          "fn": 1,
+          "tp": 35
+        },
+        "precision_at_prevalence": {
+          "0.1": 0.146284,
+          "0.5": 0.606631,
+          "0.9": 0.932793
+        }
+      },
+      "C": {
+        "n": 82,
+        "n_fire": 36,
+        "n_nofire": 46,
+        "recall": 0.972222,
+        "specificity": 0.217391,
+        "roc_auc": 0.748792,
+        "average_precision": 0.692805,
+        "fbeta": 0.782123,
+        "beta": 1.732051,
+        "precision": 0.492958,
+        "accuracy": 0.54878,
+        "f1": 0.654206,
+        "confusion_matrix": {
+          "tn": 10,
+          "fp": 36,
+          "fn": 1,
+          "tp": 35
+        },
+        "precision_at_prevalence": {
+          "0.1": 0.12129,
+          "0.5": 0.554026,
+          "0.9": 0.917902
+        }
+      }
+    },
+    "deltas_vs_fp32_nominal": {
+      "accuracy": -0.085366,
+      "recall": 0.194444,
+      "specificity": -0.304348,
+      "precision": -0.104288,
+      "f1": -0.008861,
+      "roc_auc": -0.092693
+    }
+  },
+  "notes": "'nominal' = profile B only (the training / deployment configuration). Profiles A/C are out-of-distribution robustness bounds. 'bootstrap_ci' is a granule-level cluster bootstrap \u2014 patch-level resampling understates interval width at 50% tile overlap. 'precision' is measured-as-sampled; 'precision_at_prevalence' is the Bayes projection for the stated operational fire prevalences."
+}

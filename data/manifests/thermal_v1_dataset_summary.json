@@ -1,0 +1,81 @@
+{
+  "profiles": [
+    "B"
+  ],
+  "agc_modes": [
+    "fixed"
+  ],
+  "one_image_per_patch": true,
+  "merge": {
+    "records_read": 1095,
+    "unique_patches": 924,
+    "duplicate_patches_dropped": 171,
+    "granules": 201,
+    "granules_with_conflicting_splits": 19,
+    "patches_reassigned_by_reconciliation": 58,
+    "split_precedence": [
+      "train",
+      "val",
+      "test"
+    ]
+  },
+  "frp_relabel": {
+    "threshold_mw": 20000.0,
+    "counts": {
+      "fire": 120,
+      "no_fire": 217,
+      "ambiguous": 587,
+      "no_frp_data": 0
+    },
+    "retained": 337,
+    "definition": "label=1 when summed FIRMS FRP over the 640x480 km patch footprint >= 20000 MW within +/-1 day of sensing; label=0 only when the footprint contains zero FIRMS detections; patches in between are ambiguous and excluded."
+  },
+  "splits": {
+    "train": {
+      "frames": 219,
+      "granules": 72,
+      "positive": 67,
+      "negative": 152,
+      "positive_rate": 0.305936,
+      "granules_by_month": {
+        "2023-06": 29,
+        "2023-08": 2,
+        "2024-08": 15,
+        "2024-09": 21,
+        "2025-09": 5
+      }
+    },
+    "val": {
+      "frames": 36,
+      "granules": 11,
+      "positive": 17,
+      "negative": 19,
+      "positive_rate": 0.472222,
+      "granules_by_month": {
+        "2023-06": 5,
+        "2024-08": 3,
+        "2024-09": 3
+      }
+    },
+    "test": {
+      "frames": 82,
+      "granules": 21,
+      "positive": 36,
+      "negative": 46,
+      "positive_rate": 0.439024,
+      "granules_by_month": {
+        "2023-06": 8,
+        "2024-08": 7,
+        "2024-09": 5,
+        "2025-09": 1
+      }
+    }
+  },
+  "all_granules_by_month": {
+    "2023-06": 42,
+    "2023-08": 40,
+    "2024-08": 41,
+    "2024-09": 39,
+    "2025-09": 39
+  }
+}

@@ -24,7 +24,24 @@
       "source": "models/nina_thermal_frp20000 (matches fire_detection.tflite used in HIL)",
       "owner": "Osvaldo",
       "url": null,
-      "open_items": ["attach FP32 checkpoint", "gate FAILED 3/4 criteria: publish with this caveat"]
+      "open_items": [
+        "acceptance gate recomputed 2026-10-22 on this artifact (models/thermal/frp20000/quantization_report.json): FAILED 3/4 (F-beta drop 0.047, SQNR 11.0 dB, KL 3.90 nats; recall drop 0). Published with this caveat; not released for flight",
+        "hosting: url pending (#17)"
+      ]
+    },
+    {
+      "id": "thermal_fp32",
+      "payload": "thermal",
+      "format": "pytorch-state-dict",
+      "file": "mobilenetv3s_fire_best.pt",
+      "sha256": "fe7ff10f28e15847f05f10b38b79d976f7d0d4d740ebbdc2892ae80cadba52e0",
+      "size_bytes": 3847331,
+      "source": "v1 training run 2026-08-30 (seed 42); checkpoint thermal_int8 was quantized from",
+      "owner": "Osvaldo",
+      "url": null,
+      "open_items": [
+        "hosting: url pending (#17)"
+      ]
     }
   ]
 }
