@@ -1,5 +1,14 @@
 # Changelog
 
+## iac26-v1.0.1 (2026-10-25)
+
+Archived on Zenodo: [10.5281/zenodo.23647728](https://doi.org/10.5281/zenodo.23647728) (all versions: [10.5281/zenodo.23647727](https://doi.org/10.5281/zenodo.23647727)). Same code, models and results as iac26-v1.0.
+
+- Universidad Católica Boliviana San Pablo is the only listed affiliation.
+- README and `CITATION.cff` link the IAF Digital Library record (IAC-2026, paper 111635) and carry a `preferred-citation` for the paper.
+- The DOI is recorded in the repository after the archive was created, so the archived snapshot itself does not contain it.
+- This repository is dedicated to the paper; later development continues in other repositories of the organization.
+
 ## iac26-v1.0 (2026-10-25)
 
 First release of the reproducibility repository for the IAC-26 paper *Onboard Edge AI Wildfire Monitoring*.
@@ -13,7 +22,7 @@ First release of the reproducibility repository for the IAC-26 paper *Onboard Ed
 - `ERRATA.md`: discrepancies between sources.
 
 ### Not included (declared)
-- Hosting of datasets and binaries on an open archive (Hugging Face or similar), and the Zenodo DOI. The cloud dataset is reachable through a provisional OneDrive link.
+- Hosting of datasets on an open archive (Hugging Face or similar). The cloud dataset is reachable through a provisional OneDrive link.
 - Thermal v3 and v4 (PRs #26 and #27, drafts): corrected labels and real QAT, not the paper's model.
 - Definition of the acceptance gate for QAT models.
 - Table 2 reproduction script, Dockerfile, thermal FP32 checkpoint.

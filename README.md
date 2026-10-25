@@ -3,7 +3,8 @@
 Code, models and verification artifacts behind the IAC-26 paper
 **"Onboard edge AI for wildfire monitoring using visible and LWIR imagery on Bolivia's first nanosatellite"** (IAC-2026, paper ID 111635, session B4.4) on the
 two AI payloads of WaskiriSat, Bolivia's first CubeSat (525 km sun-synchronous orbit).
-Paper: [IAF Digital Library, IAC-2026 paper 111635](https://dl.iafastro.directory/event/IAC-2026/paper/111635/) (no DOI yet; the manuscript PDF there is access-restricted).
+Paper: [IAF Digital Library, IAC-2026 paper 111635](https://dl.iafastro.directory/event/IAC-2026/paper/111635/) (the manuscript PDF there is access-restricted).
+Archive of this repository: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23647727.svg)](https://doi.org/10.5281/zenodo.23647727) (all versions); exact version for the paper: [10.5281/zenodo.23647728](https://doi.org/10.5281/zenodo.23647728) (`iac26-v1.0.1`).
 
 | Payload | Sensor | Input | Task | Code |
 |---|---|---|---|---|
@@ -128,4 +129,4 @@ open work is tracked in the `iac26-repro` milestone.
 Universidad Católica Boliviana "San Pablo".
 Code is BSD 3-Clause ([`LICENSE`](LICENSE)). Proposed licence for model weights and derived datasets: CC BY 4.0,
 with the Copernicus and NASA FIRMS attribution given in the model and dataset cards. Cite with
-[`CITATION.cff`](CITATION.cff).
+[`CITATION.cff`](CITATION.cff) (Zenodo DOI above).
