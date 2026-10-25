@@ -210,6 +210,8 @@ __marimo__/
 
 # Generated images
 *.png
+# README and docs figures are tracked
+!docs/img/*.png
 *.jpg
 sentinel/*
 sentinel_data_raw/*
