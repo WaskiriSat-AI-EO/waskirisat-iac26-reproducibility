@@ -4,7 +4,7 @@
 [tool.ruff]
 target-version = "py313"
 line-length = 88
-extend-exclude = ["hil"]
+extend-exclude = ["hil", "nina_cloud_results"]
 
 [tool.ruff.lint]
 # Pinned to ruff's historical stable default (real-bug rules: pyflakes +
@@ -40,5 +40,9 @@ ignore_errors = true
 
 # hil/ holds the delivered OpenMV/MicroPython sources verbatim (they must match
 # the code that produced the published results), so formatters and linters skip it.
+#
+# nina_cloud_results/ holds the cloud training, quantization and evaluation scripts
+# and reports exactly as delivered (they must match what produced the paper numbers),
+# so formatters and linters skip it too.
 [tool.black]
-extend-exclude = "hil/"
+extend-exclude = "(hil|nina_cloud_results)/"
