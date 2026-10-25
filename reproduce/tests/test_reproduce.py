@@ -35,7 +35,8 @@ def test_compare_flags_mismatch_and_missing(tmp_path, monkeypatch):
     assert len(problems) == 2
 
 
-def test_check_runs_and_only_hil_items_pass(capsys):
-    assert check.main() == 0
+def test_check_runs_and_table_items_pass(capsys):
+    assert check.main(strict=False) == 0
     out = capsys.readouterr().out
-    assert "PENDING  table5" in out and "PASS     table7" in out
+    for item in ("table5", "table6", "thresholds", "table7"):
+        assert f"PASS     {item}" in out
