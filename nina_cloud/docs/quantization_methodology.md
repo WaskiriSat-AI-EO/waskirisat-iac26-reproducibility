@@ -6,7 +6,7 @@
 > package (MobileNetV2 with **α = 1.0**, QAT, `pos_weight` 3.0). The model reported in the
 > paper was produced by the Keras scripts in `nina_cloud_results/` instead:
 > **α = 0.75**, post-training full-integer INT8, threshold 0.9336. For the paper run read
-> `../configs/paper.yaml` and `../MODEL_CARD.md`; see `ERRATA.md` #1.
+> `../configs/paper.yaml` and `../MODEL_CARD.md`; see `../../ERRATA.md` #1.
 
 ---
 
