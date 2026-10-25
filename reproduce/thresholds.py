@@ -1,6 +1,6 @@
 """Section 4 — INT8 thresholds and acceptance gate (owners: Leyla for cloud, Osvaldo for thermal).
 
-Thermal: implemented (#15), from `models/thermal/frp20000/*_report.json`. Cloud: pending.
+Thermal: implemented (#15), from `models/thermal/frp20000/*_report.json`. Cloud: from the INT8 report of the HIL file.
 
 Contract: `compute()` returns a flat dict whose keys are
 exactly those in `reproduce/expected/thresholds.json`, computed from the repo's own
@@ -16,11 +16,22 @@ import sys
 
 from reproduce.lib import ROOT, load_json, report
 
+CLOUD_INT8_REPORT = (
+    ROOT
+    / "nina_cloud_results"
+    / "evaluation"
+    / "int8"
+    / "reports"
+    / "reports_alpha075_fullinteger"
+    / "fullinteger_int8_report.json"
+)
 THERMAL_DIR = ROOT / "models" / "thermal" / "frp20000"
 
 
 def compute_cloud() -> dict:
-    raise NotImplementedError("cloud: see issue #14")
+    """INT8 threshold chosen on validation B (recall target 0.95)."""
+    report = load_json(CLOUD_INT8_REPORT)
+    return {"cloud.int8.threshold": round(report["threshold"], 4)}
 
 
 def compute_thermal() -> dict:

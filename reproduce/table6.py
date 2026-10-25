@@ -1,6 +1,6 @@
 """Table 6 — test performance (T2) (owners: Leyla for cloud, Osvaldo for thermal).
 
-Thermal: implemented (#15), from `models/thermal/frp20000/evaluation_summary.json`. Cloud: pending.
+Thermal: implemented (#15), from `models/thermal/frp20000/evaluation_summary.json`. Cloud: from the INT8 evaluation report of the HIL file (`f528086c…`).
 
 Contract: `compute()` returns a flat dict whose keys are
 exactly those in `reproduce/expected/table6.json`, computed from the repo's own
@@ -16,11 +16,29 @@ import sys
 
 from reproduce.lib import ROOT, load_json, report
 
+CLOUD_INT8_REPORT = (
+    ROOT
+    / "nina_cloud_results"
+    / "evaluation"
+    / "int8"
+    / "reports"
+    / "reports_alpha075_fullinteger"
+    / "fullinteger_int8_report.json"
+)
 THERMAL_EVAL = ROOT / "models" / "thermal" / "frp20000" / "evaluation_summary.json"
 
 
 def compute_cloud() -> dict:
-    raise NotImplementedError("cloud: see issue #14")
+    """Test profiles A/B/C of the full-integer INT8 model, at the validation-B threshold."""
+    metrics = load_json(CLOUD_INT8_REPORT)["metrics"]
+    out = {}
+    for profile in ("A", "B", "C"):
+        block = metrics[f"test_{profile}"]
+        out[f"cloud.int8.{profile}.recall"] = round(block["recall_cloud"], 3)
+        out[f"cloud.int8.{profile}.precision"] = round(block["precision_cloud"], 3)
+        out[f"cloud.int8.{profile}.roc_auc"] = round(block["roc_auc"], 3)
+        out[f"cloud.int8.{profile}.pr_auc"] = round(block["pr_auc"], 3)
+    return out
 
 
 def compute_thermal() -> dict:
