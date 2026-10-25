@@ -139,6 +139,7 @@ def build_manifests(
                 sorted(Counter(_month(g) for g in granules).items())
             ),
         }
+    all_months = dict(sorted(Counter(_month(g) for g in registry).items()))
     summary = {
         "profiles": TRAIN_PROFILES,
         "agc_modes": TRAIN_AGC_MODES,
@@ -146,11 +147,9 @@ def build_manifests(
         "merge": {k: v for k, v in merge_stats.items() if k != "roots"},
         "frp_relabel": frp_summary,
         "splits": per_split,
-        "all_granules_by_month": dict(
-            sorted(Counter(_month(g) for g in registry).items())
-        ),
+        "all_granules_by_month": all_months,
     }
-    firms = firms_inventory(roots)
+    firms = firms_inventory([Path(r) for r in roots])
     # a month is covered when at least one non-empty CSV window touches it
     covered = {
         day.strftime("%Y-%m")
@@ -164,9 +163,7 @@ def build_manifests(
         "patches": patches,
         "firms": {
             "queried_bbox_w_s_e_n": firms_bbox,
-            "granule_months_without_firms": sorted(
-                set(summary["all_granules_by_month"]) - covered
-            ),
+            "granule_months_without_firms": sorted(set(all_months) - covered),
             "roots": firms,
         },
         "summary": summary,
