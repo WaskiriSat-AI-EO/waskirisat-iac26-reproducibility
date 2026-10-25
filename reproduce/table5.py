@@ -1,6 +1,6 @@
 """Table 5 — dataset composition (owners: Leyla for cloud, Osvaldo for thermal).
 
-Thermal: implemented (#15), from `data/manifests/thermal_v1_*`. Cloud: pending.
+Thermal: from `data/manifests/thermal_v1_*`. Cloud: counted from the delivered dataset manifest.
 
 Contract: `compute()` returns a flat dict whose keys are
 exactly those in `reproduce/expected/table5.json`, computed from the repo's own
@@ -13,14 +13,34 @@ payload: implement `compute_cloud()` / `compute_thermal()` and merge them.
 from __future__ import annotations
 
 import sys
+from collections import Counter
 
 from reproduce.lib import ROOT, load_json, report
 
 THERMAL_SUMMARY = ROOT / "data" / "manifests" / "thermal_v1_dataset_summary.json"
+CLOUD_MANIFEST = (
+    ROOT
+    / "nina_cloud_results"
+    / "dataset"
+    / "dataset_final_repo"
+    / "final_manifest.json"
+)
 
 
 def compute_cloud() -> dict:
-    raise NotImplementedError("cloud: see issue #14")
+    """Tiles per split and profile, counted from the cloud `final_manifest.json`."""
+    counts: Counter = Counter()
+    for tile in load_json(CLOUD_MANIFEST):
+        counts[(tile["split"], tile["profile"], tile["class_name"])] += 1
+    out = {}
+    for split, profile in (("val", "B"), ("test", "A"), ("test", "B"), ("test", "C")):
+        positive = counts[(split, profile, "cloud")]
+        negative = counts[(split, profile, "clear")]
+        prefix = f"cloud.{split}_profile_{profile.lower()}"
+        out[f"{prefix}.frames"] = positive + negative
+        out[f"{prefix}.positive"] = positive
+        out[f"{prefix}.negative"] = negative
+    return out
 
 
 def compute_thermal() -> dict:

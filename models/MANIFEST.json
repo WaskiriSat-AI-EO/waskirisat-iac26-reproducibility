@@ -9,10 +9,30 @@
       "file": "cloud_detection.tflite",
       "sha256": "f528086c23c0e997b906fea87eb02ceec6e2a1d59a596fa6e71c0a6493946d5e",
       "size_bytes": 1941072,
-      "source": "delivered with HIL Test 1/2 (2026-09-05)",
+      "source": "delivered with HIL Test 1/2 (2026-09-05); same bytes as the full-integer INT8 in nina_cloud_results/ (alpha 0.75)",
       "owner": "Leyla",
       "url": null,
-      "open_items": ["confirm width multiplier (0.75 per tflite graph) and training commit/config", "attach FP32 checkpoint"]
+      "open_items": [
+        "hosting: stable url pending (#17); the file is tracked in git at repo_path meanwhile",
+        "training commit not recorded (delivered as files)"
+      ],
+      "repo_path": "nina_cloud_results/quantization/training_mobilenetv2_alpha075_fullinteger/mobilenetv2_alpha075_fullinteger_int8.tflite"
+    },
+    {
+      "id": "cloud_fp32",
+      "payload": "cloud",
+      "format": "keras",
+      "file": "mobilenetv2_best.keras",
+      "sha256": "8707b04f49955217a93788e1307d528bf0c15e30787f42c178fc99a6530ffeb5",
+      "size_bytes": 15569055,
+      "repo_path": "nina_cloud_results/training/training_mobilenetv2_alpha075/mobilenetv2_best.keras",
+      "source": "final FP32 checkpoint (alpha 0.75, seed 42) that the INT8 was quantized from",
+      "owner": "Leyla",
+      "url": null,
+      "open_items": [
+        "hosting: stable url pending (#17); the file is tracked in git at repo_path meanwhile",
+        "fp32_report.json in nina_cloud_results/evaluation/fp32 may describe another model (ERRATA #3)"
+      ]
     },
     {
       "id": "thermal_int8",

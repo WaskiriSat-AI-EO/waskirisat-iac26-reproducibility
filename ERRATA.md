@@ -1,0 +1,14 @@
+# Errata and known discrepancies
+
+Discrepancies between sources (paper, code, docs, delivered reports) found while preparing this repository, and which value prevails. Nothing here changes a published result; the right-hand column says what was corrected in the repo and what is left for the manuscript.
+
+| # | Where | Discrepancy | Prevails | Status |
+|---|---|---|---|---|
+| 1 | Cloud width multiplier and pipeline | `nina_cloud/docs/quantization_methodology.md` describes the PyTorch pipeline (α = 1.0, QAT). The delivered model and the paper (read from the `.tflite` graph) use **α = 0.75**, trained and quantized (post-training, full integer) by the Keras scripts in `nina_cloud_results/` | α = 0.75 (`nina_cloud_results/README.md`, `nina_cloud/configs/paper.yaml`) | The doc now carries a scope notice; the PyTorch pipeline did not produce the paper model |
+| 2 | Thermal INT8 threshold | §4 of the manuscript gave 0.181. That value comes from a 2026-09-03 re-quantization (`fdbdf938…`) that overwrote the HIL file locally; the published HIL artifact (`6e486fc7…01e8`) uses **0.2875** | 0.2875 (see `models/thermal/frp20000/REQUANTIZATION_NOTE.md`) | `reproduce/expected/thresholds.json` corrected; manuscript §4 to be corrected (decision of 2026-10-22). Table 8 is unaffected: the firmware uses a fixed threshold of 0.5 |
+| 3 | Cloud FP32 report | `nina_cloud_results/evaluation/fp32/reports/reports_fp32/fp32_report.json` points to `training_mobilenetv2_robusto_v2` (a 22.6 MB Keras file, threshold 0.4987). The README documents the α = 0.75 FP32 with threshold **0.2945** | The README values for the α = 0.75 model | Left as delivered; not used by any table. Leyla to confirm which model the JSON describes |
+| 4 | Artifact sizes | Reports give `model_size_mb` in MiB (cloud INT8: 1.851), the paper may quote MB (1,941,072 bytes = 1.94 MB) | Bytes in `models/MANIFEST.json` | Use bytes when comparing |
+| 5 | Thermal dataset wording | The paper says "FIRMS Aug–Sep 2023–2025", but the v1 dataset contains 42 June 2023 granules with no FIRMS data | See `docs/limitations.md` | Manuscript wording to be revised by the author |
+| 6 | Personal paths | Seven delivered reports under `nina_cloud_results/` contain absolute Windows paths of the author's machine (`C:\Users\…`) | Irrelevant to results | Kept as delivered so they match what produced the numbers |
+| 7 | Binaries in git | `models/MANIFEST.json` says binaries are not stored in git, but `nina_cloud_results/` carries about 76 MB of `.keras`, `.pt` and `.tflite` files | Both are true: the HIL artifacts are tracked through the manifest, the cloud deliverables as delivered | Documented; hosting is pending (see `CHANGELOG.md`) |
+| 8 | Quantization-aware training | In the thermal v1 pipeline "QAT" was not quantization-aware (`build_quantizer()` never passed `is_qat=True`) | The v1 numbers in the paper are as published | Fixed in PR #26 (not part of this release) |

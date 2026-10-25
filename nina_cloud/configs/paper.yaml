@@ -1,0 +1,42 @@
+# Values of the run behind the paper (cloud / IQC classifier). Source of each value in comments.
+# The paper model was produced by the Keras scripts in nina_cloud_results/, NOT by the
+# PyTorch pipeline in nina_cloud/ (which documents alpha = 1.0 and QAT). See ERRATA.md #1.
+payload: cloud
+code:
+  training: nina_cloud_results/training/scripts/train_movil_v3_16ago.py
+  quantization: nina_cloud_results/quantization/scripts/quantize_alpha075_fullinteger.py
+  commit: null             # not recorded: delivered as files, original repo state unknown
+seed: 42                   # training_report.json
+data:
+  dataset: dataset_final_repo      # = Cloud_dataset_pipeline2 on the shared Drive, see DATASET_CARD.md
+  manifest: nina_cloud_results/dataset/dataset_final_repo/final_manifest.json
+  unique_tiles: 7910
+  train: {profile: [B], clear: 2653, cloud: 2851}
+  val:   {profile: [B], clear: 468,  cloud: 530}
+  test:  {profile: [A, B, C], clear: 834, cloud: 574}   # per profile: 1,408 tiles each
+  test_used_during_training: false
+  scene_leakage: 0
+model:
+  backbone: MobileNetV2
+  alpha: 0.75                      # width multiplier, per tflite graph and README
+  weights: imagenet
+  input_shape: [224, 224, 3]       # NHWC RGB
+  preprocessing: "x / 127.5 - 1 inside the model (Rescaling layer 'mobilenet_preprocess')"
+  head: [GlobalAveragePooling2D, Dropout 0.30, Dense 128 relu, Dropout 0.20, Dense 1 sigmoid]
+training:                          # training_report.json
+  batch_size: 32
+  cloud_weight: 1.0
+  phase1: {epochs: 10, lr: 1.0e-4, backbone_frozen: true}
+  phase2: {epochs: 8, lr: 1.0e-5, unfreeze_last: 30, batchnorm_frozen: true}
+  select_metric: validation_pr_auc
+  augmentation: {hflip: true, vflip: true, rotation: 0.03, brightness: 0.1, contrast: 0.1}
+quantization:
+  method: post_training_full_integer     # no QAT for the cloud model
+  io: {input: int8, output: int8, input_scale: 1.0, input_zero_point: -128, output_scale: 0.00390625, output_zero_point: -128}
+  calibration_images: 300                # script default (--num_calibration_images), random sample of TRAIN B, seed 42
+threshold:                               # VALIDATION B only, recall target 0.95
+  fp32: 0.2945                           # 0.29447251558303833
+  int8: 0.9336                           # 0.93359375, the paper's t* = 0.934
+artifacts:                               # models/MANIFEST.json
+  int8_sha256: f528086c23c0e997b906fea87eb02ceec6e2a1d59a596fa6e71c0a6493946d5e
+  int8_file: nina_cloud_results/quantization/training_mobilenetv2_alpha075_fullinteger/mobilenetv2_alpha075_fullinteger_int8.tflite
