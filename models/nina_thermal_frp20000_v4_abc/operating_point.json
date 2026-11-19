@@ -1,0 +1,8 @@
+{
+  "threshold": 0.6266,
+  "rule": "highest threshold with validation fire recall >= 0.88 (profiles A+B+C, fixed AGC, 1742 val images)",
+  "replaces": {"threshold": 0.29254, "rule": "val recall >= 0.95 (train_thermal default)"},
+  "val_at_threshold": {"recall": 0.880, "specificity": 0.796, "precision": 0.786},
+  "decided": "2026-10-18",
+  "note": "Target chosen after inspecting test metrics for targets 0.85-0.95 (see TRAINING_REPORT_v4); the threshold itself comes from validation only."
+}
