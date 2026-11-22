@@ -223,6 +223,20 @@ def compare_graphs(reference: nn.Module, test: nn.Module, image: torch.Tensor) -
     return rows
 
 
+def mean_rows(per_image: list[list[dict]]) -> list[dict]:
+    """Average ``compare_graphs`` rows over several images, keeping node order."""
+    if not per_image:
+        return []
+    acc: dict[str, list[float]] = {}
+    for rows in per_image:
+        for row in rows:
+            acc.setdefault(row["node"], []).append(row["rel_err"])
+    return [
+        {**row, "rel_err": round(float(np.mean(acc[row["node"]])), 4)}
+        for row in per_image[0]
+    ]
+
+
 def first_jump(rows: list[dict], factor: float = 3.0, floor: float = 0.05) -> dict | None:
     """First row whose error exceeds ``floor`` and ``factor`` × the previous row's."""
     previous = 0.0
