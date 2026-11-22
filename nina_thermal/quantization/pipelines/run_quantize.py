@@ -132,6 +132,91 @@ def qat_transform(augment: bool) -> transforms.Compose:
     return transforms.Compose(steps)
 
 
+def _float_control(
+    args: argparse.Namespace,
+    model: nn.Module,
+    train_loader: DataLoader,
+    val_loader: DataLoader,
+    device: torch.device,
+    beta: float,
+    y_true: list[int],
+    fp32_scores: list[float],
+    fp32_metrics: dict,
+    fp32_auc: float | None,
+) -> int:
+    """Fine-tune fp32 exactly like QAT but without quantization; report drift.
+
+    Same optimizer, loss, lr, epochs, augmentation and checkpoint-selection
+    cadence as the QAT stage (selection on fp32 val ROC-AUC instead of
+    converted-int8).  Writes ``float_control_report.json``.
+
+    Returns:
+        Process exit code (0).
+    """
+    tuned = copy.deepcopy(model)
+    criterion = nn.BCEWithLogitsLoss(
+        pos_weight=torch.tensor([args.pos_weight], device=device)
+    )
+    optimizer = torch.optim.Adam(tuned.parameters(), lr=args.lr)
+    best = None
+    history = []
+    for epoch in range(1, args.epochs + 1):
+        tuned.train()
+        for images, labels in train_loader:
+            optimizer.zero_grad(set_to_none=True)
+            loss = criterion(tuned(images.to(device)), labels.unsqueeze(1).to(device))
+            loss.backward()
+            optimizer.step()
+        if args.select_every and (epoch % args.select_every == 0 or epoch == args.epochs):
+            _, scores = collect_scores(tuned, val_loader, device)
+            auc = roc_auc(y_true, scores)
+            history.append({"epoch": epoch, "fp32_val_roc_auc": auc})
+            if auc is not None and (best is None or auc > best[1]):
+                best = (epoch, auc, copy.deepcopy(tuned.state_dict()))
+            logger.info("  float control epoch %d  val ROC-AUC=%s", epoch, auc)
+    if best is not None:
+        tuned.load_state_dict(best[2])
+
+    _, tuned_scores = collect_scores(tuned, val_loader, device)
+    threshold, degenerate = select_threshold(y_true, tuned_scores, args.recall_target)
+    metrics = metrics_at_threshold(y_true, tuned_scores, threshold, beta)
+    sqnr = parity_lib.compute_sqnr(fp32_scores, tuned_scores)
+    kl = parity_lib.compute_kl_divergence(fp32_scores, tuned_scores)
+    report = {
+        "stage": "run_quantize --float_control",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "source_checkpoint": str(args.checkpoint),
+        "fine_tune": {
+            "epochs": args.epochs,
+            "lr": args.lr,
+            "selected_epoch": best[0] if best is not None else args.epochs,
+            "history": history,
+        },
+        "fp32_original": {"roc_auc": fp32_auc, "metrics_at_threshold": fp32_metrics},
+        "fp32_fine_tuned": {
+            "roc_auc": roc_auc(y_true, tuned_scores),
+            "threshold": threshold,
+            "degenerate": degenerate,
+            "metrics_at_threshold": metrics,
+        },
+        "drift_vs_original": {
+            "sqnr_db": None if math.isinf(sqnr) else round(sqnr, 2),
+            "kl_divergence_nats": round(kl, 6),
+            "fbeta_drop": round(fp32_metrics["fbeta"] - metrics["fbeta"], 6),
+            "recall_drop": round(fp32_metrics["recall"] - metrics["recall"], 6),
+            "score_corr": round(float(np.corrcoef(fp32_scores, tuned_scores)[0, 1]), 4),
+        },
+    }
+    out = Path(args.out_dir) / "float_control_report.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    logger.info(
+        "Float control: SQNR=%.1f dB  KL=%.4f nats vs the original fp32 → %s",
+        sqnr, kl, out,
+    )
+    return 0
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse CLI arguments.
 
@@ -173,6 +258,26 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help=(
             "Every N QAT epochs, convert a copy to real int8, score it on val and "
             "keep the epoch with the best ROC-AUC.  0 keeps the last epoch."
+        ),
+    )
+    parser.add_argument(
+        "--calib_batches",
+        type=int,
+        default=16,
+        help=(
+            "Training batches used to initialise the activation observers before "
+            "QAT (with --epochs 0 they are the only thing that sets the int8 "
+            "ranges).  Large values cover the whole train split."
+        ),
+    )
+    parser.add_argument(
+        "--float_control",
+        action="store_true",
+        help=(
+            "Diagnostic: run the same fine-tune (epochs, lr, loss, augmentation, "
+            "seed) on the fp32 model WITHOUT quantization, report its SQNR / KL / "
+            "F-beta drop against the original checkpoint, and exit.  This is the "
+            "gate's noise floor: score drift caused by fine-tuning alone."
         ),
     )
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size.")
@@ -298,6 +403,15 @@ def main(argv: list[str] | None = None) -> int:
         fp32_metrics["precision"],
     )
 
+    if args.float_control:
+        return log_run_footer(
+            start_time,
+            exit_code=_float_control(
+                args, model, train_loader, val_loader, device, beta,
+                y_true, fp32_scores, fp32_metrics, fp32_auc,
+            ),
+        )
+
     # ── Stage 1: PTQ smoke test ───────────────────────────────────────────────
     if not args.no_smoke_test:
         logger.info("Stage 1: PTQ smoke test …")
@@ -330,7 +444,13 @@ def main(argv: list[str] | None = None) -> int:
     qat_model, quantizer = qat_lib.prepare_for_qat(
         model, example, per_channel=args.per_channel
     )
-    qat_lib.calibrate(qat_model, train_loader, device)
+    qat_lib.calibrate(qat_model, train_loader, device, batches=args.calib_batches)
+    calibration = {
+        "batches": min(args.calib_batches, len(train_loader)),
+        "images": min(args.calib_batches * args.batch_size, len(train_loader.dataset)),
+        "train_images": len(train_loader.dataset),
+        "source": "train split, shuffled, augmented",
+    }
     selection: list[dict] = []  # (epoch, real-int8 val ROC-AUC) checkpoints
     best = None  # (epoch, auc, state_dict) of the best converted checkpoint
 
@@ -381,6 +501,7 @@ def main(argv: list[str] | None = None) -> int:
     # ── Stage 3: convert and export ───────────────────────────────────────────
     logger.info("Stage 3: convert + export …")
     out_dir = Path(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
     tflite_path = out_dir / "mobilenetv3s_fire_int8.tflite"
     # Conversion parity: the converted graph must compute what the fake-quant
     # graph simulated.  A gap here is a conversion defect, not quantization
@@ -454,6 +575,17 @@ def main(argv: list[str] | None = None) -> int:
     paired_fp32_scores = fp32_scores[: len(int8_scores)]
     sqnr_db = parity_lib.compute_sqnr(paired_fp32_scores, int8_scores)
     kl_nats = parity_lib.compute_kl_divergence(paired_fp32_scores, int8_scores)
+    # Conversion fidelity: int8 artifact vs the fake-quant graph it was
+    # converted from.  After QAT the fp32 reference above also measures how far
+    # fine-tuning moved the weights; this pair isolates the int8 rounding.
+    paired_fq = fake_quant_scores[: len(int8_scores)]
+    sqnr_fq = parity_lib.compute_sqnr(paired_fq, int8_scores)
+    vs_fake_quant = {
+        "sqnr_db": None if math.isinf(sqnr_fq) else round(sqnr_fq, 2),
+        "kl_divergence_nats": round(
+            parity_lib.compute_kl_divergence(paired_fq, int8_scores), 6
+        ),
+    }
     acceptance = parity_lib.check_acceptance(
         fp32_recall=fp32_metrics["recall"],
         int8_recall=int8_metrics["recall"],
@@ -492,6 +624,7 @@ def main(argv: list[str] | None = None) -> int:
             "method": "QAT" if args.epochs > 0 else "PTQ",
             "epochs": args.epochs,
             "lr": args.lr,
+            "calibration": calibration,
         },
         "fp32": {
             "roc_auc": fp32_auc,
@@ -516,6 +649,7 @@ def main(argv: list[str] | None = None) -> int:
             "fbeta_delta": round(int8_metrics["fbeta"] - fp32_metrics["fbeta"], 6),
             "sqnr_db": None if math.isinf(sqnr_db) else round(sqnr_db, 2),
             "kl_divergence_nats": round(kl_nats, 6),
+            "vs_fake_quant": vs_fake_quant,
         },
         "conversion_parity": conversion_parity,
         "checkpoint_selection": {
