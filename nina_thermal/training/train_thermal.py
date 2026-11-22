@@ -85,6 +85,7 @@ from nina_thermal.training.frp_labels import (
 )
 from nina_thermal.training.threshold import (
     average_precision,
+    eval_size_check,
     metrics_at_threshold,
     precision_at_recall,
     roc_auc,
@@ -748,6 +749,7 @@ def main(argv: list[str] | None = None) -> int:
         torch.load(checkpoint_path, map_location=device, weights_only=True)
     )
     y_true, y_score = collect_scores(model, val_loader, device)
+    val_size = eval_size_check(y_true, "val")
     threshold, degenerate = select_threshold(y_true, y_score, args.recall_target)
     val_metrics = metrics_at_threshold(y_true, y_score, threshold, beta)
 
@@ -795,6 +797,8 @@ def main(argv: list[str] | None = None) -> int:
         "checkpoint": checkpoint_path.name,
         "selected_threshold": threshold,
         "degenerate_val": degenerate,
+        "degenerate_eval": val_size["degenerate_eval"],
+        "val_composition": val_size,
         "best_val_select_score": best_score,
         "val_metrics_at_threshold": val_metrics,
         "val_roc_auc": roc_auc(y_true, y_score),

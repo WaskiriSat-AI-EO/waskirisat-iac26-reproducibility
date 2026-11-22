@@ -70,6 +70,7 @@ from nina_thermal.training.frp_labels import (
 )
 from nina_thermal.training.threshold import (
     average_precision,
+    eval_size_check,
     metrics_at_threshold,
     roc_auc,
     select_threshold,
@@ -175,7 +176,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "keep the epoch with the best ROC-AUC.  0 keeps the last epoch."
         ),
     )
-    parser.add_argument("--batch_size", type=int, default=32, help="Batch size.")
+    # QAT holds the fake-quant graph, its observers and a converted copy for
+    # checkpoint selection: batch 32 with 4 workers ran a 30 GB host out of
+    # memory, so the defaults are 16 / 2.
+    parser.add_argument("--batch_size", type=int, default=16, help="Batch size.")
     parser.add_argument(
         "--pos_weight", type=float, default=3.0, help="FN:FP cost ratio."
     )
@@ -184,7 +188,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--seed", type=int, default=42, help="RNG seed.")
     parser.add_argument(
-        "--num_workers", type=int, default=4, help="DataLoader workers."
+        "--num_workers", type=int, default=2, help="DataLoader workers."
     )
     parser.add_argument("--log_dir", default="data/logs", help="Log directory.")
     parser.add_argument(
@@ -285,6 +289,9 @@ def main(argv: list[str] | None = None) -> int:
 
     # ── fp32 reference ────────────────────────────────────────────────────────
     y_true, fp32_scores = collect_scores(model, val_loader, device)
+    # Small val set: the threshold sweep still "works", so select_threshold's
+    # `degenerate` stays False — this check is what surfaces it.
+    val_size = eval_size_check(y_true, "val")
     fp32_threshold, degenerate = select_threshold(
         y_true, fp32_scores, args.recall_target
     )
@@ -462,6 +469,8 @@ def main(argv: list[str] | None = None) -> int:
         sqnr_db=sqnr_db,
         kl_nats=kl_nats,
     )
+    # Non-blocking: the gate verdict stands, but it is read next to the caveat.
+    acceptance["warnings"] = [val_size["warning"]] if val_size["degenerate_eval"] else []
     logger.info(
         "SQNR=%s dB  KL=%.4f nats  acceptance=%s",
         "inf" if math.isinf(sqnr_db) else f"{sqnr_db:.1f}",
@@ -473,6 +482,8 @@ def main(argv: list[str] | None = None) -> int:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "source_checkpoint": str(checkpoint),
         "frp_relabel": frp_summary,
+        "degenerate_eval": val_size["degenerate_eval"],
+        "val_composition": val_size,
         "artifact": {
             "path": str(tflite_path),
             "checksum_file": str(checksum_path),
@@ -538,6 +549,9 @@ def main(argv: list[str] | None = None) -> int:
     report_path = out_dir / "quantization_report.json"
     report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
     logger.info("Quantization report → %s", report_path)
+    if val_size["degenerate_eval"]:
+        # Repeat at the end so it is not buried above the per-epoch log.
+        logger.warning("DEGENERATE EVALUATION: %s", val_size["warning"])
 
     ok = within_budget and acceptance["passed"]
     return log_run_footer(start_time, exit_code=0 if ok else 1)

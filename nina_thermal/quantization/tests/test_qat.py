@@ -170,3 +170,12 @@ class TestQatCaptureAndConvert:
         with torch.no_grad():
             out = converted(example)
         assert out.shape == (1, 1) and torch.isfinite(out).all()
+
+
+class TestRunQuantizeDefaults:
+    def test_memory_safe_loader_defaults(self):
+        # batch 32 / 4 workers exhausted a 30 GB host during QAT.
+        from nina_thermal.quantization.pipelines.run_quantize import parse_args
+
+        args = parse_args([])
+        assert (args.batch_size, args.num_workers) == (16, 2)

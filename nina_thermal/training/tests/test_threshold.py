@@ -117,3 +117,34 @@ class TestPrecisionAtRecall:
     def test_single_class_all_none(self):
         out = threshold.precision_at_recall([0, 0], [0.1, 0.2], [0.9])
         assert out == {"0.9": None}
+
+
+class TestEvalSizeCheck:
+    def test_17_fires_is_degenerate_although_sweep_is_not(self):
+        # The v1 quantization val set: 17 fire / 19 no-fire.  The sweep is
+        # well defined (select_threshold says not degenerate), the size check
+        # must still flag it.
+        y_true = [1] * 17 + [0] * 19
+        y_score = [0.9] * 17 + [0.1] * 19
+        _, sweep_degenerate = threshold.select_threshold(y_true, y_score, 0.95)
+        out = threshold.eval_size_check(y_true, "val")
+        assert sweep_degenerate is False
+        assert out["degenerate_eval"] is True
+        assert (out["n"], out["n_fire"], out["n_nofire"]) == (36, 17, 19)
+        assert "17 fire samples" in out["warning"]
+        assert "MIN_FIRE_FOR_EVAL=20" in out["warning"]
+
+    def test_at_minimum_is_not_degenerate(self):
+        out = threshold.eval_size_check([1] * 20 + [0] * 5, "val")
+        assert out["degenerate_eval"] is False
+        assert out["warning"] is None
+
+    def test_warning_is_logged(self, caplog):
+        with caplog.at_level("WARNING"):
+            threshold.eval_size_check([1] * 3 + [0] * 3, "val")
+        assert "DEGENERATE EVALUATION" in caplog.text
+
+    def test_evaluation_metrics_share_the_constant(self):
+        from nina_thermal.evaluation import metrics
+
+        assert metrics.MIN_FIRE_FOR_EVAL == threshold.MIN_FIRE_FOR_EVAL == 20
