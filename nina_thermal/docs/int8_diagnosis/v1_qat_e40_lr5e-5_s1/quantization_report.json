@@ -1,0 +1,175 @@
+{
+  "stage": "run_quantize",
+  "generated_at": "2026-11-22T22:37:14.295900+00:00",
+  "source_checkpoint": "${REPO}/models/nina_thermal_frp20000/mobilenetv3s_fire_best.pt",
+  "frp_relabel": {
+    "threshold_mw": 20000.0,
+    "counts": {
+      "fire": 120,
+      "no_fire": 217,
+      "ambiguous": 587,
+      "no_frp_data": 0
+    },
+    "retained": 337,
+    "definition": "label=1 when summed FIRMS FRP over the 640x480 km patch footprint >= 20000 MW within +/-1 day of sensing; label=0 only when the footprint contains zero FIRMS detections; patches in between are ambiguous and excluded."
+  },
+  "artifact": {
+    "path": "${SCRATCH}/a1/v1_qat_e40_lr5e-5_s1/mobilenetv3s_fire_int8.tflite",
+    "checksum_file": "${SCRATCH}/a1/v1_qat_e40_lr5e-5_s1/mobilenetv3s_fire_int8.sha256",
+    "size_mb": 1.2367,
+    "size_budget_mb": 2.0,
+    "within_budget": true
+  },
+  "quantization": {
+    "weights": "per-output-channel symmetric int8",
+    "activations": "per-tensor asymmetric uint8",
+    "io": {
+      "input": {
+        "dtype": "float32",
+        "shape": [
+          1,
+          3,
+          120,
+          160
+        ],
+        "scale": 0.0,
+        "zero_point": 0
+      },
+      "output": {
+        "dtype": "int8",
+        "shape": [
+          1,
+          1
+        ],
+        "scale": 0.017337318509817123,
+        "zero_point": -4
+      },
+      "fully_quantized": false
+    },
+    "normalization": "folded into graph via NormalizedFireNet",
+    "method": "QAT",
+    "epochs": 40,
+    "lr": 5e-05,
+    "calibration": {
+      "batches": 14,
+      "images": 219,
+      "train_images": 219,
+      "source": "train split, shuffled, augmented"
+    }
+  },
+  "fp32": {
+    "roc_auc": 0.835913,
+    "average_precision": 0.738297,
+    "threshold": 0.45628589391708374,
+    "degenerate": false,
+    "metrics_at_threshold": {
+      "recall": 1.0,
+      "precision": 0.73913,
+      "specificity": 0.684211,
+      "fbeta": 0.918919,
+      "beta": 1.732051,
+      "confusion_matrix": {
+        "tp": 17,
+        "fp": 6,
+        "fn": 0,
+        "tn": 13
+      }
+    }
+  },
+  "int8": {
+    "roc_auc": 0.891641,
+    "average_precision": 0.875507,
+    "threshold": 0.5816155672073364,
+    "degenerate": false,
+    "metrics_at_threshold": {
+      "recall": 1.0,
+      "precision": 0.653846,
+      "specificity": 0.526316,
+      "fbeta": 0.883117,
+      "beta": 1.732051,
+      "confusion_matrix": {
+        "tp": 17,
+        "fp": 9,
+        "fn": 0,
+        "tn": 10
+      }
+    }
+  },
+  "parity": {
+    "roc_auc_delta": 0.055728,
+    "recall_delta": 0.0,
+    "precision_delta": -0.085284,
+    "fbeta_delta": -0.035802,
+    "sqnr_db": 7.81,
+    "kl_divergence_nats": 14.21415,
+    "vs_fake_quant": {
+      "sqnr_db": 17.4,
+      "kl_divergence_nats": 9.735615
+    }
+  },
+  "conversion_parity": {
+    "fake_quant_roc_auc": 0.820433,
+    "converted_roc_auc": 0.910217,
+    "score_corr_converted_vs_fake_quant": 0.9056
+  },
+  "checkpoint_selection": {
+    "metric": "converted int8 val ROC-AUC",
+    "every_epochs": 5,
+    "selected_epoch": 40,
+    "history": [
+      {
+        "epoch": 5,
+        "int8_val_roc_auc": 0.603715
+      },
+      {
+        "epoch": 10,
+        "int8_val_roc_auc": 0.749226
+      },
+      {
+        "epoch": 15,
+        "int8_val_roc_auc": 0.801858
+      },
+      {
+        "epoch": 20,
+        "int8_val_roc_auc": 0.783282
+      },
+      {
+        "epoch": 25,
+        "int8_val_roc_auc": 0.76935
+      },
+      {
+        "epoch": 30,
+        "int8_val_roc_auc": 0.780186
+      },
+      {
+        "epoch": 35,
+        "int8_val_roc_auc": 0.840557
+      },
+      {
+        "epoch": 40,
+        "int8_val_roc_auc": 0.910217
+      }
+    ]
+  },
+  "acceptance": {
+    "passed": false,
+    "violations": [
+      "F-beta drop 0.0358 > tol 0.0100 (fp32=0.9189, int8=0.8831)",
+      "SQNR 7.8 dB < 30 dB minimum",
+      "score-distribution KL 14.2142 nats > 0.0500 nats"
+    ],
+    "tolerances": {
+      "recall_drop": 0.005,
+      "fbeta_drop": 0.01,
+      "sqnr_min_db": 30.0,
+      "kl_max_nats": 0.05
+    },
+    "measured": {
+      "recall_drop": 0.0,
+      "fbeta_drop": 0.035802,
+      "sqnr_db": 7.81,
+      "kl_nats": 14.21415
+    }
+  },
+  "deployment_note": "Load on OpenMV N6 with ml.Model('/rom/mobilenetv3s_fire_int8.tflite'); feed the Lepton frame replicated to 3 channels, apply sigmoid to the logit and compare against int8.threshold.  Check artifact.io: this PT2E export quantizes weights to int8 but leaves the graph boundary in float32, so it is not yet a full-NPU graph.  Achieving uint8 I/O needs the ai_edge_quantizer static_wi8_ai8 recipe applied to a float export, which is not yet wired into this pipeline."
+}

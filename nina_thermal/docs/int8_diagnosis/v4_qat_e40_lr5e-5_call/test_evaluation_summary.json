@@ -1,0 +1,449 @@
+{
+  "stage": "run_evaluate",
+  "generated_at": "2026-11-23T02:12:14.251394+00:00",
+  "script_version": "1.0.0",
+  "checkpoint": "mobilenetv3s_fire_best.pt",
+  "device": "cuda",
+  "frp_threshold_mw": 20000.0,
+  "operating_threshold": 0.6266,
+  "threshold_source": "explicit",
+  "beta": 1.732051,
+  "degenerate_eval": false,
+  "test_composition": {
+    "images": 2142,
+    "patches": 714,
+    "granules": 245,
+    "nominal_images": 714,
+    "nominal_fire": 359
+  },
+  "merge_stats": {
+    "roots": {
+      "${REPO}/data/04_dataset": 576,
+      "${REPO}/data_202408/04_dataset": 171,
+      "${REPO}/data_202409/04_dataset": 161,
+      "${REPO}/data_202509/04_dataset": 187,
+      "${REPO}/data_202208/04_dataset": 333,
+      "${REPO}/data_202302/04_dataset": 358,
+      "${REPO}/data_202309/04_dataset": 170,
+      "${REPO}/data_201907/04_dataset": 258,
+      "${REPO}/data_201908/04_dataset": 170,
+      "${REPO}/data_201910/04_dataset": 243,
+      "${REPO}/data_202007/04_dataset": 372,
+      "${REPO}/data_202010/04_dataset": 359,
+      "${REPO}/data_202107/04_dataset": 371,
+      "${REPO}/data_202110/04_dataset": 348,
+      "${REPO}/data_202207/04_dataset": 363,
+      "${REPO}/data_202208b/04_dataset": 294,
+      "${REPO}/data_202210/04_dataset": 340,
+      "${REPO}/data_202302b/04_dataset": 108,
+      "${REPO}/data_202306b/04_dataset": 348,
+      "${REPO}/data_202307b/04_dataset": 196,
+      "${REPO}/data_202308b/04_dataset": 353,
+      "${REPO}/data_202309b/04_dataset": 261,
+      "${REPO}/data_202310/04_dataset": 387,
+      "${REPO}/data_202407b/04_dataset": 370,
+      "${REPO}/data_202408b/04_dataset": 336,
+      "${REPO}/data_202409b/04_dataset": 228,
+      "${REPO}/data_202410b/04_dataset": 351,
+      "${REPO}/data_202507b/04_dataset": 377,
+      "${REPO}/data_202509b/04_dataset": 331,
+      "${REPO}/data_202510/04_dataset": 352,
+      "${REPO}/data_extra/04_dataset": 1274
+    },
+    "records_read": 10346,
+    "unique_patches": 10175,
+    "duplicate_patches_dropped": 171,
+    "granules": 2152,
+    "granules_with_conflicting_splits": 19,
+    "patches_reassigned_by_reconciliation": 58,
+    "split_precedence": [
+      "train",
+      "val",
+      "test"
+    ]
+  },
+  "frp_relabel": {
+    "threshold_mw": 20000.0,
+    "negative_max_mw": 1000.0,
+    "counts": {
+      "fire": 5993,
+      "no_fire": 6165,
+      "ambiguous": 17664,
+      "no_frp_data": 0
+    },
+    "retained": 12158,
+    "definition": "label=1 when summed FIRMS FRP over the 640x480 km patch footprint >= 20000 MW within +/-1 day of sensing; label=0 when summed FRP < 1000 MW; patches in between are ambiguous and excluded."
+  },
+  "nominal": {
+    "n": 714,
+    "n_fire": 359,
+    "n_nofire": 355,
+    "recall": 0.958217,
+    "specificity": 0.802817,
+    "roc_auc": 0.944964,
+    "average_precision": 0.93159,
+    "fbeta": 0.922871,
+    "beta": 1.732051,
+    "precision": 0.830918,
+    "accuracy": 0.880952,
+    "f1": 0.890039,
+    "confusion_matrix": {
+      "tn": 285,
+      "fp": 70,
+      "fn": 15,
+      "tp": 344
+    },
+    "precision_at_prevalence": {
+      "0.1": 0.350627,
+      "0.5": 0.829338,
+      "0.9": 0.977647
+    },
+    "bootstrap_ci": {
+      "recall": {
+        "point_estimate": 0.958217270194986,
+        "ci_low": 0.9215181232989157,
+        "ci_high": 0.9871386769604642,
+        "n_resamples_used": 1000,
+        "n_resamples_requested": 1000
+      },
+      "precision": {
+        "point_estimate": 0.8309178743961353,
+        "ci_low": 0.7813697022850099,
+        "ci_high": 0.8762754008886082,
+        "n_resamples_used": 1000,
+        "n_resamples_requested": 1000
+      },
+      "fbeta": {
+        "point_estimate": 0.9228705566733736,
+        "ci_low": 0.8913633698988094,
+        "ci_high": 0.9486775746788069,
+        "n_resamples_used": 1000,
+        "n_resamples_requested": 1000
+      },
+      "roc_auc": {
+        "point_estimate": 0.944964,
+        "ci_low": 0.91830625,
+        "ci_high": 0.9665372499999999,
+        "n_resamples_used": 1000,
+        "n_resamples_requested": 1000
+      }
+    }
+  },
+  "by_profile": {
+    "A": {
+      "n": 714,
+      "n_fire": 359,
+      "n_nofire": 355,
+      "recall": 0.955432,
+      "specificity": 0.808451,
+      "roc_auc": 0.955275,
+      "average_precision": 0.947321,
+      "fbeta": 0.922043,
+      "beta": 1.732051,
+      "precision": 0.83455,
+      "accuracy": 0.882353,
+      "f1": 0.890909,
+      "confusion_matrix": {
+        "tn": 287,
+        "fp": 68,
+        "fn": 16,
+        "tp": 343
+      },
+      "precision_at_prevalence": {
+        "0.1": 0.356587,
+        "0.5": 0.832997,
+        "0.9": 0.978209
+      }
+    },
+    "B": {
+      "n": 714,
+      "n_fire": 359,
+      "n_nofire": 355,
+      "recall": 0.958217,
+      "specificity": 0.802817,
+      "roc_auc": 0.944964,
+      "average_precision": 0.93159,
+      "fbeta": 0.922871,
+      "beta": 1.732051,
+      "precision": 0.830918,
+      "accuracy": 0.880952,
+      "f1": 0.890039,
+      "confusion_matrix": {
+        "tn": 285,
+        "fp": 70,
+        "fn": 15,
+        "tp": 344
+      },
+      "precision_at_prevalence": {
+        "0.1": 0.350627,
+        "0.5": 0.829338,
+        "0.9": 0.977647
+      }
+    },
+    "C": {
+      "n": 714,
+      "n_fire": 359,
+      "n_nofire": 355,
+      "recall": 0.952646,
+      "specificity": 0.791549,
+      "roc_auc": 0.935619,
+      "average_precision": 0.913527,
+      "fbeta": 0.916276,
+      "beta": 1.732051,
+      "precision": 0.822115,
+      "accuracy": 0.872549,
+      "f1": 0.882581,
+      "confusion_matrix": {
+        "tn": 281,
+        "fp": 74,
+        "fn": 17,
+        "tp": 342
+      },
+      "precision_at_prevalence": {
+        "0.1": 0.336779,
+        "0.5": 0.820471,
+        "0.9": 0.976265
+      }
+    }
+  },
+  "deltas_vs_B": {
+    "A": {
+      "recall": -0.002785,
+      "specificity": 0.005634,
+      "roc_auc": 0.010311,
+      "average_precision": 0.015731,
+      "fbeta": -0.000828,
+      "precision": 0.003632
+    },
+    "C": {
+      "recall": -0.005571,
+      "specificity": -0.011268,
+      "roc_auc": -0.009345,
+      "average_precision": -0.018063,
+      "fbeta": -0.006595,
+      "precision": -0.008803
+    }
+  },
+  "by_surface_type": {
+    "fire": {
+      "n": 192,
+      "n_fire": 190,
+      "n_nofire": 2,
+      "recall": 0.963158,
+      "specificity": 1.0,
+      "roc_auc": 0.997368,
+      "average_precision": 0.999972,
+      "fbeta": 0.972112,
+      "beta": 1.732051,
+      "precision": 1.0,
+      "accuracy": 0.963542,
+      "f1": 0.981233,
+      "confusion_matrix": {
+        "tn": 2,
+        "fp": 0,
+        "fn": 7,
+        "tp": 183
+      },
+      "precision_at_prevalence": {
+        "0.1": 1.0,
+        "0.5": 1.0,
+        "0.9": 1.0
+      }
+    },
+    "nominal": {
+      "n": 500,
+      "n_fire": 162,
+      "n_nofire": 338,
+      "recall": 0.950617,
+      "specificity": 0.795858,
+      "roc_auc": 0.934053,
+      "average_precision": 0.83518,
+      "fbeta": 0.868829,
+      "beta": 1.732051,
+      "precision": 0.690583,
+      "accuracy": 0.846,
+      "f1": 0.8,
+      "confusion_matrix": {
+        "tn": 269,
+        "fp": 69,
+        "fn": 8,
+        "tp": 154
+      },
+      "precision_at_prevalence": {
+        "0.1": 0.34098,
+        "0.5": 0.823217,
+        "0.9": 0.976695
+      }
+    },
+    "warm_surface": {
+      "n": 22,
+      "n_fire": 7,
+      "n_nofire": 15,
+      "recall": 1.0,
+      "specificity": 0.933333,
+      "roc_auc": 1.0,
+      "average_precision": 1.0,
+      "fbeta": 0.965517,
+      "beta": 1.732051,
+      "precision": 0.875,
+      "accuracy": 0.954545,
+      "f1": 0.933333,
+      "confusion_matrix": {
+        "tn": 14,
+        "fp": 1,
+        "fn": 0,
+        "tp": 7
+      },
+      "precision_at_prevalence": {
+        "0.1": 0.625,
+        "0.5": 0.9375,
+        "0.9": 0.992647
+      }
+    }
+  },
+  "int8": {
+    "artifact": "${SCRATCH}/a1/v4_qat_e40_lr5e-5_call/mobilenetv3s_fire_int8.tflite",
+    "operating_threshold": 0.65107,
+    "nominal": {
+      "n": 714,
+      "n_fire": 359,
+      "n_nofire": 355,
+      "recall": 0.941504,
+      "specificity": 0.780282,
+      "roc_auc": 0.920738,
+      "average_precision": 0.901275,
+      "fbeta": 0.905559,
+      "beta": 1.732051,
+      "precision": 0.8125,
+      "accuracy": 0.861345,
+      "f1": 0.872258,
+      "confusion_matrix": {
+        "tn": 277,
+        "fp": 78,
+        "fn": 21,
+        "tp": 338
+      },
+      "precision_at_prevalence": {
+        "0.1": 0.322547,
+        "0.5": 0.810787,
+        "0.9": 0.974725
+      },
+      "bootstrap_ci": {
+        "recall": {
+          "point_estimate": 0.9415041782729805,
+          "ci_low": 0.9137462001498412,
+          "ci_high": 0.968114271429365,
+          "n_resamples_used": 1000,
+          "n_resamples_requested": 1000
+        },
+        "precision": {
+          "point_estimate": 0.8125,
+          "ci_low": 0.7558426457263667,
+          "ci_high": 0.8648382914151767,
+          "n_resamples_used": 1000,
+          "n_resamples_requested": 1000
+        },
+        "fbeta": {
+          "point_estimate": 0.9055592766242465,
+          "ci_low": 0.8773468191277496,
+          "ci_high": 0.9311979130191189,
+          "n_resamples_used": 1000,
+          "n_resamples_requested": 1000
+        },
+        "roc_auc": {
+          "point_estimate": 0.920738,
+          "ci_low": 0.8894924,
+          "ci_high": 0.9462904,
+          "n_resamples_used": 1000,
+          "n_resamples_requested": 1000
+        }
+      }
+    },
+    "by_profile": {
+      "A": {
+        "n": 714,
+        "n_fire": 359,
+        "n_nofire": 355,
+        "recall": 0.952646,
+        "specificity": 0.774648,
+        "roc_auc": 0.924544,
+        "average_precision": 0.903702,
+        "fbeta": 0.912608,
+        "beta": 1.732051,
+        "precision": 0.810427,
+        "accuracy": 0.864146,
+        "f1": 0.8758,
+        "confusion_matrix": {
+          "tn": 275,
+          "fp": 80,
+          "fn": 17,
+          "tp": 342
+        },
+        "precision_at_prevalence": {
+          "0.1": 0.319593,
+          "0.5": 0.808699,
+          "0.9": 0.974389
+        }
+      },
+      "B": {
+        "n": 714,
+        "n_fire": 359,
+        "n_nofire": 355,
+        "recall": 0.941504,
+        "specificity": 0.780282,
+        "roc_auc": 0.920738,
+        "average_precision": 0.901275,
+        "fbeta": 0.905559,
+        "beta": 1.732051,
+        "precision": 0.8125,
+        "accuracy": 0.861345,
+        "f1": 0.872258,
+        "confusion_matrix": {
+          "tn": 277,
+          "fp": 78,
+          "fn": 21,
+          "tp": 338
+        },
+        "precision_at_prevalence": {
+          "0.1": 0.322547,
+          "0.5": 0.810787,
+          "0.9": 0.974725
+        }
+      },
+      "C": {
+        "n": 714,
+        "n_fire": 359,
+        "n_nofire": 355,
+        "recall": 0.935933,
+        "specificity": 0.760563,
+        "roc_auc": 0.914163,
+        "average_precision": 0.890538,
+        "fbeta": 0.897196,
+        "beta": 1.732051,
+        "precision": 0.7981,
+        "accuracy": 0.848739,
+        "f1": 0.861538,
+        "confusion_matrix": {
+          "tn": 270,
+          "fp": 85,
+          "fn": 23,
+          "tp": 336
+        },
+        "precision_at_prevalence": {
+          "0.1": 0.302806,
+          "0.5": 0.796288,
+          "0.9": 0.97236
+        }
+      }
+    },
+    "deltas_vs_fp32_nominal": {
+      "accuracy": -0.019607,
+      "recall": -0.016713,
+      "specificity": -0.022535,
+      "precision": -0.018418,
+      "f1": -0.017781,
+      "roc_auc": -0.024226
+    }
+  },
+  "notes": "'nominal' = profile B only (the training / deployment configuration). Profiles A/C are out-of-distribution robustness bounds. 'bootstrap_ci' is a granule-level cluster bootstrap \u2014 patch-level resampling understates interval width at 50% tile overlap. 'precision' is measured-as-sampled; 'precision_at_prevalence' is the Bayes projection for the stated operational fire prevalences."
+}

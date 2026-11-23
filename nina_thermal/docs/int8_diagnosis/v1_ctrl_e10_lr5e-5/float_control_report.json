@@ -1,0 +1,61 @@
+{
+  "stage": "run_quantize --float_control",
+  "generated_at": "2026-11-22T22:57:59.887399+00:00",
+  "source_checkpoint": "${REPO}/models/nina_thermal_frp20000/mobilenetv3s_fire_best.pt",
+  "fine_tune": {
+    "epochs": 10,
+    "lr": 5e-05,
+    "selected_epoch": 5,
+    "history": [
+      {
+        "epoch": 5,
+        "fp32_val_roc_auc": 0.845201
+      },
+      {
+        "epoch": 10,
+        "fp32_val_roc_auc": 0.811146
+      }
+    ]
+  },
+  "fp32_original": {
+    "roc_auc": 0.835913,
+    "metrics_at_threshold": {
+      "recall": 1.0,
+      "precision": 0.73913,
+      "specificity": 0.684211,
+      "fbeta": 0.918919,
+      "beta": 1.732051,
+      "confusion_matrix": {
+        "tp": 17,
+        "fp": 6,
+        "fn": 0,
+        "tn": 13
+      }
+    }
+  },
+  "fp32_fine_tuned": {
+    "roc_auc": 0.845201,
+    "threshold": 0.34364399313926697,
+    "degenerate": false,
+    "metrics_at_threshold": {
+      "recall": 1.0,
+      "precision": 0.653846,
+      "specificity": 0.526316,
+      "fbeta": 0.883117,
+      "beta": 1.732051,
+      "confusion_matrix": {
+        "tp": 17,
+        "fp": 9,
+        "fn": 0,
+        "tn": 10
+      }
+    }
+  },
+  "drift_vs_original": {
+    "sqnr_db": 15.58,
+    "kl_divergence_nats": 3.963923,
+    "fbeta_drop": 0.035802,
+    "recall_drop": 0.0,
+    "score_corr": 0.9626
+  }
+}
