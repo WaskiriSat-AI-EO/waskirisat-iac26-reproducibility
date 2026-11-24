@@ -369,7 +369,42 @@ def _int8_block(
         ThermalDataset(samples, qat_transform(augment=False)), batch_size=32, shuffle=False
     )
     scores = qat_lib.tflite_scores(tflite_path, loader)
-    for record, score in zip(predictions, scores, strict=True):
+    return {
+        "artifact": str(tflite_path),
+        **int8_metrics_block(predictions, scores, threshold, fp32_nominal, beta, seed),
+    }
+
+
+def int8_metrics_block(
+    predictions: list[dict[str, Any]],
+    int8_scores: list[float],
+    threshold: float,
+    fp32_nominal: dict[str, Any],
+    beta: float,
+    seed: int,
+) -> dict[str, Any]:
+    """int8 test metrics with the same uncertainty as the fp32 block.
+
+    Pure function (no TFLite) so it is unit-testable: the nominal block gets
+    the granule-level cluster bootstrap (``M.BOOTSTRAP_N_RESAMPLES`` = 1000
+    resamples, ``M.BOOTSTRAP_CI`` = 90%) and the Bayes-projected precision at
+    ``M.EVAL_PREVALENCES`` (0.10 / 0.50 / 0.90), exactly as for fp32.
+
+    Mutates *predictions* in place, adding ``int8_score`` / ``int8_pred`` so
+    ``predictions.json`` carries both models side by side.
+
+    Args:
+        predictions: fp32 prediction records (label, profile, granule_id, ...).
+        int8_scores: int8 sigmoid scores, aligned with *predictions*.
+        threshold: int8 operating threshold (from the int8 val sweep).
+        fp32_nominal: The fp32 nominal metrics block, for the deltas.
+        beta: F-beta weighting.
+        seed: Bootstrap RNG seed.
+
+    Returns:
+        ``{operating_threshold, nominal, by_profile, deltas_vs_fp32_nominal}``.
+    """
+    for record, score in zip(predictions, int8_scores, strict=True):
         record["int8_score"] = round(float(score), 6)
         record["int8_pred"] = int(score >= threshold)
     int8_records = [
@@ -397,7 +432,6 @@ def _int8_block(
         nominal_metrics["roc_auc"],
     )
     return {
-        "artifact": str(tflite_path),
         "operating_threshold": round(threshold, 6),
         "nominal": nominal_metrics,
         "by_profile": M.group_metrics(
