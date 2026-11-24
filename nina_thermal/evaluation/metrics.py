@@ -39,6 +39,7 @@ from sklearn.metrics import (
 )
 
 from nina_thermal.datagen import config
+from nina_thermal.training.threshold import MIN_FIRE_FOR_EVAL as _MIN_FIRE_FOR_EVAL
 from nina_thermal.training.threshold import roc_auc as _roc_auc_np
 
 logger = logging.getLogger(__name__)
@@ -51,7 +52,8 @@ EVAL_PREVALENCES: tuple[float, ...] = (0.10, 0.50, 0.90)
 
 # Below this many fire patches the recall-target sweep and precision estimates
 # are too noisy to trust; the report is flagged ``degenerate_eval`` instead.
-MIN_FIRE_FOR_EVAL: int = 20
+# Defined in training.threshold so train / quantize / evaluate share one value.
+MIN_FIRE_FOR_EVAL: int = _MIN_FIRE_FOR_EVAL
 
 # Granule-level cluster bootstrap.
 BOOTSTRAP_N_RESAMPLES: int = 1000

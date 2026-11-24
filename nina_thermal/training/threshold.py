@@ -27,6 +27,53 @@ logger = logging.getLogger(__name__)
 # Threshold used when the sweep cannot produce a meaningful answer.
 _FALLBACK_THRESHOLD = 0.5
 
+# Below this many fire samples the recall-target sweep and precision estimates
+# are too noisy to trust (one fire = 1/n_fire of recall).  Single source of
+# truth: ``nina_thermal.evaluation.metrics`` re-exports it for the test report.
+MIN_FIRE_FOR_EVAL: int = 20
+
+
+def eval_size_check(
+    y_true: list[int], split: str, min_fire: int = MIN_FIRE_FOR_EVAL
+) -> dict:
+    """Flag an evaluation set with too few fire samples to trust.
+
+    This is separate from the ``degenerate`` flag of :func:`select_threshold`,
+    which only fires when the sweep is undefined (one class, or the recall
+    target unreachable).  A set with, say, 17 fires sweeps fine but every
+    metric on it moves by ~6 pp per sample.
+
+    Args:
+        y_true: Binary fire labels of the set.
+        split: Name used in the message (``"val"``, ``"test"``).
+        min_fire: Minimum fire count for a trustworthy evaluation.
+
+    Returns:
+        ``{n, n_fire, n_nofire, min_fire_for_eval, degenerate_eval, warning}``;
+        ``warning`` is None when the set is large enough.  The warning is also
+        logged.
+    """
+    n = len(y_true)
+    n_fire = int(np.sum(np.asarray(y_true, dtype=int) == 1))
+    degenerate = n_fire < min_fire
+    warning = None
+    if degenerate:
+        warning = (
+            f"{split} set has {n_fire} fire samples (< MIN_FIRE_FOR_EVAL="
+            f"{min_fire}); the threshold, recall, precision and F-beta on it "
+            "are unreliable (one sample moves recall by "
+            f"{100.0 / max(n_fire, 1):.1f} pp)."
+        )
+        logger.warning("DEGENERATE EVALUATION: %s", warning)
+    return {
+        "n": n,
+        "n_fire": n_fire,
+        "n_nofire": n - n_fire,
+        "min_fire_for_eval": min_fire,
+        "degenerate_eval": degenerate,
+        "warning": warning,
+    }
+
 
 def _tp_fp_by_threshold(
     y_true: np.ndarray, y_score: np.ndarray
