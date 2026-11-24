@@ -1,0 +1,85 @@
+{
+  "stage": "run_quantize --float_control",
+  "generated_at": "2026-11-22T22:58:17.927674+00:00",
+  "source_checkpoint": "${REPO}/models/nina_thermal_frp20000/mobilenetv3s_fire_best.pt",
+  "fine_tune": {
+    "epochs": 40,
+    "lr": 5e-05,
+    "selected_epoch": 20,
+    "history": [
+      {
+        "epoch": 5,
+        "fp32_val_roc_auc": 0.845201
+      },
+      {
+        "epoch": 10,
+        "fp32_val_roc_auc": 0.798762
+      },
+      {
+        "epoch": 15,
+        "fp32_val_roc_auc": 0.842105
+      },
+      {
+        "epoch": 20,
+        "fp32_val_roc_auc": 0.860681
+      },
+      {
+        "epoch": 25,
+        "fp32_val_roc_auc": 0.860681
+      },
+      {
+        "epoch": 30,
+        "fp32_val_roc_auc": 0.80805
+      },
+      {
+        "epoch": 35,
+        "fp32_val_roc_auc": 0.814241
+      },
+      {
+        "epoch": 40,
+        "fp32_val_roc_auc": 0.832817
+      }
+    ]
+  },
+  "fp32_original": {
+    "roc_auc": 0.835913,
+    "metrics_at_threshold": {
+      "recall": 1.0,
+      "precision": 0.73913,
+      "specificity": 0.684211,
+      "fbeta": 0.918919,
+      "beta": 1.732051,
+      "confusion_matrix": {
+        "tp": 17,
+        "fp": 6,
+        "fn": 0,
+        "tn": 13
+      }
+    }
+  },
+  "fp32_fine_tuned": {
+    "roc_auc": 0.860681,
+    "threshold": 0.3210165500640869,
+    "degenerate": false,
+    "metrics_at_threshold": {
+      "recall": 1.0,
+      "precision": 0.68,
+      "specificity": 0.578947,
+      "fbeta": 0.894737,
+      "beta": 1.732051,
+      "confusion_matrix": {
+        "tp": 17,
+        "fp": 8,
+        "fn": 0,
+        "tn": 11
+      }
+    }
+  },
+  "drift_vs_original": {
+    "sqnr_db": 10.35,
+    "kl_divergence_nats": 8.297864,
+    "fbeta_drop": 0.024182,
+    "recall_drop": 0.0,
+    "score_corr": 0.8172
+  }
+}

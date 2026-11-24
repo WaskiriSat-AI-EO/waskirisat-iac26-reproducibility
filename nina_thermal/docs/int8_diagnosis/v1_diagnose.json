@@ -1,0 +1,1121 @@
+{
+  "baseline/ptq": {
+    "stages": [
+      {
+        "stage": "fp32",
+        "roc_auc": 0.835913
+      },
+      {
+        "stage": "prepared (observers)",
+        "roc_auc": 0.835913,
+        "corr": 0.9999,
+        "sqnr_db": 36.18
+      },
+      {
+        "stage": "converted PT2E",
+        "roc_auc": 0.705882,
+        "corr": 0.4306,
+        "sqnr_db": 1.1,
+        "corr_vs_prepared": 0.4324
+      }
+    ],
+    "bn_nodes_after_convert": 0
+  },
+  "baseline/qat": {
+    "stages": [
+      {
+        "stage": "fp32",
+        "roc_auc": 0.835913
+      },
+      {
+        "stage": "prepared (fake-quant)",
+        "roc_auc": 0.495356,
+        "corr": 0.2417,
+        "sqnr_db": 0.39
+      },
+      {
+        "stage": "converted PT2E",
+        "roc_auc": 0.712074,
+        "corr": 0.3969,
+        "sqnr_db": 0.56,
+        "corr_vs_prepared": 0.6005
+      }
+    ],
+    "bn_nodes_after_convert": 0
+  },
+  "trace": {
+    "ptq": {
+      "first_jump": {
+        "node": "conv2d_1",
+        "target": "aten.conv2d.default",
+        "rel_err": 0.3148
+      },
+      "rows": [
+        {
+          "node": "sub",
+          "target": "aten.sub.Tensor",
+          "rel_err": 0.0
+        },
+        {
+          "node": "div",
+          "target": "aten.div.Tensor",
+          "rel_err": 0.0
+        },
+        {
+          "node": "conv2d",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.036
+        },
+        {
+          "node": "hardswish_",
+          "target": "aten.hardswish_.default",
+          "rel_err": 0.0428
+        },
+        {
+          "node": "conv2d_1",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.3148
+        },
+        {
+          "node": "relu_",
+          "target": "aten.relu_.default",
+          "rel_err": 0.271
+        },
+        {
+          "node": "adaptive_avg_pool2d",
+          "target": "aten.adaptive_avg_pool2d.default",
+          "rel_err": 0.0862
+        },
+        {
+          "node": "conv2d_2",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.0221
+        },
+        {
+          "node": "relu",
+          "target": "aten.relu.default",
+          "rel_err": 17532.3984
+        },
+        {
+          "node": "conv2d_3",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.0
+        },
+        {
+          "node": "hardsigmoid",
+          "target": "aten.hardsigmoid.default",
+          "rel_err": 0.0008
+        },
+        {
+          "node": "mul",
+          "target": "aten.mul.Tensor",
+          "rel_err": 0.1989
+        },
+        {
+          "node": "conv2d_4",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.9087
+        },
+        {
+          "node": "conv2d_5",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.6925
+        },
+        {
+          "node": "relu__1",
+          "target": "aten.relu_.default",
+          "rel_err": 0.4566
+        },
+        {
+          "node": "conv2d_6",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.7006
+        },
+        {
+          "node": "relu__2",
+          "target": "aten.relu_.default",
+          "rel_err": 0.5515
+        },
+        {
+          "node": "conv2d_7",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.9731
+        },
+        {
+          "node": "conv2d_8",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.666
+        },
+        {
+          "node": "relu__3",
+          "target": "aten.relu_.default",
+          "rel_err": 0.4524
+        },
+        {
+          "node": "conv2d_9",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.5647
+        },
+        {
+          "node": "relu__4",
+          "target": "aten.relu_.default",
+          "rel_err": 0.349
+        },
+        {
+          "node": "conv2d_10",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.8604
+        },
+        {
+          "node": "add_",
+          "target": "aten.add_.Tensor",
+          "rel_err": 1.0032
+        },
+        {
+          "node": "conv2d_11",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.8163
+        },
+        {
+          "node": "hardswish__1",
+          "target": "aten.hardswish_.default",
+          "rel_err": 0.7657
+        },
+        {
+          "node": "conv2d_12",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.4759
+        },
+        {
+          "node": "hardswish__2",
+          "target": "aten.hardswish_.default",
+          "rel_err": 0.4592
+        },
+        {
+          "node": "adaptive_avg_pool2d_1",
+          "target": "aten.adaptive_avg_pool2d.default",
+          "rel_err": 0.3288
+        },
+        {
+          "node": "conv2d_13",
+          "target": "aten.conv2d.default",
+          "rel_err": 3.6841
+        },
+        {
+          "node": "relu_1",
+          "target": "aten.relu.default",
+          "rel_err": 5636.7952
+        },
+        {
+          "node": "conv2d_14",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.0481
+        },
+        {
+          "node": "hardsigmoid_1",
+          "target": "aten.hardsigmoid.default",
+          "rel_err": 0.0115
+        },
+        {
+          "node": "mul_1",
+          "target": "aten.mul.Tensor",
+          "rel_err": 0.4306
+        },
+        {
+          "node": "conv2d_15",
+          "target": "aten.conv2d.default",
+          "rel_err": 1.0774
+        },
+        {
+          "node": "conv2d_16",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.8046
+        },
+        {
+          "node": "hardswish__3",
+          "target": "aten.hardswish_.default",
+          "rel_err": 1.0454
+        },
+        {
+          "node": "conv2d_17",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.8964
+        },
+        {
+          "node": "hardswish__4",
+          "target": "aten.hardswish_.default",
+          "rel_err": 1.1969
+        },
+        {
+          "node": "adaptive_avg_pool2d_2",
+          "target": "aten.adaptive_avg_pool2d.default",
+          "rel_err": 1.0296
+        },
+        {
+          "node": "conv2d_18",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.8637
+        },
+        {
+          "node": "relu_2",
+          "target": "aten.relu.default",
+          "rel_err": 0.6974
+        },
+        {
+          "node": "conv2d_19",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.3628
+        },
+        {
+          "node": "hardsigmoid_2",
+          "target": "aten.hardsigmoid.default",
+          "rel_err": 0.3209
+        },
+        {
+          "node": "mul_2",
+          "target": "aten.mul.Tensor",
+          "rel_err": 1.0346
+        },
+        {
+          "node": "conv2d_20",
+          "target": "aten.conv2d.default",
+          "rel_err": 1.4907
+        },
+        {
+          "node": "add__1",
+          "target": "aten.add_.Tensor",
+          "rel_err": 1.2564
+        },
+        {
+          "node": "conv2d_21",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.9077
+        },
+        {
+          "node": "hardswish__5",
+          "target": "aten.hardswish_.default",
+          "rel_err": 1.0054
+        },
+        {
+          "node": "conv2d_22",
+          "target": "aten.conv2d.default",
+          "rel_err": 1.0055
+        },
+        {
+          "node": "hardswish__6",
+          "target": "aten.hardswish_.default",
+          "rel_err": 1.3063
+        },
+        {
+          "node": "adaptive_avg_pool2d_3",
+          "target": "aten.adaptive_avg_pool2d.default",
+          "rel_err": 1.3458
+        },
+        {
+          "node": "conv2d_23",
+          "target": "aten.conv2d.default",
+          "rel_err": 1.0863
+        },
+        {
+          "node": "relu_3",
+          "target": "aten.relu.default",
+          "rel_err": 0.7933
+        },
+        {
+          "node": "conv2d_24",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.3022
+        },
+        {
+          "node": "hardsigmoid_3",
+          "target": "aten.hardsigmoid.default",
+          "rel_err": 0.26
+        },
+        {
+          "node": "mul_3",
+          "target": "aten.mul.Tensor",
+          "rel_err": 1.281
+        },
+        {
+          "node": "conv2d_25",
+          "target": "aten.conv2d.default",
+          "rel_err": 1.7163
+        },
+        {
+          "node": "add__2",
+          "target": "aten.add_.Tensor",
+          "rel_err": 1.4606
+        },
+        {
+          "node": "conv2d_26",
+          "target": "aten.conv2d.default",
+          "rel_err": 1.1938
+        },
+        {
+          "node": "hardswish__7",
+          "target": "aten.hardswish_.default",
+          "rel_err": 0.8941
+        },
+        {
+          "node": "conv2d_27",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.8655
+        },
+        {
+          "node": "hardswish__8",
+          "target": "aten.hardswish_.default",
+          "rel_err": 0.8471
+        },
+        {
+          "node": "adaptive_avg_pool2d_4",
+          "target": "aten.adaptive_avg_pool2d.default",
+          "rel_err": 0.4916
+        },
+        {
+          "node": "conv2d_28",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.5399
+        },
+        {
+          "node": "relu_4",
+          "target": "aten.relu.default",
+          "rel_err": 0.462
+        },
+        {
+          "node": "conv2d_29",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.2698
+        },
+        {
+          "node": "hardsigmoid_4",
+          "target": "aten.hardsigmoid.default",
+          "rel_err": 0.087
+        },
+        {
+          "node": "mul_4",
+          "target": "aten.mul.Tensor",
+          "rel_err": 0.7609
+        },
+        {
+          "node": "conv2d_30",
+          "target": "aten.conv2d.default",
+          "rel_err": 1.1265
+        },
+        {
+          "node": "conv2d_31",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.8346
+        },
+        {
+          "node": "hardswish__9",
+          "target": "aten.hardswish_.default",
+          "rel_err": 0.8778
+        },
+        {
+          "node": "conv2d_32",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.89
+        },
+        {
+          "node": "hardswish__10",
+          "target": "aten.hardswish_.default",
+          "rel_err": 1.0045
+        },
+        {
+          "node": "adaptive_avg_pool2d_5",
+          "target": "aten.adaptive_avg_pool2d.default",
+          "rel_err": 0.7433
+        },
+        {
+          "node": "conv2d_33",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.6259
+        },
+        {
+          "node": "relu_5",
+          "target": "aten.relu.default",
+          "rel_err": 0.5273
+        },
+        {
+          "node": "conv2d_34",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.1833
+        },
+        {
+          "node": "hardsigmoid_5",
+          "target": "aten.hardsigmoid.default",
+          "rel_err": 0.1613
+        },
+        {
+          "node": "mul_5",
+          "target": "aten.mul.Tensor",
+          "rel_err": 0.8025
+        },
+        {
+          "node": "conv2d_35",
+          "target": "aten.conv2d.default",
+          "rel_err": 1.074
+        },
+        {
+          "node": "add__3",
+          "target": "aten.add_.Tensor",
+          "rel_err": 1.1105
+        },
+        {
+          "node": "conv2d_36",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.7068
+        },
+        {
+          "node": "hardswish__11",
+          "target": "aten.hardswish_.default",
+          "rel_err": 0.8961
+        },
+        {
+          "node": "conv2d_37",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.8493
+        },
+        {
+          "node": "hardswish__12",
+          "target": "aten.hardswish_.default",
+          "rel_err": 0.854
+        },
+        {
+          "node": "adaptive_avg_pool2d_6",
+          "target": "aten.adaptive_avg_pool2d.default",
+          "rel_err": 0.6502
+        },
+        {
+          "node": "conv2d_38",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.7763
+        },
+        {
+          "node": "relu_6",
+          "target": "aten.relu.default",
+          "rel_err": 0.6621
+        },
+        {
+          "node": "conv2d_39",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.31
+        },
+        {
+          "node": "hardsigmoid_6",
+          "target": "aten.hardsigmoid.default",
+          "rel_err": 0.1768
+        },
+        {
+          "node": "mul_6",
+          "target": "aten.mul.Tensor",
+          "rel_err": 0.6873
+        },
+        {
+          "node": "conv2d_40",
+          "target": "aten.conv2d.default",
+          "rel_err": 1.1028
+        },
+        {
+          "node": "conv2d_41",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.8434
+        },
+        {
+          "node": "hardswish__13",
+          "target": "aten.hardswish_.default",
+          "rel_err": 0.9293
+        },
+        {
+          "node": "conv2d_42",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.9322
+        },
+        {
+          "node": "hardswish__14",
+          "target": "aten.hardswish_.default",
+          "rel_err": 1.0403
+        },
+        {
+          "node": "adaptive_avg_pool2d_7",
+          "target": "aten.adaptive_avg_pool2d.default",
+          "rel_err": 0.9665
+        },
+        {
+          "node": "conv2d_43",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.8112
+        },
+        {
+          "node": "relu_7",
+          "target": "aten.relu.default",
+          "rel_err": 0.6069
+        },
+        {
+          "node": "conv2d_44",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.176
+        },
+        {
+          "node": "hardsigmoid_7",
+          "target": "aten.hardsigmoid.default",
+          "rel_err": 0.296
+        },
+        {
+          "node": "mul_7",
+          "target": "aten.mul.Tensor",
+          "rel_err": 0.8847
+        },
+        {
+          "node": "conv2d_45",
+          "target": "aten.conv2d.default",
+          "rel_err": 1.1538
+        },
+        {
+          "node": "add__4",
+          "target": "aten.add_.Tensor",
+          "rel_err": 1.1254
+        },
+        {
+          "node": "conv2d_46",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.7532
+        },
+        {
+          "node": "hardswish__15",
+          "target": "aten.hardswish_.default",
+          "rel_err": 0.9108
+        },
+        {
+          "node": "conv2d_47",
+          "target": "aten.conv2d.default",
+          "rel_err": 1.0001
+        },
+        {
+          "node": "hardswish__16",
+          "target": "aten.hardswish_.default",
+          "rel_err": 1.0913
+        },
+        {
+          "node": "adaptive_avg_pool2d_8",
+          "target": "aten.adaptive_avg_pool2d.default",
+          "rel_err": 1.0657
+        },
+        {
+          "node": "conv2d_48",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.9102
+        },
+        {
+          "node": "relu_8",
+          "target": "aten.relu.default",
+          "rel_err": 0.7178
+        },
+        {
+          "node": "conv2d_49",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.2212
+        },
+        {
+          "node": "hardsigmoid_8",
+          "target": "aten.hardsigmoid.default",
+          "rel_err": 0.469
+        },
+        {
+          "node": "mul_8",
+          "target": "aten.mul.Tensor",
+          "rel_err": 1.0811
+        },
+        {
+          "node": "conv2d_50",
+          "target": "aten.conv2d.default",
+          "rel_err": 1.2134
+        },
+        {
+          "node": "add__5",
+          "target": "aten.add_.Tensor",
+          "rel_err": 1.1676
+        },
+        {
+          "node": "conv2d_51",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.9637
+        },
+        {
+          "node": "hardswish__17",
+          "target": "aten.hardswish_.default",
+          "rel_err": 1.1743
+        },
+        {
+          "node": "adaptive_avg_pool2d_9",
+          "target": "aten.adaptive_avg_pool2d.default",
+          "rel_err": 1.1011
+        },
+        {
+          "node": "flatten",
+          "target": "aten.flatten.using_ints",
+          "rel_err": 1.1023
+        },
+        {
+          "node": "linear",
+          "target": "aten.linear.default",
+          "rel_err": 1.7827
+        }
+      ]
+    },
+    "qat": {
+      "first_jump": {
+        "node": "conv2d",
+        "target": "aten.conv2d.default",
+        "rel_err": 0.1013
+      },
+      "rows": [
+        {
+          "node": "sub",
+          "target": "aten.sub.Tensor",
+          "rel_err": 0.0
+        },
+        {
+          "node": "div",
+          "target": "aten.div.Tensor",
+          "rel_err": 0.0
+        },
+        {
+          "node": "conv2d",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.1013
+        },
+        {
+          "node": "hardswish_",
+          "target": "aten.hardswish_.default",
+          "rel_err": 0.0959
+        },
+        {
+          "node": "relu_",
+          "target": "aten.relu_.default",
+          "rel_err": 0.2672
+        },
+        {
+          "node": "adaptive_avg_pool2d",
+          "target": "aten.adaptive_avg_pool2d.default",
+          "rel_err": 0.0756
+        },
+        {
+          "node": "conv2d_2",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.0334
+        },
+        {
+          "node": "relu",
+          "target": "aten.relu.default",
+          "rel_err": 17532.3984
+        },
+        {
+          "node": "conv2d_3",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.0
+        },
+        {
+          "node": "hardsigmoid",
+          "target": "aten.hardsigmoid.default",
+          "rel_err": 0.0008
+        },
+        {
+          "node": "mul",
+          "target": "aten.mul.Tensor",
+          "rel_err": 0.2067
+        },
+        {
+          "node": "relu__1",
+          "target": "aten.relu_.default",
+          "rel_err": 0.5211
+        },
+        {
+          "node": "relu__2",
+          "target": "aten.relu_.default",
+          "rel_err": 0.6594
+        },
+        {
+          "node": "relu__3",
+          "target": "aten.relu_.default",
+          "rel_err": 0.5448
+        },
+        {
+          "node": "relu__4",
+          "target": "aten.relu_.default",
+          "rel_err": 0.4023
+        },
+        {
+          "node": "add_",
+          "target": "aten.add_.Tensor",
+          "rel_err": 1.1802
+        },
+        {
+          "node": "hardswish__1",
+          "target": "aten.hardswish_.default",
+          "rel_err": 0.8639
+        },
+        {
+          "node": "hardswish__2",
+          "target": "aten.hardswish_.default",
+          "rel_err": 0.5585
+        },
+        {
+          "node": "adaptive_avg_pool2d_1",
+          "target": "aten.adaptive_avg_pool2d.default",
+          "rel_err": 0.3634
+        },
+        {
+          "node": "conv2d_13",
+          "target": "aten.conv2d.default",
+          "rel_err": 132.7934
+        },
+        {
+          "node": "relu_1",
+          "target": "aten.relu.default",
+          "rel_err": 10175683161.3921
+        },
+        {
+          "node": "conv2d_14",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.05
+        },
+        {
+          "node": "hardsigmoid_1",
+          "target": "aten.hardsigmoid.default",
+          "rel_err": 0.0123
+        },
+        {
+          "node": "mul_1",
+          "target": "aten.mul.Tensor",
+          "rel_err": 0.5161
+        },
+        {
+          "node": "hardswish__3",
+          "target": "aten.hardswish_.default",
+          "rel_err": 1.1936
+        },
+        {
+          "node": "hardswish__4",
+          "target": "aten.hardswish_.default",
+          "rel_err": 1.2415
+        },
+        {
+          "node": "adaptive_avg_pool2d_2",
+          "target": "aten.adaptive_avg_pool2d.default",
+          "rel_err": 0.91
+        },
+        {
+          "node": "conv2d_18",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.8331
+        },
+        {
+          "node": "relu_2",
+          "target": "aten.relu.default",
+          "rel_err": 0.7157
+        },
+        {
+          "node": "conv2d_19",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.3604
+        },
+        {
+          "node": "hardsigmoid_2",
+          "target": "aten.hardsigmoid.default",
+          "rel_err": 0.3153
+        },
+        {
+          "node": "mul_2",
+          "target": "aten.mul.Tensor",
+          "rel_err": 1.0923
+        },
+        {
+          "node": "add__1",
+          "target": "aten.add_.Tensor",
+          "rel_err": 1.5056
+        },
+        {
+          "node": "hardswish__5",
+          "target": "aten.hardswish_.default",
+          "rel_err": 1.2401
+        },
+        {
+          "node": "hardswish__6",
+          "target": "aten.hardswish_.default",
+          "rel_err": 1.8758
+        },
+        {
+          "node": "adaptive_avg_pool2d_3",
+          "target": "aten.adaptive_avg_pool2d.default",
+          "rel_err": 2.1304
+        },
+        {
+          "node": "conv2d_23",
+          "target": "aten.conv2d.default",
+          "rel_err": 1.8641
+        },
+        {
+          "node": "relu_3",
+          "target": "aten.relu.default",
+          "rel_err": 1.127
+        },
+        {
+          "node": "conv2d_24",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.4376
+        },
+        {
+          "node": "hardsigmoid_3",
+          "target": "aten.hardsigmoid.default",
+          "rel_err": 0.3569
+        },
+        {
+          "node": "mul_3",
+          "target": "aten.mul.Tensor",
+          "rel_err": 1.4615
+        },
+        {
+          "node": "add__2",
+          "target": "aten.add_.Tensor",
+          "rel_err": 1.7953
+        },
+        {
+          "node": "hardswish__7",
+          "target": "aten.hardswish_.default",
+          "rel_err": 1.0559
+        },
+        {
+          "node": "hardswish__8",
+          "target": "aten.hardswish_.default",
+          "rel_err": 1.0322
+        },
+        {
+          "node": "adaptive_avg_pool2d_4",
+          "target": "aten.adaptive_avg_pool2d.default",
+          "rel_err": 0.5965
+        },
+        {
+          "node": "conv2d_28",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.502
+        },
+        {
+          "node": "relu_4",
+          "target": "aten.relu.default",
+          "rel_err": 0.278
+        },
+        {
+          "node": "conv2d_29",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.1803
+        },
+        {
+          "node": "hardsigmoid_4",
+          "target": "aten.hardsigmoid.default",
+          "rel_err": 0.0789
+        },
+        {
+          "node": "mul_4",
+          "target": "aten.mul.Tensor",
+          "rel_err": 0.8326
+        },
+        {
+          "node": "hardswish__9",
+          "target": "aten.hardswish_.default",
+          "rel_err": 1.0054
+        },
+        {
+          "node": "hardswish__10",
+          "target": "aten.hardswish_.default",
+          "rel_err": 1.1256
+        },
+        {
+          "node": "adaptive_avg_pool2d_5",
+          "target": "aten.adaptive_avg_pool2d.default",
+          "rel_err": 0.8304
+        },
+        {
+          "node": "conv2d_33",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.7099
+        },
+        {
+          "node": "relu_5",
+          "target": "aten.relu.default",
+          "rel_err": 0.6034
+        },
+        {
+          "node": "conv2d_34",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.1965
+        },
+        {
+          "node": "hardsigmoid_5",
+          "target": "aten.hardsigmoid.default",
+          "rel_err": 0.1825
+        },
+        {
+          "node": "mul_5",
+          "target": "aten.mul.Tensor",
+          "rel_err": 0.9469
+        },
+        {
+          "node": "add__3",
+          "target": "aten.add_.Tensor",
+          "rel_err": 1.2688
+        },
+        {
+          "node": "hardswish__11",
+          "target": "aten.hardswish_.default",
+          "rel_err": 0.9949
+        },
+        {
+          "node": "hardswish__12",
+          "target": "aten.hardswish_.default",
+          "rel_err": 0.9936
+        },
+        {
+          "node": "adaptive_avg_pool2d_6",
+          "target": "aten.adaptive_avg_pool2d.default",
+          "rel_err": 0.7382
+        },
+        {
+          "node": "conv2d_38",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.9278
+        },
+        {
+          "node": "relu_6",
+          "target": "aten.relu.default",
+          "rel_err": 0.7734
+        },
+        {
+          "node": "conv2d_39",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.405
+        },
+        {
+          "node": "hardsigmoid_6",
+          "target": "aten.hardsigmoid.default",
+          "rel_err": 0.2268
+        },
+        {
+          "node": "mul_6",
+          "target": "aten.mul.Tensor",
+          "rel_err": 0.7584
+        },
+        {
+          "node": "hardswish__13",
+          "target": "aten.hardswish_.default",
+          "rel_err": 1.0116
+        },
+        {
+          "node": "hardswish__14",
+          "target": "aten.hardswish_.default",
+          "rel_err": 1.1338
+        },
+        {
+          "node": "adaptive_avg_pool2d_7",
+          "target": "aten.adaptive_avg_pool2d.default",
+          "rel_err": 1.068
+        },
+        {
+          "node": "conv2d_43",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.9322
+        },
+        {
+          "node": "relu_7",
+          "target": "aten.relu.default",
+          "rel_err": 0.721
+        },
+        {
+          "node": "conv2d_44",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.2064
+        },
+        {
+          "node": "hardsigmoid_7",
+          "target": "aten.hardsigmoid.default",
+          "rel_err": 0.343
+        },
+        {
+          "node": "mul_7",
+          "target": "aten.mul.Tensor",
+          "rel_err": 1.0377
+        },
+        {
+          "node": "add__4",
+          "target": "aten.add_.Tensor",
+          "rel_err": 1.2866
+        },
+        {
+          "node": "hardswish__15",
+          "target": "aten.hardswish_.default",
+          "rel_err": 0.9654
+        },
+        {
+          "node": "hardswish__16",
+          "target": "aten.hardswish_.default",
+          "rel_err": 1.1645
+        },
+        {
+          "node": "adaptive_avg_pool2d_8",
+          "target": "aten.adaptive_avg_pool2d.default",
+          "rel_err": 1.1106
+        },
+        {
+          "node": "conv2d_48",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.8904
+        },
+        {
+          "node": "relu_8",
+          "target": "aten.relu.default",
+          "rel_err": 0.7113
+        },
+        {
+          "node": "conv2d_49",
+          "target": "aten.conv2d.default",
+          "rel_err": 0.2187
+        },
+        {
+          "node": "hardsigmoid_8",
+          "target": "aten.hardsigmoid.default",
+          "rel_err": 0.4654
+        },
+        {
+          "node": "mul_8",
+          "target": "aten.mul.Tensor",
+          "rel_err": 1.139
+        },
+        {
+          "node": "add__5",
+          "target": "aten.add_.Tensor",
+          "rel_err": 1.2722
+        },
+        {
+          "node": "hardswish__17",
+          "target": "aten.hardswish_.default",
+          "rel_err": 1.2322
+        },
+        {
+          "node": "adaptive_avg_pool2d_9",
+          "target": "aten.adaptive_avg_pool2d.default",
+          "rel_err": 1.1042
+        },
+        {
+          "node": "flatten",
+          "target": "aten.flatten.using_ints",
+          "rel_err": 1.1042
+        },
+        {
+          "node": "linear",
+          "target": "aten.linear.default",
+          "rel_err": 4.8054
+        }
+      ]
+    }
+  }
+}

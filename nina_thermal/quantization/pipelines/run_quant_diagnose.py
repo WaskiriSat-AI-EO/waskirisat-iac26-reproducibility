@@ -85,6 +85,8 @@ def parse_args(argv=None) -> argparse.Namespace:
     parser.add_argument("--calibration_batches", type=int, default=256)
     parser.add_argument("--no_tflite", action="store_true", help="Skip TFLite export.")
     parser.add_argument("--trace", action="store_true", help="Print the per-node trace.")
+    parser.add_argument("--trace_images", type=int, default=8,
+                        help="Validation images averaged in the per-node trace.")
     parser.add_argument("--out", default=None, help="Optional JSON output path.")
     parser.add_argument("--log_dir", default="data/logs")
     parser.add_argument("--seed", type=int, default=42)
@@ -135,17 +137,34 @@ def main(argv=None) -> int:
                             row.get("sqnr_db", "-"), row.get("corr_vs_prepared", "-"))
 
     if args.trace:
-        image = next(iter(val_loader))[0].to(device)
+        # Reference = the PTQ-prepared graph: observers only, so fp32 numerics
+        # (corr 0.9999 with fp32) and the same node names as the converted
+        # graphs.  convert_pt2e rewrites its input in place, so every
+        # conversion works on a deep copy; converting `prepared` itself and
+        # comparing it with itself reports zero error (and crashes for QAT).
+        import copy
+
+        images = [img.to(device) for img, _ in list(val_loader)[: args.trace_images]]
+        fp32_ref, _ = qat_lib.prepare_for_ptq(
+            model, qat_lib.sample_input(device), quantizer=qat_lib.build_quantizer(qat=False)
+        )
+        traces = {}
         for mode in modes:
             prepare = qat_lib.prepare_for_qat if mode == "qat" else qat_lib.prepare_for_ptq
             prepared, _ = prepare(model, qat_lib.sample_input(device),
                                   quantizer=qat_lib.build_quantizer(qat=mode == "qat"))
             diag.calibrate(prepared, cal_loader, device, args.calibration_batches)
-            rows = diag.compare_graphs(prepared, qat_lib.convert(prepared), image)
+            converted = qat_lib.convert(qat_lib.freeze_observers(copy.deepcopy(prepared)))
+            rows = diag.mean_rows(
+                [diag.compare_graphs(fp32_ref, converted, image) for image in images]
+            )
             jump = diag.first_jump(rows)
-            logger.info("── trace %s: first jump %s", mode, jump)
-            for row in rows[:60]:
+            traces[mode] = {"first_jump": jump, "rows": rows}
+            logger.info("── trace %s (int8 vs fp32, mean of %d images): first jump %s",
+                        mode, len(images), jump)
+            for row in rows:
                 logger.info("   %-28s %-40s %.4f", row["node"], row["target"][:40], row["rel_err"])
+        results["trace"] = traces
 
     if args.out:
         Path(args.out).write_text(json.dumps(results, indent=2), encoding="utf-8")
